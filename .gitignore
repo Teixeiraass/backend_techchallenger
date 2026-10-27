@@ -1,0 +1,15 @@
+# Configuração local (use app.env.example como modelo)
+app.env
+*.env
+.env
+
+# Build e cobertura
+/main
+/bin/
+coverage.out
+coverage*.out
+coverage.html
+
+# Relatórios gerados localmente (o relatório oficial fica em docs/security)
+*.log
+.DS_Store
