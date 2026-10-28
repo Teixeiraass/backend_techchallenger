@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "veiculos";
+DROP TABLE IF EXISTS "clientes";
