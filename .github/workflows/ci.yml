@@ -91,7 +91,7 @@ jobs:
       run: docker build -t oficina-api:ci .
 
     - name: Trivy (image)
-      uses: aquasecurity/trivy-action@v0.28.0
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         image-ref: oficina-api:ci
         scanners: vuln
