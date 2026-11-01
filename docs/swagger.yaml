@@ -1,0 +1,2497 @@
+basePath: /api/v1
+definitions:
+  dto.AbrirOrdemServicoRequest:
+    properties:
+      descricao_problema:
+        example: Barulho ao frear
+        type: string
+      documento:
+        description: CPF ou CNPJ do cliente já cadastrado (com ou sem pontuação).
+        example: "52998224725"
+        type: string
+      pecas:
+        items:
+          $ref: '#/definitions/dto.ItemPecaRequest'
+        type: array
+      placa:
+        description: Placa de um veículo do cliente.
+        example: ABC1D23
+        type: string
+      servicos:
+        items:
+          $ref: '#/definitions/dto.ItemServicoRequest'
+        type: array
+    required:
+    - documento
+    - placa
+    type: object
+  dto.AjustarEstoqueRequest:
+    properties:
+      observacao:
+        example: Inventário mensal
+        type: string
+      quantidade:
+        description: Novo saldo contado no inventário.
+        example: 7
+        minimum: 0
+        type: integer
+    required:
+    - observacao
+    - quantidade
+    type: object
+  dto.AtualizarClienteRequest:
+    properties:
+      email:
+        maxLength: 150
+        type: string
+      nome:
+        maxLength: 150
+        type: string
+      telefone:
+        maxLength: 20
+        type: string
+    required:
+    - nome
+    type: object
+  dto.AtualizarPecaRequest:
+    properties:
+      ativo:
+        type: boolean
+      codigo:
+        maxLength: 40
+        type: string
+      descricao:
+        type: string
+      estoque_minimo:
+        minimum: 0
+        type: integer
+      nome:
+        maxLength: 120
+        type: string
+      preco_centavos:
+        minimum: 0
+        type: integer
+      tipo:
+        enum:
+        - PECA
+        - INSUMO
+        type: string
+      unidade:
+        maxLength: 10
+        type: string
+    required:
+    - ativo
+    - codigo
+    - nome
+    - tipo
+    type: object
+  dto.AtualizarServicoRequest:
+    properties:
+      ativo:
+        type: boolean
+      descricao:
+        type: string
+      nome:
+        maxLength: 120
+        type: string
+      preco_centavos:
+        minimum: 0
+        type: integer
+      tempo_estimado_minutos:
+        minimum: 0
+        type: integer
+    required:
+    - ativo
+    - nome
+    type: object
+  dto.AtualizarUsuarioAtivoRequest:
+    properties:
+      ativo:
+        type: boolean
+    required:
+    - ativo
+    type: object
+  dto.AtualizarVeiculoRequest:
+    properties:
+      ano:
+        type: integer
+      marca:
+        maxLength: 60
+        type: string
+      modelo:
+        maxLength: 80
+        type: string
+      placa:
+        example: ABC1D23
+        maxLength: 8
+        type: string
+    required:
+    - ano
+    - marca
+    - modelo
+    - placa
+    type: object
+  dto.ClienteResponse:
+    properties:
+      created_at:
+        type: string
+      documento:
+        type: string
+      documento_formatado:
+        type: string
+      email:
+        type: string
+      nome:
+        type: string
+      telefone:
+        type: string
+      tipo_documento:
+        type: string
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.ClienteResumo:
+    properties:
+      documento:
+        type: string
+      nome:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.CriarClienteRequest:
+    properties:
+      documento:
+        example: 529.982.247-25
+        maxLength: 18
+        type: string
+      email:
+        example: maria@email.com
+        maxLength: 150
+        type: string
+      nome:
+        example: Maria Silva
+        maxLength: 150
+        type: string
+      telefone:
+        example: "11999990000"
+        maxLength: 20
+        type: string
+    required:
+    - documento
+    - nome
+    type: object
+  dto.CriarPecaRequest:
+    properties:
+      codigo:
+        example: FLT-OLEO-02
+        maxLength: 40
+        type: string
+      descricao:
+        type: string
+      estoque_minimo:
+        example: 2
+        minimum: 0
+        type: integer
+      nome:
+        example: Filtro de ar
+        maxLength: 120
+        type: string
+      preco_centavos:
+        example: 4500
+        minimum: 0
+        type: integer
+      quantidade_estoque:
+        example: 10
+        minimum: 0
+        type: integer
+      tipo:
+        enum:
+        - PECA
+        - INSUMO
+        example: PECA
+        type: string
+      unidade:
+        example: UN
+        maxLength: 10
+        type: string
+    required:
+    - codigo
+    - nome
+    - tipo
+    type: object
+  dto.CriarServicoRequest:
+    properties:
+      descricao:
+        example: Troca do óleo do motor
+        type: string
+      nome:
+        example: Troca de óleo
+        maxLength: 120
+        type: string
+      preco_centavos:
+        example: 8000
+        minimum: 0
+        type: integer
+      tempo_estimado_minutos:
+        example: 30
+        minimum: 0
+        type: integer
+    required:
+    - nome
+    type: object
+  dto.CriarUsuarioRequest:
+    properties:
+      email:
+        maxLength: 150
+        type: string
+      nome:
+        maxLength: 150
+        type: string
+      papel:
+        enum:
+        - ADMINISTRADOR
+        - ATENDENTE
+        - MECANICO
+        type: string
+      senha:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - nome
+    - papel
+    - senha
+    type: object
+  dto.CriarVeiculoRequest:
+    properties:
+      ano:
+        example: 2019
+        type: integer
+      cliente_uuid:
+        format: uuid
+        type: string
+      marca:
+        example: Volkswagen
+        maxLength: 60
+        type: string
+      modelo:
+        example: Gol
+        maxLength: 80
+        type: string
+      placa:
+        example: ABC1D23
+        maxLength: 8
+        type: string
+    required:
+    - ano
+    - cliente_uuid
+    - marca
+    - modelo
+    - placa
+    type: object
+  dto.DecisaoClienteRequest:
+    properties:
+      documento:
+        example: "52998224725"
+        type: string
+    required:
+    - documento
+    type: object
+  dto.EnviarOrcamentoRequest:
+    properties:
+      diagnostico:
+        example: Pastilhas gastas, fluido contaminado
+        type: string
+    type: object
+  dto.HistoricoStatusResponse:
+    properties:
+      created_at:
+        type: string
+      observacao:
+        type: string
+      status_anterior:
+        type: string
+      status_novo:
+        type: string
+    type: object
+  dto.ItemPecaRequest:
+    properties:
+      peca_uuid:
+        format: uuid
+        type: string
+      quantidade:
+        example: 1
+        minimum: 1
+        type: integer
+    required:
+    - peca_uuid
+    - quantidade
+    type: object
+  dto.ItemPecaResponse:
+    properties:
+      peca_codigo:
+        type: string
+      peca_nome:
+        type: string
+      peca_tipo:
+        type: string
+      peca_uuid:
+        type: string
+      quantidade:
+        type: integer
+      reparo_adicional_uuid:
+        type: string
+      subtotal_centavos:
+        type: integer
+      uuid:
+        type: string
+      valor_unitario_centavos:
+        type: integer
+    type: object
+  dto.ItemServicoRequest:
+    properties:
+      quantidade:
+        example: 1
+        minimum: 1
+        type: integer
+      servico_uuid:
+        format: uuid
+        type: string
+    required:
+    - servico_uuid
+    type: object
+  dto.ItemServicoResponse:
+    properties:
+      quantidade:
+        type: integer
+      reparo_adicional_uuid:
+        type: string
+      servico_nome:
+        type: string
+      servico_uuid:
+        type: string
+      subtotal_centavos:
+        type: integer
+      uuid:
+        type: string
+      valor_unitario_centavos:
+        type: integer
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      senha:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - senha
+    type: object
+  dto.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      access_token_expires_at:
+        type: string
+      refresh_token:
+        type: string
+      refresh_token_expires_at:
+        type: string
+      session_id:
+        type: string
+      usuario:
+        $ref: '#/definitions/dto.UsuarioResponse'
+    type: object
+  dto.LogoutRequest:
+    properties:
+      session_id:
+        type: string
+    required:
+    - session_id
+    type: object
+  dto.MovimentoEstoqueResponse:
+    properties:
+      created_at:
+        type: string
+      observacao:
+        type: string
+      quantidade:
+        type: integer
+      saldo_anterior:
+        type: integer
+      saldo_posterior:
+        type: integer
+      tipo:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.OrcamentoResponse:
+    properties:
+      decidido_em:
+        type: string
+      enviado_em:
+        type: string
+      status:
+        type: string
+      total_centavos:
+        type: integer
+      total_pecas_centavos:
+        type: integer
+      total_servicos_centavos:
+        type: integer
+    type: object
+  dto.OrdemServicoResponse:
+    properties:
+      aviso:
+        description: |-
+          Aviso is filled when the customer approved the budget but the system
+          could not start the execution yet (e.g. missing stock).
+        type: string
+      cliente:
+        $ref: '#/definitions/dto.ClienteResumo'
+      created_at:
+        type: string
+      descricao_problema:
+        type: string
+      diagnostico:
+        type: string
+      diagnostico_iniciado_em:
+        type: string
+      entregue_em:
+        type: string
+      execucao_iniciada_em:
+        type: string
+      finalizada_em:
+        type: string
+      historico:
+        items:
+          $ref: '#/definitions/dto.HistoricoStatusResponse'
+        type: array
+      orcamento:
+        $ref: '#/definitions/dto.OrcamentoResponse'
+      pecas:
+        items:
+          $ref: '#/definitions/dto.ItemPecaResponse'
+        type: array
+      reparos_adicionais:
+        items:
+          $ref: '#/definitions/dto.ReparoAdicionalResponse'
+        type: array
+      servicos:
+        items:
+          $ref: '#/definitions/dto.ItemServicoResponse'
+        type: array
+      status:
+        type: string
+      status_descricao:
+        type: string
+      tempo_execucao_segundos:
+        type: integer
+      updated_at:
+        type: string
+      uuid:
+        type: string
+      veiculo:
+        $ref: '#/definitions/dto.VeiculoResumo'
+    type: object
+  dto.OrdemServicoResumoResponse:
+    properties:
+      cliente_documento:
+        type: string
+      cliente_nome:
+        type: string
+      cliente_uuid:
+        type: string
+      created_at:
+        type: string
+      orcamento_status:
+        type: string
+      status:
+        type: string
+      status_descricao:
+        type: string
+      updated_at:
+        type: string
+      uuid:
+        type: string
+      valor_total_centavos:
+        type: integer
+      veiculo_placa:
+        type: string
+      veiculo_uuid:
+        type: string
+    type: object
+  dto.PecaResponse:
+    properties:
+      ativo:
+        type: boolean
+      codigo:
+        type: string
+      created_at:
+        type: string
+      descricao:
+        type: string
+      estoque_baixo:
+        type: boolean
+      estoque_minimo:
+        type: integer
+      nome:
+        type: string
+      preco_centavos:
+        type: integer
+      quantidade_estoque:
+        type: integer
+      tipo:
+        type: string
+      unidade:
+        type: string
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.RegistrarReparoAdicionalRequest:
+    properties:
+      descricao:
+        example: Disco de freio empenado
+        type: string
+      pecas:
+        items:
+          $ref: '#/definitions/dto.ItemPecaRequest'
+        type: array
+      servicos:
+        items:
+          $ref: '#/definitions/dto.ItemServicoRequest'
+        type: array
+    required:
+    - descricao
+    type: object
+  dto.RenewAccessTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  dto.RenewAccessTokenResponse:
+    properties:
+      access_token:
+        type: string
+      access_token_expires_at:
+        type: string
+    type: object
+  dto.ReparoAdicionalResponse:
+    properties:
+      created_at:
+        type: string
+      decidido_em:
+        type: string
+      descricao:
+        type: string
+      status:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.ReporEstoqueRequest:
+    properties:
+      observacao:
+        example: Nota fiscal 123
+        type: string
+      quantidade:
+        example: 10
+        minimum: 1
+        type: integer
+    required:
+    - quantidade
+    type: object
+  dto.ServicoResponse:
+    properties:
+      ativo:
+        type: boolean
+      created_at:
+        type: string
+      descricao:
+        type: string
+      nome:
+        type: string
+      preco_centavos:
+        type: integer
+      tempo_estimado_minutos:
+        type: integer
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.TempoMedioExecucaoResponse:
+    properties:
+      maximo_segundos:
+        type: integer
+      media_formatada:
+        type: string
+      media_segundos:
+        type: integer
+      minimo_segundos:
+        type: integer
+      por_servico:
+        items:
+          $ref: '#/definitions/dto.TempoMedioServicoResponse'
+        type: array
+      total_ordens:
+        type: integer
+    type: object
+  dto.TempoMedioServicoResponse:
+    properties:
+      media_formatada:
+        type: string
+      media_segundos:
+        type: integer
+      servico_nome:
+        type: string
+      servico_uuid:
+        type: string
+      tempo_estimado_minutos:
+        type: integer
+      total_ordens:
+        type: integer
+    type: object
+  dto.UsuarioResponse:
+    properties:
+      ativo:
+        type: boolean
+      created_at:
+        type: string
+      email:
+        type: string
+      nome:
+        type: string
+      papel:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.VeiculoResponse:
+    properties:
+      ano:
+        type: integer
+      cliente_uuid:
+        type: string
+      created_at:
+        type: string
+      marca:
+        type: string
+      modelo:
+        type: string
+      placa:
+        type: string
+      updated_at:
+        type: string
+      uuid:
+        type: string
+    type: object
+  dto.VeiculoResumo:
+    properties:
+      ano:
+        type: integer
+      marca:
+        type: string
+      modelo:
+        type: string
+      placa:
+        type: string
+      uuid:
+        type: string
+    type: object
+  handler.ErrorResponse:
+    properties:
+      code:
+        type: string
+      error:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Guilherme Teixeira
+  description: |-
+    MVP do back-end do Sistema Integrado de Atendimento e Execução de Serviços de uma oficina mecânica (Tech Challenge SOAT - Fase 1).
+    Gestão de clientes, veículos, catálogo de serviços, peças e insumos com controle de estoque, e o ciclo de vida completo da Ordem de Serviço (orçamento, aprovação, execução, reparo adicional e entrega).
+    Rotas administrativas exigem token Bearer (POST /usuarios/login). As rotas de acompanhamento do cliente são públicas e usam o CPF/CNPJ do dono da OS.
+  license:
+    name: MIT
+  title: Oficina Mecânica API
+  version: "1.0"
+paths:
+  /clientes:
+    get:
+      parameters:
+      - description: Filtro por nome ou documento
+        in: query
+        name: busca
+        type: string
+      - description: Página (padrão 1)
+        in: query
+        name: pagina
+        type: integer
+      - description: Itens por página (padrão 20, máx 100)
+        in: query
+        name: tamanho
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ClienteResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar clientes
+      tags:
+      - clientes
+    post:
+      consumes:
+      - application/json
+      description: Cadastra um cliente identificado por CPF ou CNPJ (validado pelos
+        dígitos verificadores e único).
+      parameters:
+      - description: Cliente
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CriarClienteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ClienteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cadastrar cliente
+      tags:
+      - clientes
+  /clientes/{uuid}:
+    delete:
+      description: Só remove clientes sem veículos e sem ordens de serviço.
+      parameters:
+      - description: UUID do cliente
+        in: path
+        name: uuid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remover cliente
+      tags:
+      - clientes
+    get:
+      parameters:
+      - description: UUID do cliente
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ClienteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Detalhar cliente
+      tags:
+      - clientes
+    put:
+      consumes:
+      - application/json
+      description: Atualiza nome e contato. O CPF/CNPJ identifica o cliente e não
+        muda.
+      parameters:
+      - description: UUID do cliente
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Dados
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AtualizarClienteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ClienteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Atualizar cliente
+      tags:
+      - clientes
+  /clientes/documento/{documento}:
+    get:
+      parameters:
+      - description: CPF ou CNPJ (somente números)
+        in: path
+        name: documento
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ClienteResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Identificar cliente por CPF/CNPJ
+      tags:
+      - clientes
+  /helper:
+    get:
+      description: Endpoint simples para confirmar que a API está respondendo.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Sucesso
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verificar disponibilidade da API
+      tags:
+      - helper
+  /ordens-servico:
+    get:
+      parameters:
+      - description: RECEBIDA, EM_DIAGNOSTICO, AGUARDANDO_APROVACAO, EM_EXECUCAO,
+          FINALIZADA ou ENTREGUE
+        in: query
+        name: status
+        type: string
+      - description: Filtrar por cliente
+        in: query
+        name: cliente_uuid
+        type: string
+      - description: Página (padrão 1)
+        in: query
+        name: pagina
+        type: integer
+      - description: Itens por página (padrão 20, máx 100)
+        in: query
+        name: tamanho
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.OrdemServicoResumoResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar ordens de serviço
+      tags:
+      - ordens-servico
+    post:
+      consumes:
+      - application/json
+      description: Identifica o cliente pelo CPF/CNPJ e o veículo pela placa (que
+        precisa pertencer ao cliente). Serviços e peças são opcionais na abertura;
+        o orçamento é calculado automaticamente. A OS nasce com status RECEBIDA.
+      parameters:
+      - description: Dados da OS
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AbrirOrdemServicoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Abrir ordem de serviço
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}:
+    get:
+      description: Itens, orçamento, reparos adicionais, histórico de status e tempos.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Detalhar ordem de serviço
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/andamento:
+    get:
+      description: Rota pública. O cliente informa o CPF/CNPJ do dono da OS para acompanhar
+        status, orçamento, reparos adicionais e histórico.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: CPF ou CNPJ do cliente
+        in: query
+        name: documento
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Consultar andamento da OS (cliente)
+      tags:
+      - acompanhamento
+  /ordens-servico/{uuid}/diagnostico:
+    post:
+      description: Recebida -> Em diagnóstico. Mecânico ou administrador.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Iniciar diagnóstico
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/entregar:
+    post:
+      description: Finalizada -> Entregue. Também devolve o veículo sem execução quando
+        o orçamento foi rejeitado.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Entregar veículo
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/execucao:
+    post:
+      description: Aguardando aprovação -> Em execução, com orçamento aprovado. Baixa
+        o estoque na mesma transação. Normalmente é disparado automaticamente pela
+        aprovação; esta rota serve para tentar de novo depois de repor peças em falta.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Iniciar execução
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/finalizar:
+    post:
+      description: Em execução -> Finalizada. Registra o tempo de execução e notifica
+        o cliente. Bloqueado se houver reparo adicional pendente.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Finalizar OS
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/orcamento/aprovar:
+    post:
+      consumes:
+      - application/json
+      description: Rota pública. Registra a aprovação e o sistema inicia a execução
+        automaticamente, baixando o estoque. Se faltar peça, a aprovação fica registrada
+        e o campo "aviso" explica que a execução aguarda reposição.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Documento do cliente
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DecisaoClienteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Aprovar orçamento (cliente)
+      tags:
+      - acompanhamento
+  /ordens-servico/{uuid}/orcamento/enviar:
+    post:
+      consumes:
+      - application/json
+      description: Em diagnóstico -> Aguardando aprovação (automático). Recalcula
+        o orçamento, notifica o cliente e disponibiliza a aprovação pelo link de acompanhamento.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Diagnóstico
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/dto.EnviarOrcamentoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Enviar orçamento ao cliente
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/orcamento/rejeitar:
+    post:
+      consumes:
+      - application/json
+      description: 'Rota pública. A OS volta para Em diagnóstico: a oficina pode montar
+        um novo orçamento ou devolver o veículo.'
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Documento do cliente
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DecisaoClienteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Rejeitar orçamento (cliente)
+      tags:
+      - acompanhamento
+  /ordens-servico/{uuid}/pecas:
+    post:
+      consumes:
+      - application/json
+      description: Só entra se houver estoque (considerando o que a OS já pediu da
+        mesma peça). Permitido com a OS Recebida ou Em diagnóstico. O orçamento é
+        recalculado.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Peça
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ItemPecaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Incluir peça ou insumo na OS
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/pecas/{item_uuid}:
+    delete:
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: UUID do item de peça
+        in: path
+        name: item_uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remover peça da OS
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/reparos-adicionais:
+    post:
+      consumes:
+      - application/json
+      description: Com a OS Em execução, o mecânico registra um problema novo com
+        serviços e peças. Os itens só entram no orçamento depois da autorização do
+        cliente.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Reparo
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegistrarReparoAdicionalRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Registrar reparo adicional
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/reparos-adicionais/{reparo_uuid}/autorizar:
+    post:
+      consumes:
+      - application/json
+      description: Rota pública. Os itens do reparo entram no orçamento e as peças
+        são baixadas do estoque.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: UUID do reparo adicional
+        in: path
+        name: reparo_uuid
+        required: true
+        type: string
+      - description: Documento do cliente
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DecisaoClienteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Autorizar reparo adicional (cliente)
+      tags:
+      - acompanhamento
+  /ordens-servico/{uuid}/reparos-adicionais/{reparo_uuid}/recusar:
+    post:
+      consumes:
+      - application/json
+      description: Rota pública. O reparo não entra na OS.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: UUID do reparo adicional
+        in: path
+        name: reparo_uuid
+        required: true
+        type: string
+      - description: Documento do cliente
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.DecisaoClienteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Recusar reparo adicional (cliente)
+      tags:
+      - acompanhamento
+  /ordens-servico/{uuid}/servicos:
+    post:
+      consumes:
+      - application/json
+      description: Só serviço ativo do catálogo. Permitido com a OS Recebida ou Em
+        diagnóstico. O orçamento é recalculado.
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Serviço
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ItemServicoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Incluir serviço na OS
+      tags:
+      - ordens-servico
+  /ordens-servico/{uuid}/servicos/{item_uuid}:
+    delete:
+      parameters:
+      - description: UUID da OS
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: UUID do item de serviço
+        in: path
+        name: item_uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.OrdemServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remover serviço da OS
+      tags:
+      - ordens-servico
+  /ordens-servico/tempo-medio:
+    get:
+      description: Média entre o início da execução e a finalização das OS finalizadas,
+        no geral e por serviço. Filtro opcional pela data de finalização.
+      parameters:
+      - description: AAAA-MM-DD
+        in: query
+        name: data_inicio
+        type: string
+      - description: AAAA-MM-DD (inclusiva)
+        in: query
+        name: data_fim
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.TempoMedioExecucaoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Tempo médio de execução
+      tags:
+      - ordens-servico
+  /pecas:
+    get:
+      parameters:
+      - description: Filtro por nome ou código
+        in: query
+        name: busca
+        type: string
+      - description: PECA ou INSUMO
+        in: query
+        name: tipo
+        type: string
+      - description: Somente ativas
+        in: query
+        name: apenas_ativas
+        type: boolean
+      - description: Página (padrão 1)
+        in: query
+        name: pagina
+        type: integer
+      - description: Itens por página (padrão 20, máx 100)
+        in: query
+        name: tamanho
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.PecaResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar peças e insumos
+      tags:
+      - pecas
+    post:
+      consumes:
+      - application/json
+      description: Somente administrador. O saldo inicial gera um movimento de ENTRADA.
+      parameters:
+      - description: Peça ou insumo
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CriarPecaRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.PecaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cadastrar peça ou insumo
+      tags:
+      - pecas
+  /pecas/{uuid}:
+    delete:
+      description: Somente administrador. Peça inativa não entra em OS nova.
+      parameters:
+      - description: UUID da peça
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PecaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Inativar peça ou insumo
+      tags:
+      - pecas
+    get:
+      parameters:
+      - description: UUID da peça
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PecaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Detalhar peça ou insumo
+      tags:
+      - pecas
+    put:
+      consumes:
+      - application/json
+      description: Somente administrador. O saldo só muda por reposição, ajuste ou
+        baixa.
+      parameters:
+      - description: UUID da peça
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Dados
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AtualizarPecaRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PecaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Atualizar peça ou insumo
+      tags:
+      - pecas
+  /pecas/{uuid}/ajuste:
+    post:
+      consumes:
+      - application/json
+      description: Somente administrador. Define o saldo contado no inventário; a
+        diferença vira um movimento de AJUSTE.
+      parameters:
+      - description: UUID da peça
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Ajuste
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AjustarEstoqueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PecaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Ajustar estoque (inventário)
+      tags:
+      - pecas
+  /pecas/{uuid}/movimentos:
+    get:
+      description: Histórico de entradas, saídas (baixas por OS) e ajustes.
+      parameters:
+      - description: UUID da peça
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Página (padrão 1)
+        in: query
+        name: pagina
+        type: integer
+      - description: Itens por página (padrão 20, máx 100)
+        in: query
+        name: tamanho
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.MovimentoEstoqueResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Movimentos de estoque da peça
+      tags:
+      - pecas
+  /pecas/{uuid}/reposicao:
+    post:
+      consumes:
+      - application/json
+      description: Somente administrador. Entrada de unidades (quantidade maior que
+        zero).
+      parameters:
+      - description: UUID da peça
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Reposição
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ReporEstoqueRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.PecaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Repor estoque
+      tags:
+      - pecas
+  /pecas/estoque-baixo:
+    get:
+      description: Peças e insumos ativos com saldo menor ou igual ao estoque mínimo
+        (precisam de reposição).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.PecaResponse'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Peças no estoque mínimo
+      tags:
+      - pecas
+  /servicos:
+    get:
+      parameters:
+      - description: Filtro por nome
+        in: query
+        name: busca
+        type: string
+      - description: Somente serviços ativos
+        in: query
+        name: apenas_ativos
+        type: boolean
+      - description: Página (padrão 1)
+        in: query
+        name: pagina
+        type: integer
+      - description: Itens por página (padrão 20, máx 100)
+        in: query
+        name: tamanho
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.ServicoResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar serviços do catálogo
+      tags:
+      - servicos
+    post:
+      consumes:
+      - application/json
+      description: Somente administrador. Preço em centavos.
+      parameters:
+      - description: Serviço
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CriarServicoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.ServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cadastrar serviço no catálogo
+      tags:
+      - servicos
+  /servicos/{uuid}:
+    delete:
+      description: Somente administrador. O serviço sai do catálogo (não entra em
+        OS nova), mas o histórico das OS é mantido.
+      parameters:
+      - description: UUID do serviço
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Inativar serviço
+      tags:
+      - servicos
+    get:
+      parameters:
+      - description: UUID do serviço
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Detalhar serviço
+      tags:
+      - servicos
+    put:
+      consumes:
+      - application/json
+      description: Somente administrador. O novo preço vale para itens incluídos depois;
+        OS já orçadas mantêm o valor da época.
+      parameters:
+      - description: UUID do serviço
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Dados
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AtualizarServicoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.ServicoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Atualizar serviço
+      tags:
+      - servicos
+  /tokens/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Gera um novo access token a partir de um refresh token válido.
+      parameters:
+      - description: Refresh token
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RenewAccessTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.RenewAccessTokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Renovar token de acesso
+      tags:
+      - auth
+  /usuarios:
+    get:
+      description: Somente administrador.
+      parameters:
+      - description: Página (padrão 1)
+        in: query
+        name: pagina
+        type: integer
+      - description: Itens por página (padrão 20, máx 100)
+        in: query
+        name: tamanho
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.UsuarioResponse'
+            type: array
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar usuários da oficina
+      tags:
+      - usuarios
+    post:
+      consumes:
+      - application/json
+      description: 'Somente administrador. Papéis: ADMINISTRADOR, ATENDENTE ou MECANICO.'
+      parameters:
+      - description: Usuário
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CriarUsuarioRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.UsuarioResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Criar usuário da oficina
+      tags:
+      - usuarios
+  /usuarios/{uuid}/ativo:
+    patch:
+      consumes:
+      - application/json
+      description: Somente administrador. Usuário inativo não consegue mais acessar
+        a API.
+      parameters:
+      - description: UUID do usuário
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Situação
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AtualizarUsuarioAtivoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UsuarioResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Ativar ou desativar usuário
+      tags:
+      - usuarios
+  /usuarios/login:
+    post:
+      consumes:
+      - application/json
+      description: Autentica um usuário da oficina (administrador, atendente ou mecânico)
+        e retorna o access token e o refresh token.
+      parameters:
+      - description: Credenciais
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Login
+      tags:
+      - auth
+  /usuarios/logout:
+    post:
+      consumes:
+      - application/json
+      description: Bloqueia a sessão (refresh token) do usuário autenticado.
+      parameters:
+      - description: Sessão
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LogoutRequest'
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /usuarios/me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.UsuarioResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Usuário autenticado
+      tags:
+      - usuarios
+  /veiculos:
+    get:
+      parameters:
+      - description: Filtrar pelos veículos de um cliente
+        in: query
+        name: cliente_uuid
+        type: string
+      - description: Página (padrão 1)
+        in: query
+        name: pagina
+        type: integer
+      - description: Itens por página (padrão 20, máx 100)
+        in: query
+        name: tamanho
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.VeiculoResponse'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Listar veículos
+      tags:
+      - veiculos
+    post:
+      consumes:
+      - application/json
+      description: Cadastra um veículo para um cliente já existente. A placa é validada
+        (padrão antigo ABC1234 ou Mercosul ABC1D23) e é única.
+      parameters:
+      - description: Veículo
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CriarVeiculoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.VeiculoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Cadastrar veículo
+      tags:
+      - veiculos
+  /veiculos/{uuid}:
+    delete:
+      description: Só remove veículos sem ordens de serviço.
+      parameters:
+      - description: UUID do veículo
+        in: path
+        name: uuid
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Remover veículo
+      tags:
+      - veiculos
+    get:
+      parameters:
+      - description: UUID do veículo
+        in: path
+        name: uuid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.VeiculoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Detalhar veículo
+      tags:
+      - veiculos
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: UUID do veículo
+        in: path
+        name: uuid
+        required: true
+        type: string
+      - description: Dados
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.AtualizarVeiculoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.VeiculoResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Atualizar veículo
+      tags:
+      - veiculos
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: 'Informe: Bearer {access_token}'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

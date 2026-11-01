@@ -1,0 +1,16 @@
+
+backend_techchallenger-api:latest (alpine 3.23.7)
+=================================================
+Total: 0 (UNKNOWN: 0, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0)
+
+
+app/main (gobinary)
+===================
+Total: 1 (UNKNOWN: 1, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0)
+
+┌─────────────────────┬───────────────┬──────────┬──────────┬───────────────────┬───────────────┬──────────────────────────────────────────────────────────┐
+│       Library       │ Vulnerability │ Severity │  Status  │ Installed Version │ Fixed Version │                          Title                           │
+├─────────────────────┼───────────────┼──────────┼──────────┼───────────────────┼───────────────┼──────────────────────────────────────────────────────────┤
+│ golang.org/x/crypto │ GO-2026-5932  │ UNKNOWN  │ affected │ v0.57.0           │               │ The golang.org/x/crypto/openpgp package is unmaintained, │
+│                     │               │          │          │                   │               │ unsafe by design, and has known security...              │
+└─────────────────────┴───────────────┴──────────┴──────────┴───────────────────┴───────────────┴──────────────────────────────────────────────────────────┘

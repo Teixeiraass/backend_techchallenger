@@ -1,0 +1,7 @@
+.git
+.github
+app.env
+*.env
+coverage*
+docs/ddd
+docs/security
