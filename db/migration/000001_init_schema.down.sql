@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS "sessoes";
+DROP TABLE IF EXISTS "usuarios";
