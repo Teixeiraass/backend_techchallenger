@@ -1,0 +1,3782 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "MVP do back-end do Sistema Integrado de Atendimento e Execução de Serviços de uma oficina mecânica (Tech Challenge SOAT - Fase 1).\nGestão de clientes, veículos, catálogo de serviços, peças e insumos com controle de estoque, e o ciclo de vida completo da Ordem de Serviço (orçamento, aprovação, execução, reparo adicional e entrega).\nRotas administrativas exigem token Bearer (POST /usuarios/login). As rotas de acompanhamento do cliente são públicas e usam o CPF/CNPJ do dono da OS.",
+        "title": "Oficina Mecânica API",
+        "contact": {
+            "name": "Guilherme Teixeira"
+        },
+        "license": {
+            "name": "MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/clientes": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clientes"
+                ],
+                "summary": "Listar clientes",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filtro por nome ou documento",
+                        "name": "busca",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (padrão 1)",
+                        "name": "pagina",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Itens por página (padrão 20, máx 100)",
+                        "name": "tamanho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.ClienteResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cadastra um cliente identificado por CPF ou CNPJ (validado pelos dígitos verificadores e único).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clientes"
+                ],
+                "summary": "Cadastrar cliente",
+                "parameters": [
+                    {
+                        "description": "Cliente",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CriarClienteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ClienteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/clientes/documento/{documento}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clientes"
+                ],
+                "summary": "Identificar cliente por CPF/CNPJ",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "CPF ou CNPJ (somente números)",
+                        "name": "documento",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ClienteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/clientes/{uuid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clientes"
+                ],
+                "summary": "Detalhar cliente",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do cliente",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ClienteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Atualiza nome e contato. O CPF/CNPJ identifica o cliente e não muda.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "clientes"
+                ],
+                "summary": "Atualizar cliente",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do cliente",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AtualizarClienteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ClienteResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Só remove clientes sem veículos e sem ordens de serviço.",
+                "tags": [
+                    "clientes"
+                ],
+                "summary": "Remover cliente",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do cliente",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/helper": {
+            "get": {
+                "description": "Endpoint simples para confirmar que a API está respondendo.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "helper"
+                ],
+                "summary": "Verificar disponibilidade da API",
+                "responses": {
+                    "200": {
+                        "description": "Sucesso",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Listar ordens de serviço",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "RECEBIDA, EM_DIAGNOSTICO, AGUARDANDO_APROVACAO, EM_EXECUCAO, FINALIZADA ou ENTREGUE",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filtrar por cliente",
+                        "name": "cliente_uuid",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (padrão 1)",
+                        "name": "pagina",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Itens por página (padrão 20, máx 100)",
+                        "name": "tamanho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.OrdemServicoResumoResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Identifica o cliente pelo CPF/CNPJ e o veículo pela placa (que precisa pertencer ao cliente). Serviços e peças são opcionais na abertura; o orçamento é calculado automaticamente. A OS nasce com status RECEBIDA.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Abrir ordem de serviço",
+                "parameters": [
+                    {
+                        "description": "Dados da OS",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AbrirOrdemServicoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/tempo-medio": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Média entre o início da execução e a finalização das OS finalizadas, no geral e por serviço. Filtro opcional pela data de finalização.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Tempo médio de execução",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "AAAA-MM-DD",
+                        "name": "data_inicio",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "AAAA-MM-DD (inclusiva)",
+                        "name": "data_fim",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.TempoMedioExecucaoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Itens, orçamento, reparos adicionais, histórico de status e tempos.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Detalhar ordem de serviço",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/andamento": {
+            "get": {
+                "description": "Rota pública. O cliente informa o CPF/CNPJ do dono da OS para acompanhar status, orçamento, reparos adicionais e histórico.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "acompanhamento"
+                ],
+                "summary": "Consultar andamento da OS (cliente)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "CPF ou CNPJ do cliente",
+                        "name": "documento",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/diagnostico": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Recebida -\u003e Em diagnóstico. Mecânico ou administrador.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Iniciar diagnóstico",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/entregar": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Finalizada -\u003e Entregue. Também devolve o veículo sem execução quando o orçamento foi rejeitado.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Entregar veículo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/execucao": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Aguardando aprovação -\u003e Em execução, com orçamento aprovado. Baixa o estoque na mesma transação. Normalmente é disparado automaticamente pela aprovação; esta rota serve para tentar de novo depois de repor peças em falta.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Iniciar execução",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/finalizar": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Em execução -\u003e Finalizada. Registra o tempo de execução e notifica o cliente. Bloqueado se houver reparo adicional pendente.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Finalizar OS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/orcamento/aprovar": {
+            "post": {
+                "description": "Rota pública. Registra a aprovação e o sistema inicia a execução automaticamente, baixando o estoque. Se faltar peça, a aprovação fica registrada e o campo \"aviso\" explica que a execução aguarda reposição.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "acompanhamento"
+                ],
+                "summary": "Aprovar orçamento (cliente)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Documento do cliente",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DecisaoClienteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/orcamento/enviar": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Em diagnóstico -\u003e Aguardando aprovação (automático). Recalcula o orçamento, notifica o cliente e disponibiliza a aprovação pelo link de acompanhamento.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Enviar orçamento ao cliente",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Diagnóstico",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/dto.EnviarOrcamentoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/orcamento/rejeitar": {
+            "post": {
+                "description": "Rota pública. A OS volta para Em diagnóstico: a oficina pode montar um novo orçamento ou devolver o veículo.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "acompanhamento"
+                ],
+                "summary": "Rejeitar orçamento (cliente)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Documento do cliente",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DecisaoClienteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/pecas": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Só entra se houver estoque (considerando o que a OS já pediu da mesma peça). Permitido com a OS Recebida ou Em diagnóstico. O orçamento é recalculado.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Incluir peça ou insumo na OS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Peça",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemPecaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/pecas/{item_uuid}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Remover peça da OS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID do item de peça",
+                        "name": "item_uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/reparos-adicionais": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Com a OS Em execução, o mecânico registra um problema novo com serviços e peças. Os itens só entram no orçamento depois da autorização do cliente.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Registrar reparo adicional",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reparo",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RegistrarReparoAdicionalRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/reparos-adicionais/{reparo_uuid}/autorizar": {
+            "post": {
+                "description": "Rota pública. Os itens do reparo entram no orçamento e as peças são baixadas do estoque.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "acompanhamento"
+                ],
+                "summary": "Autorizar reparo adicional (cliente)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID do reparo adicional",
+                        "name": "reparo_uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Documento do cliente",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DecisaoClienteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/reparos-adicionais/{reparo_uuid}/recusar": {
+            "post": {
+                "description": "Rota pública. O reparo não entra na OS.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "acompanhamento"
+                ],
+                "summary": "Recusar reparo adicional (cliente)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID do reparo adicional",
+                        "name": "reparo_uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Documento do cliente",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.DecisaoClienteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/servicos": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Só serviço ativo do catálogo. Permitido com a OS Recebida ou Em diagnóstico. O orçamento é recalculado.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Incluir serviço na OS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Serviço",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ItemServicoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ordens-servico/{uuid}/servicos/{item_uuid}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "ordens-servico"
+                ],
+                "summary": "Remover serviço da OS",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da OS",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "UUID do item de serviço",
+                        "name": "item_uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.OrdemServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pecas": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Listar peças e insumos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filtro por nome ou código",
+                        "name": "busca",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "PECA ou INSUMO",
+                        "name": "tipo",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Somente ativas",
+                        "name": "apenas_ativas",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (padrão 1)",
+                        "name": "pagina",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Itens por página (padrão 20, máx 100)",
+                        "name": "tamanho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.PecaResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. O saldo inicial gera um movimento de ENTRADA.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Cadastrar peça ou insumo",
+                "parameters": [
+                    {
+                        "description": "Peça ou insumo",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CriarPecaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PecaResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pecas/estoque-baixo": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Peças e insumos ativos com saldo menor ou igual ao estoque mínimo (precisam de reposição).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Peças no estoque mínimo",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.PecaResponse"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/pecas/{uuid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Detalhar peça ou insumo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da peça",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PecaResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. O saldo só muda por reposição, ajuste ou baixa.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Atualizar peça ou insumo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da peça",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AtualizarPecaRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PecaResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. Peça inativa não entra em OS nova.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Inativar peça ou insumo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da peça",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PecaResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pecas/{uuid}/ajuste": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. Define o saldo contado no inventário; a diferença vira um movimento de AJUSTE.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Ajustar estoque (inventário)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da peça",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ajuste",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AjustarEstoqueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PecaResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pecas/{uuid}/movimentos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Histórico de entradas, saídas (baixas por OS) e ajustes.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Movimentos de estoque da peça",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da peça",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (padrão 1)",
+                        "name": "pagina",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Itens por página (padrão 20, máx 100)",
+                        "name": "tamanho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.MovimentoEstoqueResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pecas/{uuid}/reposicao": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. Entrada de unidades (quantidade maior que zero).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pecas"
+                ],
+                "summary": "Repor estoque",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID da peça",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Reposição",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ReporEstoqueRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.PecaResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/servicos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicos"
+                ],
+                "summary": "Listar serviços do catálogo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filtro por nome",
+                        "name": "busca",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Somente serviços ativos",
+                        "name": "apenas_ativos",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (padrão 1)",
+                        "name": "pagina",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Itens por página (padrão 20, máx 100)",
+                        "name": "tamanho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.ServicoResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. Preço em centavos.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicos"
+                ],
+                "summary": "Cadastrar serviço no catálogo",
+                "parameters": [
+                    {
+                        "description": "Serviço",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CriarServicoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/servicos/{uuid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicos"
+                ],
+                "summary": "Detalhar serviço",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do serviço",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. O novo preço vale para itens incluídos depois; OS já orçadas mantêm o valor da época.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicos"
+                ],
+                "summary": "Atualizar serviço",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do serviço",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AtualizarServicoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. O serviço sai do catálogo (não entra em OS nova), mas o histórico das OS é mantido.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "servicos"
+                ],
+                "summary": "Inativar serviço",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do serviço",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ServicoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/tokens/refresh": {
+            "post": {
+                "description": "Gera um novo access token a partir de um refresh token válido.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Renovar token de acesso",
+                "parameters": [
+                    {
+                        "description": "Refresh token",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RenewAccessTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RenewAccessTokenResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/usuarios": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "usuarios"
+                ],
+                "summary": "Listar usuários da oficina",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Página (padrão 1)",
+                        "name": "pagina",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Itens por página (padrão 20, máx 100)",
+                        "name": "tamanho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.UsuarioResponse"
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. Papéis: ADMINISTRADOR, ATENDENTE ou MECANICO.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "usuarios"
+                ],
+                "summary": "Criar usuário da oficina",
+                "parameters": [
+                    {
+                        "description": "Usuário",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CriarUsuarioRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UsuarioResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/usuarios/login": {
+            "post": {
+                "description": "Autentica um usuário da oficina (administrador, atendente ou mecânico) e retorna o access token e o refresh token.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Login",
+                "parameters": [
+                    {
+                        "description": "Credenciais",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/usuarios/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Bloqueia a sessão (refresh token) do usuário autenticado.",
+                "consumes": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Logout",
+                "parameters": [
+                    {
+                        "description": "Sessão",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.LogoutRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/usuarios/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "usuarios"
+                ],
+                "summary": "Usuário autenticado",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UsuarioResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/usuarios/{uuid}/ativo": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Somente administrador. Usuário inativo não consegue mais acessar a API.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "usuarios"
+                ],
+                "summary": "Ativar ou desativar usuário",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do usuário",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Situação",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AtualizarUsuarioAtivoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UsuarioResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/veiculos": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "veiculos"
+                ],
+                "summary": "Listar veículos",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Filtrar pelos veículos de um cliente",
+                        "name": "cliente_uuid",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Página (padrão 1)",
+                        "name": "pagina",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Itens por página (padrão 20, máx 100)",
+                        "name": "tamanho",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.VeiculoResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Cadastra um veículo para um cliente já existente. A placa é validada (padrão antigo ABC1234 ou Mercosul ABC1D23) e é única.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "veiculos"
+                ],
+                "summary": "Cadastrar veículo",
+                "parameters": [
+                    {
+                        "description": "Veículo",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CriarVeiculoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/dto.VeiculoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/veiculos/{uuid}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "veiculos"
+                ],
+                "summary": "Detalhar veículo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do veículo",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.VeiculoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "veiculos"
+                ],
+                "summary": "Atualizar veículo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do veículo",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Dados",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.AtualizarVeiculoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/dto.VeiculoResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Só remove veículos sem ordens de serviço.",
+                "tags": [
+                    "veiculos"
+                ],
+                "summary": "Remover veículo",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "UUID do veículo",
+                        "name": "uuid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.AbrirOrdemServicoRequest": {
+            "type": "object",
+            "required": [
+                "documento",
+                "placa"
+            ],
+            "properties": {
+                "descricao_problema": {
+                    "type": "string",
+                    "example": "Barulho ao frear"
+                },
+                "documento": {
+                    "description": "CPF ou CNPJ do cliente já cadastrado (com ou sem pontuação).",
+                    "type": "string",
+                    "example": "52998224725"
+                },
+                "pecas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ItemPecaRequest"
+                    }
+                },
+                "placa": {
+                    "description": "Placa de um veículo do cliente.",
+                    "type": "string",
+                    "example": "ABC1D23"
+                },
+                "servicos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ItemServicoRequest"
+                    }
+                }
+            }
+        },
+        "dto.AjustarEstoqueRequest": {
+            "type": "object",
+            "required": [
+                "observacao",
+                "quantidade"
+            ],
+            "properties": {
+                "observacao": {
+                    "type": "string",
+                    "example": "Inventário mensal"
+                },
+                "quantidade": {
+                    "description": "Novo saldo contado no inventário.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 7
+                }
+            }
+        },
+        "dto.AtualizarClienteRequest": {
+            "type": "object",
+            "required": [
+                "nome"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "nome": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "telefone": {
+                    "type": "string",
+                    "maxLength": 20
+                }
+            }
+        },
+        "dto.AtualizarPecaRequest": {
+            "type": "object",
+            "required": [
+                "ativo",
+                "codigo",
+                "nome",
+                "tipo"
+            ],
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "codigo": {
+                    "type": "string",
+                    "maxLength": 40
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "estoque_minimo": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "nome": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "preco_centavos": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "tipo": {
+                    "type": "string",
+                    "enum": [
+                        "PECA",
+                        "INSUMO"
+                    ]
+                },
+                "unidade": {
+                    "type": "string",
+                    "maxLength": 10
+                }
+            }
+        },
+        "dto.AtualizarServicoRequest": {
+            "type": "object",
+            "required": [
+                "ativo",
+                "nome"
+            ],
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string",
+                    "maxLength": 120
+                },
+                "preco_centavos": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "tempo_estimado_minutos": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "dto.AtualizarUsuarioAtivoRequest": {
+            "type": "object",
+            "required": [
+                "ativo"
+            ],
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "dto.AtualizarVeiculoRequest": {
+            "type": "object",
+            "required": [
+                "ano",
+                "marca",
+                "modelo",
+                "placa"
+            ],
+            "properties": {
+                "ano": {
+                    "type": "integer"
+                },
+                "marca": {
+                    "type": "string",
+                    "maxLength": 60
+                },
+                "modelo": {
+                    "type": "string",
+                    "maxLength": 80
+                },
+                "placa": {
+                    "type": "string",
+                    "maxLength": 8,
+                    "example": "ABC1D23"
+                }
+            }
+        },
+        "dto.ClienteResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "documento": {
+                    "type": "string"
+                },
+                "documento_formatado": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "telefone": {
+                    "type": "string"
+                },
+                "tipo_documento": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ClienteResumo": {
+            "type": "object",
+            "properties": {
+                "documento": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.CriarClienteRequest": {
+            "type": "object",
+            "required": [
+                "documento",
+                "nome"
+            ],
+            "properties": {
+                "documento": {
+                    "type": "string",
+                    "maxLength": 18,
+                    "example": "529.982.247-25"
+                },
+                "email": {
+                    "type": "string",
+                    "maxLength": 150,
+                    "example": "maria@email.com"
+                },
+                "nome": {
+                    "type": "string",
+                    "maxLength": 150,
+                    "example": "Maria Silva"
+                },
+                "telefone": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "example": "11999990000"
+                }
+            }
+        },
+        "dto.CriarPecaRequest": {
+            "type": "object",
+            "required": [
+                "codigo",
+                "nome",
+                "tipo"
+            ],
+            "properties": {
+                "codigo": {
+                    "type": "string",
+                    "maxLength": 40,
+                    "example": "FLT-OLEO-02"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "estoque_minimo": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 2
+                },
+                "nome": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Filtro de ar"
+                },
+                "preco_centavos": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 4500
+                },
+                "quantidade_estoque": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 10
+                },
+                "tipo": {
+                    "type": "string",
+                    "enum": [
+                        "PECA",
+                        "INSUMO"
+                    ],
+                    "example": "PECA"
+                },
+                "unidade": {
+                    "type": "string",
+                    "maxLength": 10,
+                    "example": "UN"
+                }
+            }
+        },
+        "dto.CriarServicoRequest": {
+            "type": "object",
+            "required": [
+                "nome"
+            ],
+            "properties": {
+                "descricao": {
+                    "type": "string",
+                    "example": "Troca do óleo do motor"
+                },
+                "nome": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "example": "Troca de óleo"
+                },
+                "preco_centavos": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 8000
+                },
+                "tempo_estimado_minutos": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "example": 30
+                }
+            }
+        },
+        "dto.CriarUsuarioRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "nome",
+                "papel",
+                "senha"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "nome": {
+                    "type": "string",
+                    "maxLength": 150
+                },
+                "papel": {
+                    "type": "string",
+                    "enum": [
+                        "ADMINISTRADOR",
+                        "ATENDENTE",
+                        "MECANICO"
+                    ]
+                },
+                "senha": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "dto.CriarVeiculoRequest": {
+            "type": "object",
+            "required": [
+                "ano",
+                "cliente_uuid",
+                "marca",
+                "modelo",
+                "placa"
+            ],
+            "properties": {
+                "ano": {
+                    "type": "integer",
+                    "example": 2019
+                },
+                "cliente_uuid": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "marca": {
+                    "type": "string",
+                    "maxLength": 60,
+                    "example": "Volkswagen"
+                },
+                "modelo": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "example": "Gol"
+                },
+                "placa": {
+                    "type": "string",
+                    "maxLength": 8,
+                    "example": "ABC1D23"
+                }
+            }
+        },
+        "dto.DecisaoClienteRequest": {
+            "type": "object",
+            "required": [
+                "documento"
+            ],
+            "properties": {
+                "documento": {
+                    "type": "string",
+                    "example": "52998224725"
+                }
+            }
+        },
+        "dto.EnviarOrcamentoRequest": {
+            "type": "object",
+            "properties": {
+                "diagnostico": {
+                    "type": "string",
+                    "example": "Pastilhas gastas, fluido contaminado"
+                }
+            }
+        },
+        "dto.HistoricoStatusResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "observacao": {
+                    "type": "string"
+                },
+                "status_anterior": {
+                    "type": "string"
+                },
+                "status_novo": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ItemPecaRequest": {
+            "type": "object",
+            "required": [
+                "peca_uuid",
+                "quantidade"
+            ],
+            "properties": {
+                "peca_uuid": {
+                    "type": "string",
+                    "format": "uuid"
+                },
+                "quantidade": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                }
+            }
+        },
+        "dto.ItemPecaResponse": {
+            "type": "object",
+            "properties": {
+                "peca_codigo": {
+                    "type": "string"
+                },
+                "peca_nome": {
+                    "type": "string"
+                },
+                "peca_tipo": {
+                    "type": "string"
+                },
+                "peca_uuid": {
+                    "type": "string"
+                },
+                "quantidade": {
+                    "type": "integer"
+                },
+                "reparo_adicional_uuid": {
+                    "type": "string"
+                },
+                "subtotal_centavos": {
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "valor_unitario_centavos": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.ItemServicoRequest": {
+            "type": "object",
+            "required": [
+                "servico_uuid"
+            ],
+            "properties": {
+                "quantidade": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                },
+                "servico_uuid": {
+                    "type": "string",
+                    "format": "uuid"
+                }
+            }
+        },
+        "dto.ItemServicoResponse": {
+            "type": "object",
+            "properties": {
+                "quantidade": {
+                    "type": "integer"
+                },
+                "reparo_adicional_uuid": {
+                    "type": "string"
+                },
+                "servico_nome": {
+                    "type": "string"
+                },
+                "servico_uuid": {
+                    "type": "string"
+                },
+                "subtotal_centavos": {
+                    "type": "integer"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "valor_unitario_centavos": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "senha"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "senha": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "dto.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "access_token_expires_at": {
+                    "type": "string"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "refresh_token_expires_at": {
+                    "type": "string"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "usuario": {
+                    "$ref": "#/definitions/dto.UsuarioResponse"
+                }
+            }
+        },
+        "dto.LogoutRequest": {
+            "type": "object",
+            "required": [
+                "session_id"
+            ],
+            "properties": {
+                "session_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.MovimentoEstoqueResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "observacao": {
+                    "type": "string"
+                },
+                "quantidade": {
+                    "type": "integer"
+                },
+                "saldo_anterior": {
+                    "type": "integer"
+                },
+                "saldo_posterior": {
+                    "type": "integer"
+                },
+                "tipo": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.OrcamentoResponse": {
+            "type": "object",
+            "properties": {
+                "decidido_em": {
+                    "type": "string"
+                },
+                "enviado_em": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "total_centavos": {
+                    "type": "integer"
+                },
+                "total_pecas_centavos": {
+                    "type": "integer"
+                },
+                "total_servicos_centavos": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.OrdemServicoResponse": {
+            "type": "object",
+            "properties": {
+                "aviso": {
+                    "description": "Aviso is filled when the customer approved the budget but the system\ncould not start the execution yet (e.g. missing stock).",
+                    "type": "string"
+                },
+                "cliente": {
+                    "$ref": "#/definitions/dto.ClienteResumo"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao_problema": {
+                    "type": "string"
+                },
+                "diagnostico": {
+                    "type": "string"
+                },
+                "diagnostico_iniciado_em": {
+                    "type": "string"
+                },
+                "entregue_em": {
+                    "type": "string"
+                },
+                "execucao_iniciada_em": {
+                    "type": "string"
+                },
+                "finalizada_em": {
+                    "type": "string"
+                },
+                "historico": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.HistoricoStatusResponse"
+                    }
+                },
+                "orcamento": {
+                    "$ref": "#/definitions/dto.OrcamentoResponse"
+                },
+                "pecas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ItemPecaResponse"
+                    }
+                },
+                "reparos_adicionais": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ReparoAdicionalResponse"
+                    }
+                },
+                "servicos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ItemServicoResponse"
+                    }
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_descricao": {
+                    "type": "string"
+                },
+                "tempo_execucao_segundos": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "veiculo": {
+                    "$ref": "#/definitions/dto.VeiculoResumo"
+                }
+            }
+        },
+        "dto.OrdemServicoResumoResponse": {
+            "type": "object",
+            "properties": {
+                "cliente_documento": {
+                    "type": "string"
+                },
+                "cliente_nome": {
+                    "type": "string"
+                },
+                "cliente_uuid": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "orcamento_status": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "status_descricao": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                },
+                "valor_total_centavos": {
+                    "type": "integer"
+                },
+                "veiculo_placa": {
+                    "type": "string"
+                },
+                "veiculo_uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.PecaResponse": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "codigo": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "estoque_baixo": {
+                    "type": "boolean"
+                },
+                "estoque_minimo": {
+                    "type": "integer"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "preco_centavos": {
+                    "type": "integer"
+                },
+                "quantidade_estoque": {
+                    "type": "integer"
+                },
+                "tipo": {
+                    "type": "string"
+                },
+                "unidade": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RegistrarReparoAdicionalRequest": {
+            "type": "object",
+            "required": [
+                "descricao"
+            ],
+            "properties": {
+                "descricao": {
+                    "type": "string",
+                    "example": "Disco de freio empenado"
+                },
+                "pecas": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ItemPecaRequest"
+                    }
+                },
+                "servicos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.ItemServicoRequest"
+                    }
+                }
+            }
+        },
+        "dto.RenewAccessTokenRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RenewAccessTokenResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "access_token_expires_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ReparoAdicionalResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "decidido_em": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ReporEstoqueRequest": {
+            "type": "object",
+            "required": [
+                "quantidade"
+            ],
+            "properties": {
+                "observacao": {
+                    "type": "string",
+                    "example": "Nota fiscal 123"
+                },
+                "quantidade": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 10
+                }
+            }
+        },
+        "dto.ServicoResponse": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "descricao": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "preco_centavos": {
+                    "type": "integer"
+                },
+                "tempo_estimado_minutos": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.TempoMedioExecucaoResponse": {
+            "type": "object",
+            "properties": {
+                "maximo_segundos": {
+                    "type": "integer"
+                },
+                "media_formatada": {
+                    "type": "string"
+                },
+                "media_segundos": {
+                    "type": "integer"
+                },
+                "minimo_segundos": {
+                    "type": "integer"
+                },
+                "por_servico": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.TempoMedioServicoResponse"
+                    }
+                },
+                "total_ordens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.TempoMedioServicoResponse": {
+            "type": "object",
+            "properties": {
+                "media_formatada": {
+                    "type": "string"
+                },
+                "media_segundos": {
+                    "type": "integer"
+                },
+                "servico_nome": {
+                    "type": "string"
+                },
+                "servico_uuid": {
+                    "type": "string"
+                },
+                "tempo_estimado_minutos": {
+                    "type": "integer"
+                },
+                "total_ordens": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.UsuarioResponse": {
+            "type": "object",
+            "properties": {
+                "ativo": {
+                    "type": "boolean"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "nome": {
+                    "type": "string"
+                },
+                "papel": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.VeiculoResponse": {
+            "type": "object",
+            "properties": {
+                "ano": {
+                    "type": "integer"
+                },
+                "cliente_uuid": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "marca": {
+                    "type": "string"
+                },
+                "modelo": {
+                    "type": "string"
+                },
+                "placa": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.VeiculoResumo": {
+            "type": "object",
+            "properties": {
+                "ano": {
+                    "type": "integer"
+                },
+                "marca": {
+                    "type": "string"
+                },
+                "modelo": {
+                    "type": "string"
+                },
+                "placa": {
+                    "type": "string"
+                },
+                "uuid": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Informe: Bearer {access_token}",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

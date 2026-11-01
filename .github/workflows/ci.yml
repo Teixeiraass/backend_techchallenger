@@ -1,0 +1,100 @@
+name: ci
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+
+  test:
+    name: Testes e cobertura
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16.13-alpine
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: oficina_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+    env:
+      DB_DRIVER: postgres
+      DB_SOURCE: postgresql://root:secret@localhost:5433/oficina_test?sslmode=disable
+      TOKEN_SYMMETRIC_KEY: ci-only-key-0123456789abcdefghij
+      ACCESS_TOKEN_DURATION: 15m
+      REFRESH_TOKEN_DURATION: 24h
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: Install golang-migrate
+      run: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.20.1
+
+    - name: Run migrations
+      run: migrate -path db/migration -database "$DB_SOURCE" -verbose up
+
+    - name: Vet
+      run: go vet ./...
+
+    - name: Test (unit + integration)
+      run: go test -count=1 -cover ./...
+
+    - name: Coverage of critical domains (min 80%)
+      run: |
+        go test -count=1 -coverpkg=./internal/domain/...,./internal/service/... -coverprofile=coverage.out ./internal/domain/... ./internal/service/...
+        total=$(go tool cover -func=coverage.out | awk '/^total:/ {print substr($3, 1, length($3)-1)}')
+        echo "Cobertura dos domínios críticos: ${total}%"
+        awk -v t="$total" 'BEGIN { exit (t < 80) }'
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage
+        path: coverage.out
+
+  security:
+    name: Análise de vulnerabilidades
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+
+    - name: govulncheck
+      run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+    - name: gosec
+      run: go run github.com/securego/gosec/v2/cmd/gosec@latest -exclude-generated -exclude-dir=db/mock -exclude-dir=docs ./...
+
+    - name: Build image
+      run: docker build -t oficina-api:ci .
+
+    - name: Trivy (image)
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        image-ref: oficina-api:ci
+        scanners: vuln
+        severity: HIGH,CRITICAL
+        exit-code: "1"
+        ignore-unfixed: true
