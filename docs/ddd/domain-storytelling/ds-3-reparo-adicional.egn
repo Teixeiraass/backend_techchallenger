@@ -129,14 +129,14 @@
     },
     {
       "type": "domainStory:workObjectConversation",
-      "name": "Pedido de autorização",
+      "name": "Notificação",
       "id": "shape_7421",
       "x": 673,
       "y": 402
     },
     {
       "type": "domainStory:activity",
-      "name": "cria",
+      "name": "envia",
       "id": "connection_9175",
       "pickedColor": "black",
       "number": 2,
@@ -369,41 +369,6 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Enviado ao aplicativo do cliente",
-      "id": "shape_4650",
-      "x": 773,
-      "y": 332,
-      "width": 140,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_1408",
-      "waypoints": [
-        {
-          "original": {
-            "x": 711,
-            "y": 440
-          },
-          "x": 748,
-          "y": 415
-        },
-        {
-          "original": {
-            "x": 843,
-            "y": 355
-          },
-          "x": 806,
-          "y": 379
-        }
-      ],
-      "source": "shape_7421",
-      "target": "shape_4650"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
       "text": "Se o cliente não autorizar, o reparo não entra na OS",
       "id": "shape_8358",
       "x": 418,
@@ -470,6 +435,41 @@
       ],
       "source": "shape_5429",
       "target": "shape_8972"
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Por e-mail, com o link de acompanhamento",
+      "id": "shape_8077",
+      "x": 773,
+      "y": 332,
+      "width": 140,
+      "height": 45
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_4677",
+      "waypoints": [
+        {
+          "original": {
+            "x": 711,
+            "y": 440
+          },
+          "x": 748,
+          "y": 415
+        },
+        {
+          "original": {
+            "x": 843,
+            "y": 355
+          },
+          "x": 806,
+          "y": 379
+        }
+      ],
+      "source": "shape_7421",
+      "target": "shape_8077"
     },
     {
       "info": "Durante a execução o mecânico encontra outro problema e o cliente precisa autorizar"
