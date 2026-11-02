@@ -167,36 +167,8 @@
       "type": "domainStory:workObjectDollar",
       "name": "Orçamento",
       "id": "shape_9342",
-      "x": 583,
+      "x": 1000,
       "y": 145
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "envia",
-      "id": "connection_4564",
-      "pickedColor": "black",
-      "number": 3,
-      "waypoints": [
-        {
-          "original": {
-            "x": 621,
-            "y": 348
-          },
-          "x": 621,
-          "y": 310
-        },
-        {
-          "original": {
-            "x": 621,
-            "y": 183
-          },
-          "x": 621,
-          "y": 220
-        }
-      ],
-      "source": "shape_6387",
-      "target": "shape_9342",
-      "multipleNumberAllowed": false
     },
     {
       "type": "domainStory:activity",
@@ -207,23 +179,19 @@
       "waypoints": [
         {
           "original": {
-            "x": 621,
+            "x": 1038,
             "y": 183
           },
-          "x": 583,
-          "y": 183
-        },
-        {
-          "x": 203,
-          "y": 183
+          "x": 1000,
+          "y": 190
         },
         {
           "original": {
             "x": 203,
             "y": 348
           },
-          "x": 203,
-          "y": 310
+          "x": 240,
+          "y": 340
         }
       ],
       "source": "shape_9342",
@@ -242,7 +210,7 @@
       "name": "envia",
       "id": "connection_7711",
       "pickedColor": "black",
-      "number": 4,
+      "number": 5,
       "waypoints": [
         {
           "original": {
@@ -263,34 +231,6 @@
       ],
       "source": "shape_3986",
       "target": "shape_7719",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "para",
-      "id": "connection_5813",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 413,
-            "y": 513
-          },
-          "x": 450,
-          "y": 483
-        },
-        {
-          "original": {
-            "x": 621,
-            "y": 348
-          },
-          "x": 583,
-          "y": 377
-        }
-      ],
-      "source": "shape_7719",
-      "target": "shape_6387",
       "multipleNumberAllowed": false
     },
     {
@@ -509,40 +449,12 @@
       "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:activity",
-      "name": "recebe",
-      "id": "connection_5821",
-      "pickedColor": "black",
-      "number": 5,
-      "waypoints": [
-        {
-          "original": {
-            "x": 1248,
-            "y": 348
-          },
-          "x": 1210,
-          "y": 348
-        },
-        {
-          "original": {
-            "x": 830,
-            "y": 348
-          },
-          "x": 867,
-          "y": 348
-        }
-      ],
-      "source": "shape_3677",
-      "target": "shape_1303",
-      "multipleNumberAllowed": false
-    },
-    {
       "type": "domainStory:textAnnotation",
       "name": "",
       "text": "Gerado pelo Sistema com serviços e peças",
       "id": "shape_8691",
-      "x": 683,
-      "y": 75,
+      "x": 1060,
+      "y": 60,
       "width": 140,
       "height": 45
     },
@@ -553,19 +465,19 @@
       "waypoints": [
         {
           "original": {
-            "x": 621,
+            "x": 1038,
             "y": 183
           },
-          "x": 658,
-          "y": 158
+          "x": 1072,
+          "y": 145
         },
         {
           "original": {
-            "x": 753,
-            "y": 98
+            "x": 1130,
+            "y": 83
           },
-          "x": 716,
-          "y": 122
+          "x": 1095,
+          "y": 120
         }
       ],
       "source": "shape_9342",
@@ -640,6 +552,125 @@
       ],
       "source": "shape_6387",
       "target": "shape_2542"
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "diagnostica",
+      "id": "connection_7049",
+      "pickedColor": "black",
+      "number": 3,
+      "waypoints": [
+        {
+          "original": {
+            "x": 1248,
+            "y": 348
+          },
+          "x": 1285,
+          "y": 318
+        },
+        {
+          "original": {
+            "x": 1458,
+            "y": 183
+          },
+          "x": 1420,
+          "y": 212
+        }
+      ],
+      "source": "shape_3677",
+      "target": "shape_9965",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "envia",
+      "id": "connection_3163",
+      "pickedColor": "black",
+      "number": 4,
+      "waypoints": [
+        {
+          "original": {
+            "x": 1248,
+            "y": 348
+          },
+          "x": 1210,
+          "y": 318
+        },
+        {
+          "original": {
+            "x": 1038,
+            "y": 183
+          },
+          "x": 1075,
+          "y": 212
+        }
+      ],
+      "source": "shape_3677",
+      "target": "shape_9342",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "para",
+      "id": "connection_4982",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 413,
+            "y": 513
+          },
+          "x": 450,
+          "y": 513
+        },
+        {
+          "original": {
+            "x": 830,
+            "y": 513
+          },
+          "x": 792,
+          "y": 513
+        }
+      ],
+      "source": "shape_7719",
+      "target": "shape_5817",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Pelo link de acompanhamento",
+      "id": "shape_9444",
+      "x": 475,
+      "y": 405,
+      "width": 140,
+      "height": 45
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_8773",
+      "waypoints": [
+        {
+          "original": {
+            "x": 413,
+            "y": 513
+          },
+          "x": 450,
+          "y": 488
+        },
+        {
+          "original": {
+            "x": 545,
+            "y": 428
+          },
+          "x": 508,
+          "y": 452
+        }
+      ],
+      "source": "shape_7719",
+      "target": "shape_9444"
     },
     {
       "info": ""
