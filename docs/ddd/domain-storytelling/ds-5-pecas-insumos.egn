@@ -344,8 +344,8 @@
       "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:actorGroup",
-      "name": "Atendente",
+      "type": "domainStory:actorPerson",
+      "name": "Administrador",
       "id": "shape_7001",
       "x": 1470,
       "y": 643
