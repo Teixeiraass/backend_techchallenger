@@ -374,9 +374,9 @@
       "text": "Pelo link de acompanhamento. Se o cliente recusar, o reparo não entra na OS",
       "id": "shape_8358",
       "x": 418,
-      "y": 613,
+      "y": 604,
       "width": 190,
-      "height": 45
+      "height": 54
     },
     {
       "type": "domainStory:connection",
@@ -389,14 +389,14 @@
             "y": 721
           },
           "x": 394,
-          "y": 700
+          "y": 699
         },
         {
           "original": {
             "x": 513,
-            "y": 635
+            "y": 631
           },
-          "x": 472,
+          "x": 466,
           "y": 658
         }
       ],

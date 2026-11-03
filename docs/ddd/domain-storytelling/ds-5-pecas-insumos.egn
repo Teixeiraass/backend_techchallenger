@@ -548,9 +548,9 @@
       "text": "Baixa ao iniciar a execução e ao autorizar o reparo. Só baixa se houver saldo para todas as peças; sem saldo, a OS aguarda a reposição",
       "id": "shape_3458",
       "x": 1236,
-      "y": 285,
+      "y": 263,
       "width": 190,
-      "height": 60
+      "height": 82
     },
     {
       "type": "domainStory:connection",
@@ -563,14 +563,14 @@
             "y": 417
           },
           "x": 1212,
-          "y": 392
+          "y": 390
         },
         {
           "original": {
             "x": 1331,
-            "y": 315
+            "y": 304
           },
-          "x": 1285,
+          "x": 1274,
           "y": 345
         }
       ],

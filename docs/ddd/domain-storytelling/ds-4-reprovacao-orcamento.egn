@@ -317,9 +317,9 @@
       "text": "A oficina pode enviar outro orçamento ou entregar o veículo sem execução",
       "id": "shape_9844",
       "x": 1310,
-      "y": 240,
+      "y": 231,
       "width": 190,
-      "height": 45
+      "height": 54
     },
     {
       "type": "domainStory:connection",
@@ -332,15 +332,15 @@
             "y": 348
           },
           "x": 1286,
-          "y": 327
+          "y": 326
         },
         {
           "original": {
             "x": 1405,
-            "y": 262
+            "y": 258
           },
-          "x": 1364,
-          "y": 284
+          "x": 1358,
+          "y": 285
         }
       ],
       "source": "shape_3818",
