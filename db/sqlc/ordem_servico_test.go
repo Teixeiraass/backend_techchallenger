@@ -160,7 +160,7 @@ func TestUpdateOrdemServicoEstadoETempoMedio(t *testing.T) {
 func TestUsuarioESessao(t *testing.T) {
 	ctx := context.Background()
 	usuario, err := testQueries.GetUsuarioByEmail(ctx, "admin@oficina.com")
-	require.NoError(t, err, "o seed da migration 000005 cria o administrador")
+	require.NoError(t, err, "o seed de demonstração (db/seed) cria o administrador")
 	require.Equal(t, "ADMINISTRADOR", usuario.Papel)
 
 	byUUID, err := testQueries.GetUsuario(ctx, usuario.Uuid)

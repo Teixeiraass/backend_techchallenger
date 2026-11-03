@@ -1,4 +1,6 @@
 -- Dados de demonstração para executar o fluxo da OS logo depois do "docker compose up".
+-- Não é schema: fica fora de db/migration e só é aplicado com SEED_DEMO=true (ou "make seed"),
+-- em uma tabela de controle separada (seed_migrations).
 -- Senhas: admin123, atendente123 e mecanico123 (hash bcrypt).
 INSERT INTO "usuarios" ("nome", "email", "hashed_password", "papel") VALUES
   ('Administrador da Oficina', 'admin@oficina.com', '$2a$10$NN5q8WZcdTKPKJ7cTEnkw.SQUSH23YDWvg4EnpxXEUZRPY3GcNaJS', 'ADMINISTRADOR'),
