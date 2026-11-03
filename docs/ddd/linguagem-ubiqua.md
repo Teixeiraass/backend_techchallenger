@@ -185,6 +185,7 @@ Diferença usada aqui: **entidade** tem identidade e histórico (muda ao longo d
 16. Ao rejeitar o orçamento, a OS volta para **Em diagnóstico**.
 17. Ao aprovar o orçamento, o sistema inicia a execução logo em seguida.
 18. Se faltar saldo na baixa, a OS fica aguardando a reposição, a aprovação continua registrada e o administrador recebe um pedido de reposição por e-mail. Depois da reposição, o atendente ou o mecânico inicia a execução.
+19. Aprovar um orçamento já aprovado não é erro (operação idempotente): se a execução ainda não começou, o sistema tenta iniciá-la de novo; se já começou, a resposta traz o estado atual com o aviso "Orçamento já aprovado". Nada é gravado duas vezes.
 19. Ao autorizar o reparo adicional, o sistema baixa as peças do reparo e recalcula o orçamento. A OS não é finalizada com reparo pendente.
 20. Ao baixar ou ajustar o estoque, o sistema confere o estoque mínimo. Se o saldo ficar no mínimo ou abaixo, o administrador recebe um pedido de reposição por e-mail.
 
@@ -255,7 +256,7 @@ Os eventos ficam registrados na tabela `historico_status_os` (status anterior, n
 | Serviço / peça adicionados à OS | `AdicionarServico` / `AdicionarPeca` | Orçamento recalculado (`recalcularOrcamento`) |
 | Diagnóstico iniciado | `OrdemServico.IniciarDiagnostico()` | - |
 | Orçamento enviado ao cliente | `OrdemServico.EnviarOrcamento()` | Status muda para Aguardando aprovação; `notification.Sender` avisa o cliente |
-| Orçamento aprovado | `OrdemServico.AprovarOrcamento()` | Sistema chama `IniciarExecucao` em seguida |
+| Orçamento aprovado | `OrdemServico.AprovarOrcamento()` (idempotente) | Sistema chama `IniciarExecucao` em seguida; aprovação repetida devolve o estado atual |
 | Orçamento rejeitado | `OrdemServico.RejeitarOrcamento()` | OS volta para Em diagnóstico |
 | Execução iniciada | `OrdemServico.IniciarExecucao()` | Baixa de estoque na mesma transação (`baixarEstoque`) |
 | Estoque baixado / Estoque baixo detectado | query `BaixarEstoquePeca` + `estoque.EstoqueBaixo()` | Pedido de reposição ao administrador (`notificarEstoqueBaixo`) |
