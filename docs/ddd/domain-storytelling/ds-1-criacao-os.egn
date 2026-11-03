@@ -143,12 +143,20 @@
       "id": "connection_6043",
       "waypoints": [
         {
+          "original": {
+            "x": 513,
+            "y": 708
+          },
           "x": 512,
           "y": 670
         },
         {
+          "original": {
+            "x": 512,
+            "y": 632
+          },
           "x": 512,
-          "y": 655
+          "y": 654
         }
       ],
       "source": "shape_2113",
@@ -212,12 +220,20 @@
       "id": "connection_7019",
       "waypoints": [
         {
+          "original": {
+            "x": 513,
+            "y": 328
+          },
           "x": 512,
           "y": 290
         },
         {
+          "original": {
+            "x": 512,
+            "y": 252
+          },
           "x": 512,
-          "y": 275
+          "y": 274
         }
       ],
       "source": "shape_1313",
@@ -281,12 +297,20 @@
       "id": "connection_8239",
       "waypoints": [
         {
+          "original": {
+            "x": 513,
+            "y": 138
+          },
           "x": 512,
           "y": 100
         },
         {
+          "original": {
+            "x": 512,
+            "y": 62
+          },
           "x": 512,
-          "y": 85
+          "y": 84
         }
       ],
       "source": "shape_4880",
@@ -298,12 +322,20 @@
       "id": "connection_8655",
       "waypoints": [
         {
+          "original": {
+            "x": 513,
+            "y": 898
+          },
           "x": 512,
           "y": 860
         },
         {
+          "original": {
+            "x": 512,
+            "y": 822
+          },
           "x": 512,
-          "y": 845
+          "y": 844
         }
       ],
       "source": "shape_1704",
@@ -315,10 +347,18 @@
       "id": "connection_9147",
       "waypoints": [
         {
+          "original": {
+            "x": 1153,
+            "y": 543
+          },
           "x": 1152,
           "y": 505
         },
         {
+          "original": {
+            "x": 1152,
+            "y": 467
+          },
           "x": 1152,
           "y": 490
         }
@@ -376,11 +416,19 @@
       "id": "connection_9948",
       "waypoints": [
         {
-          "x": 512,
+          "original": {
+            "x": 513,
+            "y": 518
+          },
+          "x": 513,
           "y": 480
         },
         {
-          "x": 512,
+          "original": {
+            "x": 513,
+            "y": 435
+          },
+          "x": 513,
           "y": 465
         }
       ],
@@ -415,12 +463,12 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Nasce com o status Recebida",
+      "text": "Nasce com o status Recebida. Os itens só mudam em Recebida ou Em diagnóstico",
       "id": "shape_2056",
-      "x": 442,
-      "y": 420,
-      "width": 140,
-      "height": 45,
+      "x": 418,
+      "y": 405,
+      "width": 190,
+      "height": 60,
       "number": 45
     },
     {
