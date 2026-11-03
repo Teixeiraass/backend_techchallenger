@@ -116,7 +116,7 @@
     },
     {
       "type": "domainStory:activity",
-      "name": "devolve",
+      "name": "entrega",
       "id": "connection_2011",
       "pickedColor": "black",
       "number": 3,
@@ -198,16 +198,16 @@
             "x": 516,
             "y": 348
           },
-          "x": 553,
+          "x": 554,
           "y": 323
         },
         {
           "original": {
             "x": 648,
-            "y": 263
+            "y": 262
           },
-          "x": 611,
-          "y": 287
+          "x": 613,
+          "y": 284
         }
       ],
       "source": "shape_5627",
@@ -296,16 +296,16 @@
             "x": 1038,
             "y": 348
           },
-          "x": 1075,
+          "x": 1076,
           "y": 323
         },
         {
           "original": {
             "x": 1170,
-            "y": 263
+            "y": 262
           },
-          "x": 1133,
-          "y": 287
+          "x": 1135,
+          "y": 284
         }
       ],
       "source": "shape_1698",
@@ -314,7 +314,7 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "A oficina pode enviar outro orçamento ou devolver o veículo",
+      "text": "A oficina pode enviar outro orçamento ou entregar o veículo sem execução",
       "id": "shape_9844",
       "x": 1310,
       "y": 240,
@@ -331,20 +331,55 @@
             "x": 1248,
             "y": 348
           },
-          "x": 1285,
+          "x": 1286,
           "y": 323
         },
         {
           "original": {
             "x": 1380,
-            "y": 263
+            "y": 262
           },
-          "x": 1343,
-          "y": 287
+          "x": 1345,
+          "y": 284
         }
       ],
       "source": "shape_3818",
       "target": "shape_9844"
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "A OS passa a Entregue, sem execução",
+      "id": "shape_3029",
+      "x": 892,
+      "y": 875,
+      "width": 140,
+      "height": 45
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_5201",
+      "waypoints": [
+        {
+          "original": {
+            "x": 830,
+            "y": 843
+          },
+          "x": 868,
+          "y": 859
+        },
+        {
+          "original": {
+            "x": 962,
+            "y": 897
+          },
+          "x": 907,
+          "y": 874
+        }
+      ],
+      "source": "shape_6777",
+      "target": "shape_3029"
     },
     {
       "info": "Fluxo quando o cliente rejeita o orçamento"
