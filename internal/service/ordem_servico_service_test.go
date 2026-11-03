@@ -962,9 +962,24 @@ func TestAutorizarReparoAdicionalSemEstoque(t *testing.T) {
 
 	_, err := c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
 	require.True(t, errors.Is(err, estoque.ErrEstoqueInsuficiente))
+	require.Contains(t, err.Error(), peca.Codigo)
 	require.Len(t, c.sender.msgs, 1)
 	require.Equal(t, "admin@oficina.com", c.sender.msgs[0].To)
 	require.Contains(t, c.sender.msgs[0].Body, peca.Codigo)
+}
+
+// Falha no envio do pedido de reposição não troca o erro devolvido.
+func TestIniciarExecucaoSemEstoquePedidoDeReposicaoFalha(t *testing.T) {
+	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+	c.sender.err = errors.New("smtp fora do ar")
+	fxExecTx(c.store)
+	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, fxPeca(1, 0), 3)}, nil)
+	c.travaOS()
+	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
+
+	_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
+	require.True(t, errors.Is(err, estoque.ErrEstoqueInsuficiente))
+	require.Len(t, c.sender.msgs, 1)
 }
 
 func TestRecusarReparoAdicional(t *testing.T) {
