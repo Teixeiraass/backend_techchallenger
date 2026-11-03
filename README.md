@@ -21,10 +21,10 @@ Hoje a oficina controla atendimento, diagnóstico, execução e entrega com anot
 
 ## Solução em resumo
 
-1. O **atendente** cadastra o cliente (CPF/CNPJ validado) e o veículo (placa validada) e abre a OS com os serviços e peças. A OS nasce **Recebida** e o orçamento é calculado na hora.
+1. O **atendente** cadastra o cliente (CPF/CNPJ validado e e-mail obrigatório) e o veículo (placa validada) e abre a OS com os serviços e peças. A OS nasce **Recebida** e o orçamento é calculado na hora.
 2. O **mecânico** inicia o **diagnóstico**, ajusta os itens e envia o orçamento. A OS passa para **Aguardando aprovação** e o cliente é notificado por e-mail.
 3. O **cliente** aprova ou rejeita pelo link de acompanhamento, informando o CPF/CNPJ:
-   - **Aprovou:** o sistema coloca a OS **Em execução** e baixa o estoque das peças na mesma transação. Se faltar peça, a aprovação fica registrada e, depois da reposição, o atendente ou o mecânico inicia a execução.
+   - **Aprovou:** o sistema coloca a OS **Em execução** e baixa o estoque das peças na mesma transação. Se faltar peça, a aprovação fica registrada, o administrador recebe um pedido de reposição e, depois da reposição, o atendente ou o mecânico inicia a execução.
    - **Rejeitou:** a OS volta para diagnóstico. Dali sai um novo orçamento ou o veículo é entregue sem execução.
 4. Durante a execução, o mecânico pode registrar um **reparo adicional**. Ele só entra na OS se o cliente autorizar.
 5. O mecânico **finaliza** a OS, e o tempo de execução fica registrado. O atendente **entrega** o veículo.
@@ -146,7 +146,7 @@ Ela também cria 5 serviços, 4 peças/insumos (um deles já abaixo do estoque m
 **Como funciona a autenticação:**
 - **Rotas administrativas** exigem `Authorization: Bearer <access_token>`.
 - **Tokens:** o access token vale 15 min. O refresh token (`POST /tokens/refresh`) vale 24 h e é revogado em `POST /usuarios/logout`.
-- **Formato:** o padrão é **JWT** (HS256), como pede o enunciado. O algoritmo é fixado na verificação. Como opção, `TOKEN_TYPE=paseto` emite **PASETO v2**, que tem o mesmo papel de um JWT, mas é cifrado e não tem negociação de algoritmo.
+- **Formato:** o padrão é **JWT** (HS256), como pede o enunciado. O algoritmo é fixado na verificação. Como opção, `TOKEN_TYPE=paseto` emite **PASETO v2**, que tem o mesmo papel de um JWT, mas é cifrado e não tem negociação de algoritmo. Trocar o `TOKEN_TYPE` invalida os tokens já emitidos, e os usuários precisam fazer login de novo.
 - **Rotas do cliente** são públicas e exigem o UUID da OS + o CPF/CNPJ do dono: `GET /ordens-servico/{uuid}/andamento`, aprovar/rejeitar orçamento e autorizar/recusar reparo.
 
 ### Roteiro rápido do fluxo (curl)

@@ -51,6 +51,7 @@ definitions:
         maxLength: 20
         type: string
     required:
+    - email
     - nome
     type: object
   dto.AtualizarPecaRequest:
@@ -181,6 +182,7 @@ definitions:
         type: string
     required:
     - documento
+    - email
     - nome
     type: object
   dto.CriarPecaRequest:
@@ -1236,8 +1238,8 @@ paths:
       consumes:
       - application/json
       description: Em diagnóstico -> Aguardando aprovação. Mecânico ou administrador.
-        Recebe o texto do diagnóstico, recalcula o orçamento, notifica o cliente por
-        e-mail e disponibiliza a aprovação pelo link de acompanhamento.
+        Recebe o texto do diagnóstico (opcional), recalcula o orçamento, notifica
+        o cliente por e-mail e disponibiliza a aprovação pelo link de acompanhamento.
       parameters:
       - description: UUID da OS
         in: path

@@ -844,7 +844,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Em diagnóstico -\u003e Aguardando aprovação. Mecânico ou administrador. Recebe o texto do diagnóstico, recalcula o orçamento, notifica o cliente por e-mail e disponibiliza a aprovação pelo link de acompanhamento.",
+                "description": "Em diagnóstico -\u003e Aguardando aprovação. Mecânico ou administrador. Recebe o texto do diagnóstico (opcional), recalcula o orçamento, notifica o cliente por e-mail e disponibiliza a aprovação pelo link de acompanhamento.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2791,6 +2791,7 @@ const docTemplate = `{
         "dto.AtualizarClienteRequest": {
             "type": "object",
             "required": [
+                "email",
                 "nome"
             ],
             "properties": {
@@ -2967,6 +2968,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "documento",
+                "email",
                 "nome"
             ],
             "properties": {

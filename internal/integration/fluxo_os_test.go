@@ -291,7 +291,7 @@ func TestValidacoesESeguranca(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, rsp.Code)
 
 	// CPF inválido e placa inválida.
-	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "X", "documento": "123.456.789-00"})
+	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "X", "documento": "123.456.789-00", "email": util.RandomEmail()})
 	require.Equal(t, http.StatusBadRequest, rsp.Code)
 	require.Contains(t, string(rsp.Body), "DOCUMENTO_INVALIDO")
 
@@ -307,7 +307,7 @@ func TestValidacoesESeguranca(t *testing.T) {
 	require.Contains(t, string(rsp.Body), "PLACA_INVALIDA")
 
 	// Documento duplicado.
-	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "Duplicado", "documento": "529.982.247-25"})
+	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "Duplicado", "documento": "529.982.247-25", "email": util.RandomEmail()})
 	require.Equal(t, http.StatusConflict, rsp.Code)
 
 	// Atendente não gerencia o estoque.

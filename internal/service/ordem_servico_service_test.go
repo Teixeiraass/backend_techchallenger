@@ -567,9 +567,15 @@ func TestAprovarOrcamentoEstoqueInsuficienteMantemAprovacao(t *testing.T) {
 
 	rsp, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
 	require.NoError(t, err)
-	require.NotEmpty(t, rsp.Aviso)
+	require.Contains(t, rsp.Aviso, "a oficina inicia o serviço")
 	require.Len(t, *estados, 1)
 	require.Equal(t, string(ordemservico.OrcamentoAprovado), (*estados)[0].OrcamentoStatus)
+
+	// Falta de saldo gera pedido de reposição, senão a OS fica parada.
+	require.Len(t, c.sender.msgs, 1)
+	require.Equal(t, "admin@oficina.com", c.sender.msgs[0].To)
+	require.Contains(t, c.sender.msgs[0].Body, peca.Codigo)
+	require.Contains(t, c.sender.msgs[0].Body, c.os.Uuid.String())
 }
 
 func TestAprovarOrcamentoDocumentoErrado(t *testing.T) {
@@ -680,6 +686,7 @@ func TestIniciarExecucaoErros(t *testing.T) {
 		c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrConnDone)
 		_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
 		require.ErrorIs(t, err, sql.ErrConnDone)
+		require.Empty(t, c.sender.msgs)
 	})
 }
 
@@ -699,6 +706,23 @@ func TestFinalizarOrdemServico(t *testing.T) {
 	require.True(t, (*estados)[0].FinalizadaEm.Valid)
 	require.Contains(t, (*historico)[0].Observacao, "1h 30min")
 	require.Len(t, c.sender.msgs, 1)
+}
+
+// Cliente antigo sem e-mail: a OS é finalizada e o aviso não sai.
+func TestFinalizarOrdemServicoClienteSemEmailNaoNotifica(t *testing.T) {
+	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+	c.os.ExecucaoIniciadaEm = sql.NullTime{Time: time.Now().Add(-time.Hour), Valid: true}
+	c.cliente.Email = ""
+	fxExecTx(c.store)
+	c.leitura(nil, nil, nil)
+	estados := fxCapturaEstado(c.store)
+	fxCapturaHistorico(c.store)
+	c.travaOS()
+
+	_, err := c.svc.FinalizarOrdemServico(context.Background(), c.os.Uuid, 5)
+	require.NoError(t, err)
+	require.Equal(t, string(ordemservico.StatusFinalizada), (*estados)[0].Status)
+	require.Empty(t, c.sender.msgs)
 }
 
 func TestFinalizarOrdemServicoReparoPendente(t *testing.T) {
@@ -854,6 +878,26 @@ func TestRegistrarReparoAdicional(t *testing.T) {
 	require.Contains(t, c.sender.msgs[0].Body, "Disco empenado")
 }
 
+// Cliente antigo sem e-mail: o reparo é registrado e o aviso não sai.
+func TestRegistrarReparoAdicionalClienteSemEmailNaoNotifica(t *testing.T) {
+	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+	c.cliente.Email = ""
+	fxExecTx(c.store)
+	servico := fxServico(true)
+	c.leitura(nil, nil, nil)
+	c.travaOS()
+	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Return(fxReparo(c.os.ID, ordemservico.ReparoPendente), nil)
+	c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
+	c.store.EXPECT().CreateItemServico(gomock.Any(), gomock.Any()).Return(db.ItemServico{}, nil)
+
+	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{
+		Descricao: "Disco empenado",
+		Servicos:  []dto.ItemServicoRequest{{ServicoUuid: servico.Uuid}},
+	})
+	require.NoError(t, err)
+	require.Empty(t, c.sender.msgs)
+}
+
 func TestRegistrarReparoAdicionalPecaSemEstoque(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
 	fxExecTx(c.store)
@@ -918,6 +962,9 @@ func TestAutorizarReparoAdicionalSemEstoque(t *testing.T) {
 
 	_, err := c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
 	require.True(t, errors.Is(err, estoque.ErrEstoqueInsuficiente))
+	require.Len(t, c.sender.msgs, 1)
+	require.Equal(t, "admin@oficina.com", c.sender.msgs[0].To)
+	require.Contains(t, c.sender.msgs[0].Body, peca.Codigo)
 }
 
 func TestRecusarReparoAdicional(t *testing.T) {

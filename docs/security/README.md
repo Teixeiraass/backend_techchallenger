@@ -27,7 +27,7 @@ Data da análise: 24/10/2026. Os relatórios brutos estão nesta pasta e são ge
 
 ## Controles de segurança da aplicação
 
-- **Autenticação**: JWT HS256 por padrão (`TOKEN_TYPE=jwt`), com opção de PASETO v2 (`TOKEN_TYPE=paseto`). O algoritmo é fixado na verificação, então `alg=none` e outros algoritmos são recusados. O access token expira em 15 min. O refresh token fica salvo em sessão e pode ser revogado no logout.
+- **Autenticação**: JWT HS256 por padrão (`TOKEN_TYPE=jwt`), com opção de PASETO v2 (`TOKEN_TYPE=paseto`). O algoritmo é fixado na verificação, então `alg=none` e outros algoritmos são recusados. O access token expira em 15 min. O refresh token fica salvo em sessão e pode ser revogado no logout. O JWT é assinado, mas não é cifrado: quem tiver o token consegue ler o payload (e-mail, papel e IDs do usuário). Por isso o token não leva senha nem dado do cliente e dura pouco. Quem precisar do payload cifrado usa `TOKEN_TYPE=paseto`. Trocar o `TOKEN_TYPE` invalida os tokens já emitidos: os usuários precisam fazer login de novo.
 - **Autorização por papel**: ADMINISTRADOR, ATENDENTE e MECANICO, aplicada por middleware em cada rota administrativa.
 - **Usuário desativado** perde o acesso na hora: o middleware consulta o usuário a cada requisição.
 - **Senhas** guardadas com bcrypt. O login responde com a mesma mensagem para e-mail inexistente e para senha errada.

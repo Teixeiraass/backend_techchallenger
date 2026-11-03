@@ -13,7 +13,7 @@ A coluna "No código" aponta onde cada termo aparece na implementação (Go). Ca
 
 | Termo | Definição | No código |
 |---|---|---|
-| **Cliente** | Pessoa física ou jurídica dona do veículo. É identificado por CPF ou CNPJ. Acompanha a OS e aprova ou rejeita o orçamento. | tabela `clientes`, `db.Cliente`, `service.ClienteService` |
+| **Cliente** | Pessoa física ou jurídica dona do veículo. É identificado por CPF ou CNPJ e tem e-mail obrigatório (canal das notificações). Acompanha a OS e aprova ou rejeita o orçamento. | tabela `clientes`, `db.Cliente`, `service.ClienteService` |
 | **Atendente** | Funcionário que recebe o cliente, cadastra cliente e veículo, abre a OS, inclui serviços e peças e entrega o veículo. | papel `ATENDENTE` (`usuarios.papel`, `middleware.PapelAtendente`) |
 | **Mecânico** | Funcionário que faz o diagnóstico, inclui serviços e peças, envia o orçamento, executa os serviços, identifica reparo adicional e finaliza a OS. | papel `MECANICO` (`middleware.PapelMecanico`) |
 | **Administrador** | Gerencia o cadastro de peças, insumos e serviços e o estoque. Recebe o pedido de reposição e consulta o tempo médio de execução. | papel `ADMINISTRADOR` (`middleware.PapelAdministrador`), passa em todas as rotas |
@@ -42,7 +42,7 @@ A coluna "No código" aponta onde cada termo aparece na implementação (Go). Ca
 | **Estoque / saldo** | Quantidade disponível de uma peça ou insumo. Nunca fica negativo. | `pecas.quantidade_estoque` (CHECK >= 0) |
 | **Estoque mínimo** | Saldo de referência da peça. Quando o saldo fica no mínimo ou abaixo dele, a peça precisa de reposição. | `pecas.estoque_minimo`, `estoque.EstoqueBaixo()` (saldo ≤ mínimo) |
 | **Reposição** | Entrada de unidades no estoque, feita pelo administrador. | `PecaService.ReporEstoque()` |
-| **Pedido de reposição** | Aviso ao administrador de que uma peça está no estoque mínimo ou abaixo. O sistema só avisa; não compra a peça. | `notificarEstoqueBaixo()`, destinatário `ADMIN_NOTIFICATION_TO` |
+| **Pedido de reposição** | Aviso ao administrador de que uma peça está no estoque mínimo ou abaixo, ou de que falta saldo para uma OS aprovada. O sistema só avisa; não compra a peça. | `notificarEstoqueBaixo()` e `pedirReposicaoFaltante()`, destinatário `ADMIN_NOTIFICATION_TO` |
 | **Baixa de estoque** | Saída das unidades usadas, feita pelo sistema ao iniciar a execução. No reparo adicional, a baixa acontece quando o cliente autoriza. | `baixarEstoque()` em `ordem_servico_service.go`, query `BaixarEstoquePeca`; `AutorizarReparoAdicional` |
 | **Movimento de estoque** | Registro de cada reposição, ajuste ou baixa, com data e responsável. | tabela `movimentos_estoque` (ENTRADA, SAIDA, AJUSTE) |
 | **Notificação** | Aviso por e-mail. O cliente recebe quando o orçamento é enviado, quando há reparo adicional para autorizar e quando a OS é finalizada. O administrador recebe o pedido de reposição. | porta `notification.Sender`, adaptador `notification.LogSender` |
@@ -151,7 +151,7 @@ Relações entre contextos: a OS referencia Cliente, Veículo, Serviço e Peça 
 
 | Agregado (raiz) | Entidades internas | Objetos de valor | Invariantes principais |
 |---|---|---|---|
-| **Cliente** | - | `cliente.Documento` (CPF/CNPJ); conceituais: nome, contato | CPF/CNPJ válido e único |
+| **Cliente** | - | `cliente.Documento` (CPF/CNPJ); conceituais: nome, contato | CPF/CNPJ válido e único; e-mail obrigatório |
 | **Veículo** | - | `veiculo.Placa`; conceituais: modelo, ano (`ValidarAno`) | Placa válida e única; sempre tem um dono |
 | **OrdemServiço** | `ItemServico`, `ItemPeca`, `ReparoAdicional`, `HistoricoStatusOS` | `Status`, `StatusOrcamento`, `StatusReparo`, `Orcamento`; conceitual: dinheiro (centavos) | Status só avança na ordem; orçamento = serviços + peças; peça só entra com estoque; só executa depois de aprovada; não finaliza com reparo pendente |
 | **Peça** (peça ou insumo) | `MovimentoEstoque` (tabela `movimentos_estoque`) | `estoque.Tipo` (`PECA`, `INSUMO`), `estoque.TipoMovimento` (`ENTRADA`, `SAIDA`, `AJUSTE`); conceituais: código, quantidade, estoque mínimo, dinheiro | Código único; saldo nunca negativo; reposição maior que zero |
@@ -184,7 +184,7 @@ Diferença usada aqui: **entidade** tem identidade e histórico (muda ao longo d
 15. Operações que alteram mais de um registro (OS + estoque) acontecem em transação.
 16. Ao rejeitar o orçamento, a OS volta para **Em diagnóstico**.
 17. Ao aprovar o orçamento, o sistema inicia a execução logo em seguida.
-18. Se faltar saldo na baixa, a OS fica aguardando a reposição e a aprovação continua registrada. Depois da reposição, o atendente ou o mecânico inicia a execução.
+18. Se faltar saldo na baixa, a OS fica aguardando a reposição, a aprovação continua registrada e o administrador recebe um pedido de reposição por e-mail. Depois da reposição, o atendente ou o mecânico inicia a execução.
 19. Ao autorizar o reparo adicional, o sistema baixa as peças do reparo e recalcula o orçamento. A OS não é finalizada com reparo pendente.
 20. Ao baixar ou ajustar o estoque, o sistema confere o estoque mínimo. Se o saldo ficar no mínimo ou abaixo, o administrador recebe um pedido de reposição por e-mail.
 
@@ -211,12 +211,12 @@ Diferença usada aqui: **entidade** tem identidade e histórico (muda ao longo d
 | Comandos | Casos de uso | um método por comando em `internal/service/*_service.go` |
 | Políticas automáticas | Casos de uso | `internal/service/ordem_servico_service.go` (orçamento recalculado, início da execução após aprovação, baixa de estoque, pedido de reposição, notificações) |
 | Notificação | Porta e adaptador | `notification/sender.go`, `notification/log_sender.go` |
-| Autenticação (PASETO/JWT) e papéis | Infraestrutura | `token/`, `internal/middleware/auth.go` |
+| Autenticação (JWT, padrão, ou PASETO) e papéis | Infraestrutura | `token/`, `internal/middleware/auth.go` |
 | Transações | Infraestrutura | `db/sqlc/store.go` (`ExecTx`) |
 
 ### 5.2 Comandos e consultas → rotas da API
 
-Prefixo: `/api/v1`. "Token" = Bearer (PASETO ou JWT). Entre parênteses, os papéis aceitos; o administrador passa em todas.
+Prefixo: `/api/v1`. "Token" = Bearer (JWT por padrão; PASETO com `TOKEN_TYPE=paseto`). Entre parênteses, os papéis aceitos; o administrador passa em todas.
 
 | Comando ou consulta | Rota | Acesso |
 |---|---|---|

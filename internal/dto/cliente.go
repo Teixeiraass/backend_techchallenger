@@ -11,13 +11,13 @@ import (
 type CriarClienteRequest struct {
 	Nome      string `json:"nome" binding:"required,max=150" example:"Maria Silva"`
 	Documento string `json:"documento" binding:"required,max=18" example:"529.982.247-25"`
-	Email     string `json:"email" binding:"omitempty,email,max=150" example:"maria@email.com"`
+	Email     string `json:"email" binding:"required,email,max=150" example:"maria@email.com"`
 	Telefone  string `json:"telefone" binding:"max=20" example:"11999990000"`
 }
 
 type AtualizarClienteRequest struct {
 	Nome     string `json:"nome" binding:"required,max=150"`
-	Email    string `json:"email" binding:"omitempty,email,max=150"`
+	Email    string `json:"email" binding:"required,email,max=150"`
 	Telefone string `json:"telefone" binding:"max=20"`
 }
 

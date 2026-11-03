@@ -242,7 +242,7 @@ func (server *Server) IniciarDiagnostico(ctx *gin.Context) {
 
 // EnviarOrcamento godoc
 // @Summary      Enviar orçamento ao cliente
-// @Description  Em diagnóstico -> Aguardando aprovação. Mecânico ou administrador. Recebe o texto do diagnóstico, recalcula o orçamento, notifica o cliente por e-mail e disponibiliza a aprovação pelo link de acompanhamento.
+// @Description  Em diagnóstico -> Aguardando aprovação. Mecânico ou administrador. Recebe o texto do diagnóstico (opcional), recalcula o orçamento, notifica o cliente por e-mail e disponibiliza a aprovação pelo link de acompanhamento.
 // @Tags         ordens-servico
 // @Accept       json
 // @Produce      json
