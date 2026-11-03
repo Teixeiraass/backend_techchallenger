@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"time"
 
@@ -97,6 +99,7 @@ func (s *usuarioService) Login(ctx context.Context, req dto.LoginRequest, userAg
 	}
 
 	accessToken, accessPayload, err := s.tokenMaker.CreateToken(
+		token.TipoAccess,
 		usuario.Email,
 		usuario.ID,
 		usuario.Uuid,
@@ -108,6 +111,7 @@ func (s *usuarioService) Login(ctx context.Context, req dto.LoginRequest, userAg
 	}
 
 	refreshToken, refreshPayload, err := s.tokenMaker.CreateToken(
+		token.TipoRefresh,
 		usuario.Email,
 		usuario.ID,
 		usuario.Uuid,
@@ -121,7 +125,7 @@ func (s *usuarioService) Login(ctx context.Context, req dto.LoginRequest, userAg
 	sessao, err := s.store.CreateSessao(ctx, db.CreateSessaoParams{
 		ID:           refreshPayload.ID,
 		UsuarioID:    usuario.ID,
-		RefreshToken: refreshToken,
+		RefreshToken: HashRefreshToken(refreshToken),
 		UserAgent:    userAgent,
 		ClientIp:     clientIp,
 		IsBlocked:    false,
@@ -143,7 +147,8 @@ func (s *usuarioService) Login(ctx context.Context, req dto.LoginRequest, userAg
 
 func (s *usuarioService) RenewAccessToken(ctx context.Context, req dto.RenewAccessTokenRequest) (*dto.RenewAccessTokenResponse, error) {
 	refreshPayload, err := s.tokenMaker.VerifyToken(req.RefreshToken)
-	if err != nil {
+	if err != nil || !refreshPayload.EhDoTipo(token.TipoRefresh) {
+		// Um access token (ou qualquer outro tipo) não renova sessão.
 		return nil, ErrSessaoInvalida
 	}
 
@@ -154,12 +159,13 @@ func (s *usuarioService) RenewAccessToken(ctx context.Context, req dto.RenewAcce
 
 	if sessao.IsBlocked ||
 		sessao.UsuarioID != refreshPayload.UserID ||
-		sessao.RefreshToken != req.RefreshToken ||
+		sessao.RefreshToken != HashRefreshToken(req.RefreshToken) ||
 		time.Now().After(sessao.ExpiresAt) {
 		return nil, ErrSessaoInvalida
 	}
 
 	accessToken, accessPayload, err := s.tokenMaker.CreateToken(
+		token.TipoAccess,
 		refreshPayload.Username,
 		refreshPayload.UserID,
 		refreshPayload.UserUUID,
@@ -190,4 +196,11 @@ func (s *usuarioService) Logout(ctx context.Context, sessionID uuid.UUID, usuari
 	}
 
 	return s.store.BlockSessao(ctx, sessionID)
+}
+
+// HashRefreshToken devolve o SHA-256 (hex) do refresh token. A sessão guarda
+// só o hash: quem lê o banco não consegue reutilizar o token.
+func HashRefreshToken(refreshToken string) string {
+	sum := sha256.Sum256([]byte(refreshToken))
+	return hex.EncodeToString(sum[:])
 }

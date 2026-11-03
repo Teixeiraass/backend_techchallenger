@@ -111,10 +111,12 @@ func TestLogin(t *testing.T) {
 		store := crudNewStore(t)
 		svc := service.NewUsuarioService(store, maker, config)
 		store.EXPECT().GetUsuarioByEmail(gomock.Any(), usuario.Email).Return(usuario, nil)
+		var sessaoGravada db.CreateSessaoParams
 		store.EXPECT().CreateSessao(gomock.Any(), gomock.Any()).
 			DoAndReturn(func(_ context.Context, arg db.CreateSessaoParams) (db.Sessao, error) {
 				require.Equal(t, usuario.ID, arg.UsuarioID)
 				require.Equal(t, "agent", arg.UserAgent)
+				sessaoGravada = arg
 				return db.Sessao{ID: arg.ID}, nil
 			})
 		rsp, err := svc.Login(ctx, req, "agent", "127.0.0.1")
@@ -126,6 +128,15 @@ func TestLogin(t *testing.T) {
 		payload, err := maker.VerifyToken(rsp.AccessToken)
 		require.NoError(t, err)
 		require.Equal(t, "ATENDENTE", payload.Role)
+		require.Equal(t, token.TipoAccess, payload.Tipo)
+
+		refreshPayload, err := maker.VerifyToken(rsp.RefreshToken)
+		require.NoError(t, err)
+		require.Equal(t, token.TipoRefresh, refreshPayload.Tipo)
+
+		// A sessão guarda o hash, nunca o token em texto puro.
+		require.NotEqual(t, rsp.RefreshToken, sessaoGravada.RefreshToken)
+		require.Equal(t, service.HashRefreshToken(rsp.RefreshToken), sessaoGravada.RefreshToken)
 	})
 
 	t.Run("EmailNotFound", func(t *testing.T) {
@@ -173,7 +184,7 @@ func TestLogin(t *testing.T) {
 
 type crudFailingMaker struct{}
 
-func (crudFailingMaker) CreateToken(string, int64, uuid.UUID, string, time.Duration) (string, *token.Payload, error) {
+func (crudFailingMaker) CreateToken(string, string, int64, uuid.UUID, string, time.Duration) (string, *token.Payload, error) {
 	return "", nil, errors.New("token failure")
 }
 
@@ -187,12 +198,12 @@ type crudSecondCallFailingMaker struct {
 	calls *int
 }
 
-func (m crudSecondCallFailingMaker) CreateToken(u string, id int64, uid uuid.UUID, role string, d time.Duration) (string, *token.Payload, error) {
+func (m crudSecondCallFailingMaker) CreateToken(tipo string, u string, id int64, uid uuid.UUID, role string, d time.Duration) (string, *token.Payload, error) {
 	*m.calls++
 	if *m.calls > 1 {
 		return "", nil, errors.New("token failure")
 	}
-	return m.Maker.CreateToken(u, id, uid, role, d)
+	return m.Maker.CreateToken(tipo, u, id, uid, role, d)
 }
 
 func TestLoginRefreshTokenError(t *testing.T) {
@@ -216,9 +227,12 @@ func TestRenewAccessToken(t *testing.T) {
 	ctx := context.Background()
 	userID := int64(7)
 
-	refresh, payload, err := maker.CreateToken("a@b.com", userID, uuid.New(), "MECANICO", time.Hour)
+	refresh, payload, err := maker.CreateToken(token.TipoRefresh, "a@b.com", userID, uuid.New(), "MECANICO", time.Hour)
 	require.NoError(t, err)
-	sessaoOK := db.Sessao{ID: payload.ID, UsuarioID: userID, RefreshToken: refresh, ExpiresAt: time.Now().Add(time.Hour)}
+	// A sessão guarda só o hash do refresh token.
+	sessaoOK := db.Sessao{ID: payload.ID, UsuarioID: userID, RefreshToken: service.HashRefreshToken(refresh), ExpiresAt: time.Now().Add(time.Hour)}
+	access, _, err := maker.CreateToken(token.TipoAccess, "a@b.com", userID, uuid.New(), "MECANICO", time.Hour)
+	require.NoError(t, err)
 
 	testCases := []struct {
 		name    string
@@ -228,6 +242,7 @@ func TestRenewAccessToken(t *testing.T) {
 	}{
 		{name: "OK", token: refresh, stub: func(s *crudStoreExpect) { s.sessao(sessaoOK, nil) }},
 		{name: "InvalidToken", token: "invalid", stub: func(s *crudStoreExpect) {}, wantErr: service.ErrSessaoInvalida},
+		{name: "AccessTokenNaoRenova", token: access, stub: func(s *crudStoreExpect) {}, wantErr: service.ErrSessaoInvalida},
 		{name: "SessionNotFound", token: refresh, stub: func(s *crudStoreExpect) { s.sessao(db.Sessao{}, sql.ErrNoRows) }, wantErr: service.ErrSessaoInvalida},
 		{name: "DBError", token: refresh, stub: func(s *crudStoreExpect) { s.sessao(db.Sessao{}, sql.ErrConnDone) }, wantErr: sql.ErrConnDone},
 		{name: "Blocked", token: refresh, stub: func(s *crudStoreExpect) {
@@ -242,7 +257,7 @@ func TestRenewAccessToken(t *testing.T) {
 		}, wantErr: service.ErrSessaoInvalida},
 		{name: "MismatchedToken", token: refresh, stub: func(s *crudStoreExpect) {
 			other := sessaoOK
-			other.RefreshToken = "other"
+			other.RefreshToken = service.HashRefreshToken("other")
 			s.sessao(other, nil)
 		}, wantErr: service.ErrSessaoInvalida},
 		{name: "Expired", token: refresh, stub: func(s *crudStoreExpect) {
@@ -274,13 +289,13 @@ func TestRenewAccessTokenCreateError(t *testing.T) {
 	config := crudConfig()
 	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
 	require.NoError(t, err)
-	refresh, payload, err := maker.CreateToken("a@b.com", 1, uuid.New(), "MECANICO", time.Hour)
+	refresh, payload, err := maker.CreateToken(token.TipoRefresh, "a@b.com", 1, uuid.New(), "MECANICO", time.Hour)
 	require.NoError(t, err)
 
 	calls := 1 // already "used" one call, next CreateToken fails
 	store := crudNewStore(t)
 	store.EXPECT().GetSessao(gomock.Any(), payload.ID).
-		Return(db.Sessao{ID: payload.ID, UsuarioID: 1, RefreshToken: refresh, ExpiresAt: time.Now().Add(time.Hour)}, nil)
+		Return(db.Sessao{ID: payload.ID, UsuarioID: 1, RefreshToken: service.HashRefreshToken(refresh), ExpiresAt: time.Now().Add(time.Hour)}, nil)
 	svc := service.NewUsuarioService(store, crudSecondCallFailingMaker{Maker: maker, calls: &calls}, config)
 	_, err = svc.RenewAccessToken(context.Background(), dto.RenewAccessTokenRequest{RefreshToken: refresh})
 	require.Error(t, err)

@@ -7,8 +7,9 @@ import (
 )
 
 type Maker interface {
-	// CreateToken creates a new token for a specific user, role and duration
-	CreateToken(username string, userID int64, userUUID uuid.UUID, role string, duration time.Duration) (string, *Payload, error)
+	// CreateToken creates a new token of the given type (TipoAccess or
+	// TipoRefresh) for a specific user, role and duration
+	CreateToken(tipo string, username string, userID int64, userUUID uuid.UUID, role string, duration time.Duration) (string, *Payload, error)
 
 	// VerifyToken checks if the token is valid or not
 	VerifyToken(token string) (*Payload, error)

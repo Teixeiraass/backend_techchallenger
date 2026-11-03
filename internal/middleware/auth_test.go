@@ -44,6 +44,21 @@ func TestAuthMiddleware(t *testing.T) {
 			},
 		},
 		{
+			name: "RefreshTokenRecusado",
+			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {
+				refresh, _, err := tokenMaker.CreateToken(token.TipoRefresh, "user", 1, util.RandomUuid(), PapelAtendente, time.Minute)
+				require.NoError(t, err)
+				request.Header.Set(AuthorizationHeaderKey, "Bearer "+refresh)
+			},
+			buildStubs: func(store *mockdb.MockStore) {
+				store.EXPECT().GetUsuario(gomock.Any(), gomock.Any()).Times(0)
+			},
+			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+				require.Contains(t, recorder.Body.String(), "TOKEN_TIPO_INVALIDO")
+			},
+		},
+		{
 			name:      "NoAuthorization",
 			setupAuth: func(t *testing.T, request *http.Request, tokenMaker token.Maker) {},
 			buildStubs: func(store *mockdb.MockStore) {
@@ -51,6 +66,7 @@ func TestAuthMiddleware(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+				require.Contains(t, recorder.Body.String(), "TOKEN_AUSENTE")
 			},
 		},
 		{
@@ -87,6 +103,7 @@ func TestAuthMiddleware(t *testing.T) {
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusUnauthorized, recorder.Code)
+				require.Contains(t, recorder.Body.String(), "TOKEN_EXPIRADO")
 			},
 		},
 		{

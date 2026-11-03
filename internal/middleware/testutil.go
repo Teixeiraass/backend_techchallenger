@@ -22,7 +22,7 @@ func AddAuthorization(
 	role string,
 	duration time.Duration,
 ) {
-	accessToken, payload, err := tokenMaker.CreateToken(username, userID, userUUID, role, duration)
+	accessToken, payload, err := tokenMaker.CreateToken(token.TipoAccess, username, userID, userUUID, role, duration)
 	require.NoError(t, err)
 	require.NotEmpty(t, payload)
 
