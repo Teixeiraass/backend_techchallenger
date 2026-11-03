@@ -21,7 +21,7 @@ flowchart LR
         USR{{"Usuário e papel"}}
     end
     EMAIL[("E-mail<br/>sistema externo")]
-    SK["Kernel compartilhado<br/>erros de domínio (internal/domain)<br/>e transação única (db.Store.ExecTx)"]
+    SK["Kernel compartilhado<br/>erros de domínio (internal/domain/errors.go)"]
 
     VEI -- "pertence a" --> CLI
     CLI -- "U → D · Cliente-Fornecedor<br/>a OS guarda só o id" --> OS
@@ -63,10 +63,11 @@ U = upstream (fornece). D = downstream (consome).
 | Catálogo e estoque → Ordem de Serviço | Cliente-Fornecedor | Ao incluir um item, a OS copia o preço do serviço ou da peça para o item (`ValorUnitarioCentavos`). Se o preço mudar depois, o orçamento não muda. Ao iniciar a execução, a OS pede a baixa das peças na mesma transação. | `incluirServico`, `incluirPeca` e `baixarEstoque` em `ordem_servico_service.go`; regras em `internal/domain/estoque` |
 | Identidade e acesso → todos | Conformista | Os contextos usam o papel do usuário como o middleware entrega, sem tradução. | `internal/middleware/auth.go` (`RequireRole`), `token/` |
 | E-mail → Ordem de Serviço | Camada anticorrupção | A OS só conhece a porta `notification.Sender`. O provedor fica atrás dela. No MVP, o envio é só registrado em log (`LogSender`). | `notification/sender.go`, `cmd/server/main.go` |
-| Todos os contextos | Kernel compartilhado | Os contextos usam os mesmos erros de domínio e a mesma transação de banco. | `internal/domain/errors.go`, `db/sqlc/store.go` |
+| Todos os contextos | Kernel compartilhado | Os contextos compartilham um pedaço do modelo: os erros de domínio (`domain.Error` com `Kind` e `Code`), que todo contexto devolve e que a camada HTTP traduz para status. Só isso é modelo compartilhado. | `internal/domain/errors.go` |
 
 ## Limites conhecidos
 
+- **Transação única é decisão de infraestrutura, não modelo.** Todos os contextos gravam no mesmo banco e os comandos da OS rodam em uma só transação (`db.Store.ExecTx`), que também baixa o estoque. Isso é uma escolha do monólito (consistência forte entre OS e estoque), e não um kernel compartilhado: ao separar os contextos em serviços, a transação única deixa de existir e a baixa passa a ser uma integração entre contextos.
 - **Não há camada anticorrupção entre os contextos internos.** O serviço da OS consulta as tabelas de Cadastro e de Catálogo e estoque direto pelo `db.Querier`. Para separar os contextos em serviços, a OS precisaria de portas próprias (ex.: consulta de cliente, gestão de estoque).
 - **A baixa de estoque é síncrona e na mesma transação.** O Event Storming mostra o evento *Execução iniciada* disparando a baixa. No código, isso é uma chamada direta, sem evento publicado.
 - **A notificação do estoque baixo sai da OS.** Quem confere o estoque mínimo depois da baixa é o serviço da OS (`notificarEstoqueBaixo`), não o contexto de estoque.

@@ -717,7 +717,6 @@ definitions:
       error:
         type: string
     type: object
-host: localhost:8080
 info:
   contact:
     name: Guilherme Teixeira
@@ -758,6 +757,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Listar clientes
@@ -790,6 +793,10 @@ paths:
           description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -813,6 +820,14 @@ paths:
           description: No Content
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -844,6 +859,10 @@ paths:
             $ref: '#/definitions/dto.ClienteResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -883,6 +902,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -911,6 +938,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -920,9 +951,10 @@ paths:
       summary: Identificar cliente por CPF/CNPJ
       tags:
       - clientes
-  /helper:
+  /health:
     get:
-      description: Endpoint simples para confirmar que a API está respondendo.
+      description: Responde 200 quando a API está no ar. Usado pelo healthcheck do
+        docker-compose e por orquestradores.
       produces:
       - application/json
       responses:
@@ -932,9 +964,25 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Verificar disponibilidade da API
+      summary: Verificar disponibilidade da API (health check)
       tags:
-      - helper
+      - health
+  /helper:
+    get:
+      deprecated: true
+      description: Mantido por compatibilidade. Use GET /health.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Sucesso
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verificar disponibilidade da API (obsoleto, use /health)
+      tags:
+      - health
   /ordens-servico:
     get:
       parameters:
@@ -968,6 +1016,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Listar ordens de serviço
@@ -995,6 +1047,14 @@ paths:
             $ref: '#/definitions/dto.OrdemServicoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1028,6 +1088,10 @@ paths:
             $ref: '#/definitions/dto.OrdemServicoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1088,6 +1152,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.OrdemServicoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1118,6 +1190,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.OrdemServicoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1149,6 +1229,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.OrdemServicoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1179,6 +1267,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.OrdemServicoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1258,6 +1354,14 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/dto.OrdemServicoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1341,6 +1445,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1376,6 +1488,14 @@ paths:
             $ref: '#/definitions/dto.OrdemServicoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1419,6 +1539,14 @@ paths:
             $ref: '#/definitions/dto.OrdemServicoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1552,6 +1680,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1589,6 +1725,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1624,6 +1768,14 @@ paths:
             $ref: '#/definitions/dto.TempoMedioExecucaoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
       security:
@@ -1667,6 +1819,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Listar peças e insumos
@@ -1692,6 +1848,10 @@ paths:
             $ref: '#/definitions/dto.PecaResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "403":
@@ -1727,6 +1887,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1752,6 +1920,10 @@ paths:
             $ref: '#/definitions/dto.PecaResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1789,6 +1961,14 @@ paths:
             $ref: '#/definitions/dto.PecaResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1833,6 +2013,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1870,6 +2058,10 @@ paths:
             type: array
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1910,6 +2102,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1932,6 +2132,10 @@ paths:
             items:
               $ref: '#/definitions/dto.PecaResponse'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Peças no estoque mínimo
@@ -1969,6 +2173,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
       security:
       - BearerAuth: []
       summary: Listar serviços do catálogo
@@ -1994,6 +2202,10 @@ paths:
             $ref: '#/definitions/dto.ServicoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "403":
@@ -2030,6 +2242,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2055,6 +2275,10 @@ paths:
             $ref: '#/definitions/dto.ServicoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -2092,6 +2316,14 @@ paths:
             $ref: '#/definitions/dto.ServicoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -2158,6 +2390,10 @@ paths:
             items:
               $ref: '#/definitions/dto.UsuarioResponse'
             type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "403":
           description: Forbidden
           schema:
@@ -2187,6 +2423,10 @@ paths:
             $ref: '#/definitions/dto.UsuarioResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "403":
@@ -2229,6 +2469,14 @@ paths:
             $ref: '#/definitions/dto.UsuarioResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -2349,6 +2597,10 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2381,6 +2633,14 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -2408,6 +2668,14 @@ paths:
           description: No Content
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -2439,6 +2707,10 @@ paths:
             $ref: '#/definitions/dto.VeiculoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -2474,6 +2746,14 @@ paths:
             $ref: '#/definitions/dto.VeiculoResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":

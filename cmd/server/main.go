@@ -5,7 +5,7 @@ import (
 	"log"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
-	_ "github.com/Teixeiraass/backend_techchallenger/docs"
+	"github.com/Teixeiraass/backend_techchallenger/docs"
 	"github.com/Teixeiraass/backend_techchallenger/internal/handler"
 	"github.com/Teixeiraass/backend_techchallenger/notification"
 	"github.com/Teixeiraass/backend_techchallenger/util"
@@ -19,7 +19,6 @@ import (
 // @description     Rotas administrativas exigem token Bearer (POST /usuarios/login). As rotas de acompanhamento do cliente são públicas e usam o CPF/CNPJ do dono da OS.
 // @contact.name    Guilherme Teixeira
 // @license.name    MIT
-// @host            localhost:8080
 // @BasePath        /api/v1
 // @schemes         http
 // @securityDefinitions.apikey BearerAuth
@@ -31,6 +30,10 @@ func main() {
 	if err != nil {
 		log.Fatal("cannot load config:", err)
 	}
+
+	// Host vazio: o Swagger UI usa a origem da própria página, então o
+	// "Try it out" funciona em qualquer porta (API_PORT) ou host.
+	docs.SwaggerInfo.Host = ""
 
 	conn, err := sql.Open(config.DBDriver, config.DBSource)
 	if err != nil {

@@ -113,6 +113,7 @@ func (server *Server) GetUsuarioAtual(ctx *gin.Context) {
 // @Param        request body dto.CriarUsuarioRequest true "Usuário"
 // @Success      201 {object} dto.UsuarioResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /usuarios [post]
@@ -140,6 +141,7 @@ func (server *Server) CriarUsuario(ctx *gin.Context) {
 // @Param        pagina  query int false "Página (padrão 1)"
 // @Param        tamanho query int false "Itens por página (padrão 20, máx 100)"
 // @Success      200 {array} dto.UsuarioResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
 // @Router       /usuarios [get]
 func (server *Server) ListarUsuarios(ctx *gin.Context) {
@@ -173,6 +175,8 @@ func (server *Server) ListarUsuarios(ctx *gin.Context) {
 // @Param        request body dto.AtualizarUsuarioAtivoRequest true "Situação"
 // @Success      200 {object} dto.UsuarioResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /usuarios/{uuid}/ativo [patch]
 func (server *Server) AtualizarUsuarioAtivo(ctx *gin.Context) {
