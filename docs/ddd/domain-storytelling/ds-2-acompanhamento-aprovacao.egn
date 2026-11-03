@@ -19,18 +19,68 @@
   },
   "dst": [
     {
-      "type": "domainStory:actorSettings",
-      "name": "Mecânico",
-      "id": "shape_7821",
-      "x": 491,
-      "y": 119
+      "type": "domainStory:activity",
+      "name": "para",
+      "id": "connection_1363",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 177,
+            "y": 714
+          },
+          "x": 177,
+          "y": 676
+        },
+        {
+          "original": {
+            "x": 177,
+            "y": 438
+          },
+          "x": 177,
+          "y": 475
+        }
+      ],
+      "source": "shape_8414",
+      "target": "shape_4405",
+      "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:workObjectFlag",
-      "name": "Status",
-      "id": "shape_5510",
-      "x": 491,
-      "y": 400
+      "type": "domainStory:activity",
+      "name": "envia",
+      "id": "connection_1522",
+      "pickedColor": "black",
+      "number": 9,
+      "waypoints": [
+        {
+          "original": {
+            "x": 881,
+            "y": 852
+          },
+          "x": 881,
+          "y": 894
+        },
+        {
+          "x": 881,
+          "y": 980
+        },
+        {
+          "x": 177,
+          "y": 980
+        },
+        {
+          "original": {
+            "x": 177,
+            "y": 714
+          },
+          "x": 177,
+          "y": 751
+        }
+      ],
+      "source": "shape_4429",
+      "target": "shape_8414",
+      "multipleNumberAllowed": false
     },
     {
       "type": "domainStory:activity",
@@ -45,7 +95,7 @@
             "y": 157
           },
           "x": 529,
-          "y": 194
+          "y": 199
         },
         {
           "original": {
@@ -61,11 +111,168 @@
       "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:workObjectAssignment",
-      "name": "Ordem de serviço",
-      "id": "shape_2339",
-      "x": 491,
-      "y": 565
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_1794",
+      "waypoints": [
+        {
+          "original": {
+            "x": 1233,
+            "y": 852
+          },
+          "x": 1271,
+          "y": 827
+        },
+        {
+          "original": {
+            "x": 1365,
+            "y": 766
+          },
+          "x": 1330,
+          "y": 788
+        }
+      ],
+      "source": "shape_7874",
+      "target": "shape_7699"
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_1837",
+      "source": "shape_7664",
+      "target": "shape_9929",
+      "waypoints": [
+        {
+          "original": {
+            "x": 177,
+            "y": 238
+          },
+          "x": 142,
+          "y": 200
+        },
+        {
+          "original": {
+            "x": 80,
+            "y": 132
+          },
+          "x": 101,
+          "y": 154
+        }
+      ]
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_2116",
+      "waypoints": [
+        {
+          "original": {
+            "x": 177,
+            "y": 714
+          },
+          "x": 215,
+          "y": 689
+        },
+        {
+          "original": {
+            "x": 309,
+            "y": 628
+          },
+          "x": 274,
+          "y": 650
+        }
+      ],
+      "source": "shape_8414",
+      "target": "shape_5853"
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "atualiza",
+      "id": "connection_2447",
+      "pickedColor": "black",
+      "number": 4,
+      "waypoints": [
+        {
+          "original": {
+            "x": 793,
+            "y": 157
+          },
+          "x": 780,
+          "y": 199
+        },
+        {
+          "x": 780,
+          "y": 260
+        },
+        {
+          "x": 705,
+          "y": 260
+        },
+        {
+          "original": {
+            "x": 705,
+            "y": 438
+          },
+          "x": 705,
+          "y": 400
+        }
+      ],
+      "source": "shape_8796",
+      "target": "shape_4986",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "no",
+      "id": "connection_2568",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 881,
+            "y": 603
+          },
+          "x": 881,
+          "y": 658.75
+        },
+        {
+          "original": {
+            "x": 881,
+            "y": 852
+          },
+          "x": 881,
+          "y": 814
+        }
+      ],
+      "source": "shape_2120",
+      "target": "shape_4429",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_2585",
+      "waypoints": [
+        {
+          "original": {
+            "x": 705,
+            "y": 438
+          },
+          "x": 726,
+          "y": 417
+        },
+        {
+          "original": {
+            "x": 793,
+            "y": 350
+          },
+          "x": 763,
+          "y": 380
+        }
+      ],
+      "source": "shape_4986",
+      "target": "shape_6924"
     },
     {
       "type": "domainStory:activity",
@@ -80,7 +287,7 @@
             "y": 438
           },
           "x": 529,
-          "y": 475
+          "y": 479.75
         },
         {
           "original": {
@@ -96,104 +303,65 @@
       "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:actorDesktop",
-      "name": "Sistema",
-      "id": "shape_4429",
-      "x": 843,
-      "y": 814
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_2911",
+      "waypoints": [
+        {
+          "original": {
+            "x": 1057,
+            "y": 438
+          },
+          "x": 1079,
+          "y": 417
+        },
+        {
+          "original": {
+            "x": 1151,
+            "y": 350
+          },
+          "x": 1119,
+          "y": 380
+        }
+      ],
+      "source": "shape_3614",
+      "target": "shape_3232"
     },
     {
       "type": "domainStory:activity",
       "name": "no",
-      "id": "connection_9600",
+      "id": "connection_2925",
       "pickedColor": "black",
       "number": null,
       "waypoints": [
         {
-          "x": 529,
-          "y": 640,
           "original": {
-            "x": 529,
+            "x": 1233,
             "y": 603
-          }
+          },
+          "x": 1233,
+          "y": 658.75
         },
         {
-          "x": 529,
+          "x": 1233,
           "y": 790
         },
         {
-          "x": 850,
+          "x": 912,
           "y": 790
         },
         {
-          "x": 850,
-          "y": 814,
           "original": {
             "x": 881,
             "y": 852
-          }
+          },
+          "x": 912,
+          "y": 814
         }
       ],
-      "source": "shape_2339",
+      "source": "shape_2969",
       "target": "shape_4429",
       "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:actorDesktop",
-      "name": "Sistema",
-      "id": "shape_8796",
-      "x": 755,
-      "y": 119
-    },
-    {
-      "type": "domainStory:workObjectFlag",
-      "name": "Status",
-      "id": "shape_4986",
-      "x": 667,
-      "y": 400
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "atualiza",
-      "id": "connection_2447",
-      "pickedColor": "black",
-      "number": 4,
-      "waypoints": [
-        {
-          "x": 780,
-          "y": 194,
-          "original": {
-            "x": 793,
-            "y": 157
-          }
-        },
-        {
-          "x": 780,
-          "y": 260
-        },
-        {
-          "x": 705,
-          "y": 260
-        },
-        {
-          "x": 705,
-          "y": 400,
-          "original": {
-            "x": 705,
-            "y": 438
-          }
-        }
-      ],
-      "source": "shape_8796",
-      "target": "shape_4986",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectAssignment",
-      "name": "Ordem de serviço",
-      "id": "shape_4569",
-      "x": 667,
-      "y": 565
     },
     {
       "type": "domainStory:activity",
@@ -208,7 +376,7 @@
             "y": 438
           },
           "x": 705,
-          "y": 475
+          "y": 479.75
         },
         {
           "original": {
@@ -224,54 +392,226 @@
       "multipleNumberAllowed": false
     },
     {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_3854",
+      "waypoints": [
+        {
+          "original": {
+            "x": 529,
+            "y": 438
+          },
+          "x": 549,
+          "y": 415
+        },
+        {
+          "original": {
+            "x": 613,
+            "y": 342
+          },
+          "x": 593,
+          "y": 365
+        }
+      ],
+      "source": "shape_5510",
+      "target": "shape_8483"
+    },
+    {
       "type": "domainStory:activity",
-      "name": "no",
-      "id": "connection_6582",
+      "name": "da",
+      "id": "connection_4144",
       "pickedColor": "black",
       "number": null,
       "waypoints": [
         {
-          "x": 705,
-          "y": 640,
-          "original": {
-            "x": 705,
-            "y": 603
-          }
-        },
-        {
-          "x": 705,
-          "y": 760
-        },
-        {
-          "x": 865,
-          "y": 760
-        },
-        {
-          "x": 865,
-          "y": 814,
           "original": {
             "x": 881,
-            "y": 852
-          }
+            "y": 438
+          },
+          "x": 881,
+          "y": 479.75
+        },
+        {
+          "original": {
+            "x": 881,
+            "y": 603
+          },
+          "x": 881,
+          "y": 565
         }
       ],
-      "source": "shape_4569",
-      "target": "shape_4429",
+      "source": "shape_5729",
+      "target": "shape_2120",
       "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:actorPerson",
-      "name": "Cliente",
-      "id": "shape_4405",
-      "x": 139,
-      "y": 400
+      "type": "domainStory:activity",
+      "name": "para",
+      "id": "connection_4342",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 177,
+            "y": 238
+          },
+          "x": 177,
+          "y": 279.75
+        },
+        {
+          "original": {
+            "x": 177,
+            "y": 438
+          },
+          "x": 177,
+          "y": 400
+        }
+      ],
+      "source": "shape_7664",
+      "target": "shape_4405",
+      "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:workObjectCheck-Circle",
-      "name": "Aprovação do orçamento",
-      "id": "shape_2699",
-      "x": 315,
-      "y": 400
+      "type": "domainStory:activity",
+      "name": "envia",
+      "id": "connection_4545",
+      "pickedColor": "black",
+      "number": 2,
+      "waypoints": [
+        {
+          "original": {
+            "x": 529,
+            "y": 157
+          },
+          "x": 491,
+          "y": 157
+        },
+        {
+          "x": 353,
+          "y": 157
+        },
+        {
+          "original": {
+            "x": 353,
+            "y": 238
+          },
+          "x": 353,
+          "y": 200
+        }
+      ],
+      "source": "shape_7821",
+      "target": "shape_5152",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "atualiza",
+      "id": "connection_4981",
+      "pickedColor": "black",
+      "number": 7,
+      "waypoints": [
+        {
+          "original": {
+            "x": 881,
+            "y": 852
+          },
+          "x": 918,
+          "y": 852
+        },
+        {
+          "original": {
+            "x": 1233,
+            "y": 852
+          },
+          "x": 1195,
+          "y": 852
+        }
+      ],
+      "source": "shape_4429",
+      "target": "shape_7874",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "atualiza",
+      "id": "connection_5138",
+      "pickedColor": "black",
+      "number": 10,
+      "waypoints": [
+        {
+          "original": {
+            "x": 1233,
+            "y": 157
+          },
+          "x": 1233,
+          "y": 199
+        },
+        {
+          "original": {
+            "x": 1233,
+            "y": 438
+          },
+          "x": 1233,
+          "y": 400
+        }
+      ],
+      "source": "shape_1543",
+      "target": "shape_9075",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "de",
+      "id": "connection_5893",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 1233,
+            "y": 852
+          },
+          "x": 1270,
+          "y": 852
+        },
+        {
+          "original": {
+            "x": 1497,
+            "y": 852
+          },
+          "x": 1459,
+          "y": 852
+        }
+      ],
+      "source": "shape_7874",
+      "target": "shape_2532",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_6300",
+      "waypoints": [
+        {
+          "original": {
+            "x": 353,
+            "y": 238
+          },
+          "x": 341,
+          "y": 200
+        },
+        {
+          "original": {
+            "x": 320,
+            "y": 132
+          },
+          "x": 327,
+          "y": 155
+        }
+      ],
+      "source": "shape_5152",
+      "target": "shape_9017"
     },
     {
       "type": "domainStory:activity",
@@ -303,287 +643,38 @@
     },
     {
       "type": "domainStory:activity",
-      "name": "para",
-      "id": "connection_8788",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 353,
-            "y": 438
-          },
-          "x": 353,
-          "y": 475
-        },
-        {
-          "x": 353,
-          "y": 852
-        },
-        {
-          "original": {
-            "x": 881,
-            "y": 852
-          },
-          "x": 843,
-          "y": 852
-        }
-      ],
-      "source": "shape_2699",
-      "target": "shape_4429",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectFlag",
-      "name": "Status",
-      "id": "shape_5729",
-      "x": 843,
-      "y": 400
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "atualiza",
-      "id": "connection_9945",
-      "pickedColor": "black",
-      "number": 6,
-      "waypoints": [
-        {
-          "x": 806,
-          "y": 194,
-          "original": {
-            "x": 793,
-            "y": 157
-          }
-        },
-        {
-          "x": 806,
-          "y": 260
-        },
-        {
-          "x": 881,
-          "y": 260
-        },
-        {
-          "x": 881,
-          "y": 400,
-          "original": {
-            "x": 881,
-            "y": 438
-          }
-        }
-      ],
-      "source": "shape_8796",
-      "target": "shape_5729",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectAssignment",
-      "name": "Ordem de serviço",
-      "id": "shape_2120",
-      "x": 843,
-      "y": 565
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "da",
-      "id": "connection_4144",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 881,
-            "y": 438
-          },
-          "x": 881,
-          "y": 475
-        },
-        {
-          "original": {
-            "x": 881,
-            "y": 603
-          },
-          "x": 881,
-          "y": 565
-        }
-      ],
-      "source": "shape_5729",
-      "target": "shape_2120",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:activity",
       "name": "no",
-      "id": "connection_2568",
+      "id": "connection_6582",
       "pickedColor": "black",
       "number": null,
       "waypoints": [
         {
-          "x": 881,
-          "y": 640,
           "original": {
-            "x": 881,
+            "x": 705,
             "y": 603
-          }
+          },
+          "x": 705,
+          "y": 658.75
         },
         {
-          "x": 881,
-          "y": 814,
+          "x": 705,
+          "y": 760
+        },
+        {
+          "x": 865,
+          "y": 760
+        },
+        {
           "original": {
             "x": 881,
             "y": 852
-          }
+          },
+          "x": 865,
+          "y": 814
         }
       ],
-      "source": "shape_2120",
+      "source": "shape_4569",
       "target": "shape_4429",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectGrid",
-      "name": "Estoque",
-      "id": "shape_7874",
-      "x": 1195,
-      "y": 814
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "atualiza",
-      "id": "connection_4981",
-      "pickedColor": "black",
-      "number": 7,
-      "waypoints": [
-        {
-          "original": {
-            "x": 881,
-            "y": 852
-          },
-          "x": 918,
-          "y": 852
-        },
-        {
-          "original": {
-            "x": 1233,
-            "y": 852
-          },
-          "x": 1195,
-          "y": 852
-        }
-      ],
-      "source": "shape_4429",
-      "target": "shape_7874",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectExtension",
-      "name": "Peças e insumos",
-      "id": "shape_2532",
-      "x": 1459,
-      "y": 814
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "de",
-      "id": "connection_5893",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 1233,
-            "y": 852
-          },
-          "x": 1270,
-          "y": 852
-        },
-        {
-          "original": {
-            "x": 1497,
-            "y": 852
-          },
-          "x": 1459,
-          "y": 852
-        }
-      ],
-      "source": "shape_7874",
-      "target": "shape_2532",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:actorSettings",
-      "name": "Mecânico",
-      "id": "shape_1502",
-      "x": 1019,
-      "y": 119
-    },
-    {
-      "type": "domainStory:workObjectFlag",
-      "name": "Status",
-      "id": "shape_3614",
-      "x": 1019,
-      "y": 400
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "atualiza",
-      "id": "connection_7018",
-      "pickedColor": "black",
-      "number": 8,
-      "waypoints": [
-        {
-          "original": {
-            "x": 1057,
-            "y": 157
-          },
-          "x": 1057,
-          "y": 194
-        },
-        {
-          "original": {
-            "x": 1057,
-            "y": 438
-          },
-          "x": 1057,
-          "y": 400
-        }
-      ],
-      "source": "shape_1502",
-      "target": "shape_3614",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectAssignment",
-      "name": "Ordem de serviço",
-      "id": "shape_9595",
-      "x": 1019,
-      "y": 565
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "da",
-      "id": "connection_9907",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 1057,
-            "y": 438
-          },
-          "x": 1057,
-          "y": 475
-        },
-        {
-          "original": {
-            "x": 1057,
-            "y": 603
-          },
-          "x": 1057,
-          "y": 565
-        }
-      ],
-      "source": "shape_3614",
-      "target": "shape_9595",
       "multipleNumberAllowed": false
     },
     {
@@ -594,12 +685,12 @@
       "number": null,
       "waypoints": [
         {
-          "x": 1057,
-          "y": 640,
           "original": {
             "x": 1057,
             "y": 603
-          }
+          },
+          "x": 1057,
+          "y": 658.75
         },
         {
           "x": 1057,
@@ -610,137 +701,17 @@
           "y": 760
         },
         {
-          "x": 897,
-          "y": 814,
           "original": {
             "x": 881,
             "y": 852
-          }
+          },
+          "x": 897,
+          "y": 814
         }
       ],
       "source": "shape_9595",
       "target": "shape_4429",
       "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectConversation",
-      "name": "Notificação",
-      "id": "shape_8414",
-      "x": 139,
-      "y": 676
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "envia",
-      "id": "connection_1522",
-      "pickedColor": "black",
-      "number": 9,
-      "waypoints": [
-        {
-          "original": {
-            "x": 881,
-            "y": 852
-          },
-          "x": 881,
-          "y": 889
-        },
-        {
-          "x": 881,
-          "y": 980
-        },
-        {
-          "x": 177,
-          "y": 980
-        },
-        {
-          "original": {
-            "x": 177,
-            "y": 714
-          },
-          "x": 177,
-          "y": 751
-        }
-      ],
-      "source": "shape_4429",
-      "target": "shape_8414",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "para",
-      "id": "connection_1363",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 177,
-            "y": 714
-          },
-          "x": 177,
-          "y": 676
-        },
-        {
-          "original": {
-            "x": 177,
-            "y": 438
-          },
-          "x": 177,
-          "y": 475
-        }
-      ],
-      "source": "shape_8414",
-      "target": "shape_4405",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:actorGroup",
-      "name": "Atendente",
-      "id": "shape_1543",
-      "x": 1195,
-      "y": 119
-    },
-    {
-      "type": "domainStory:workObjectFlag",
-      "name": "Status",
-      "id": "shape_9075",
-      "x": 1195,
-      "y": 400
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "atualiza",
-      "id": "connection_5138",
-      "pickedColor": "black",
-      "number": 10,
-      "waypoints": [
-        {
-          "original": {
-            "x": 1233,
-            "y": 157
-          },
-          "x": 1233,
-          "y": 194
-        },
-        {
-          "original": {
-            "x": 1233,
-            "y": 438
-          },
-          "x": 1233,
-          "y": 400
-        }
-      ],
-      "source": "shape_1543",
-      "target": "shape_9075",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectAssignment",
-      "name": "Ordem de serviço",
-      "id": "shape_2969",
-      "x": 1195,
-      "y": 565
     },
     {
       "type": "domainStory:activity",
@@ -755,7 +726,7 @@
             "y": 438
           },
           "x": 1233,
-          "y": 475
+          "y": 479.75
         },
         {
           "original": {
@@ -772,471 +743,31 @@
     },
     {
       "type": "domainStory:activity",
-      "name": "no",
-      "id": "connection_2925",
+      "name": "atualiza",
+      "id": "connection_7018",
       "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "x": 1233,
-          "y": 640,
-          "original": {
-            "x": 1233,
-            "y": 603
-          }
-        },
-        {
-          "x": 1233,
-          "y": 790
-        },
-        {
-          "x": 912,
-          "y": 790
-        },
-        {
-          "x": 912,
-          "y": 814,
-          "original": {
-            "x": 881,
-            "y": 852
-          }
-        }
-      ],
-      "source": "shape_2969",
-      "target": "shape_4429",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Em diagnóstico",
-      "id": "shape_8483",
-      "x": 591,
-      "y": 320,
-      "width": 150,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_3854",
+      "number": 8,
       "waypoints": [
         {
           "original": {
-            "x": 529,
-            "y": 438
+            "x": 1057,
+            "y": 157
           },
-          "x": 567,
-          "y": 411
+          "x": 1057,
+          "y": 199
         },
-        {
-          "original": {
-            "x": 666,
-            "y": 342
-          },
-          "x": 634,
-          "y": 364
-        }
-      ],
-      "source": "shape_5510",
-      "target": "shape_8483"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Aguardando aprovação (automático ao enviar o orçamento)",
-      "id": "shape_6924",
-      "x": 767,
-      "y": 320,
-      "width": 150,
-      "height": 60
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_2585",
-      "waypoints": [
-        {
-          "original": {
-            "x": 705,
-            "y": 438
-          },
-          "x": 743,
-          "y": 414
-        },
-        {
-          "original": {
-            "x": 842,
-            "y": 350
-          },
-          "x": 795,
-          "y": 380
-        }
-      ],
-      "source": "shape_4986",
-      "target": "shape_6924"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Em execução",
-      "id": "shape_5308",
-      "x": 943,
-      "y": 320,
-      "width": 150,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_9203",
-      "waypoints": [
-        {
-          "original": {
-            "x": 881,
-            "y": 438
-          },
-          "x": 919,
-          "y": 411
-        },
-        {
-          "original": {
-            "x": 1018,
-            "y": 342
-          },
-          "x": 986,
-          "y": 364
-        }
-      ],
-      "source": "shape_5729",
-      "target": "shape_5308"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Finalizada, sem reparo pendente e com o tempo de execução registrado",
-      "id": "shape_3232",
-      "x": 1119,
-      "y": 320,
-      "width": 150,
-      "height": 60
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_2911",
-      "waypoints": [
         {
           "original": {
             "x": 1057,
             "y": 438
           },
-          "x": 1095,
-          "y": 414
-        },
-        {
-          "original": {
-            "x": 1194,
-            "y": 350
-          },
-          "x": 1147,
-          "y": 380
+          "x": 1057,
+          "y": 400
         }
       ],
-      "source": "shape_3614",
-      "target": "shape_3232"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Entregue (veículo entregue ao cliente)",
-      "id": "shape_8279",
-      "x": 1295,
-      "y": 320,
-      "width": 150,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_9809",
-      "waypoints": [
-        {
-          "original": {
-            "x": 1233,
-            "y": 438
-          },
-          "x": 1271,
-          "y": 411
-        },
-        {
-          "original": {
-            "x": 1370,
-            "y": 342
-          },
-          "x": 1338,
-          "y": 364
-        }
-      ],
-      "source": "shape_9075",
-      "target": "shape_8279"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Baixa as peças usadas na OS",
-      "id": "shape_7699",
-      "x": 1295,
-      "y": 744,
-      "width": 140,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_1794",
-      "waypoints": [
-        {
-          "original": {
-            "x": 1233,
-            "y": 852
-          },
-          "x": 1271,
-          "y": 827
-        },
-        {
-          "original": {
-            "x": 1365,
-            "y": 766
-          },
-          "x": 1330,
-          "y": 788
-        }
-      ],
-      "source": "shape_7874",
-      "target": "shape_7699"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Transição fora da ordem é recusada",
-      "id": "shape_1650",
-      "x": 960,
-      "y": 975,
-      "width": 140,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_8297",
-      "waypoints": [
-        {
-          "original": {
-            "x": 881,
-            "y": 852
-          },
-          "x": 919,
-          "y": 889
-        },
-        {
-          "original": {
-            "x": 1030,
-            "y": 997
-          },
-          "x": 1007,
-          "y": 974
-        }
-      ],
-      "source": "shape_4429",
-      "target": "shape_1650"
-    },
-    {
-      "type": "domainStory:workObjectDollar",
-      "name": "Orçamento",
-      "id": "shape_5152",
-      "x": 315,
-      "y": 200
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "envia",
-      "id": "connection_4545",
-      "pickedColor": "black",
-      "number": 2,
-      "waypoints": [
-        {
-          "x": 491,
-          "y": 157,
-          "original": {
-            "x": 529,
-            "y": 157
-          }
-        },
-        {
-          "x": 353,
-          "y": 157
-        },
-        {
-          "x": 353,
-          "y": 200,
-          "original": {
-            "x": 353,
-            "y": 238
-          }
-        }
-      ],
-      "source": "shape_7821",
-      "target": "shape_5152",
+      "source": "shape_1502",
+      "target": "shape_3614",
       "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "para",
-      "id": "connection_9284",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "x": 315,
-          "y": 238,
-          "original": {
-            "x": 353,
-            "y": 238
-          }
-        },
-        {
-          "x": 250,
-          "y": 238
-        },
-        {
-          "x": 250,
-          "y": 415
-        },
-        {
-          "x": 214,
-          "y": 415,
-          "original": {
-            "x": 177,
-            "y": 438
-          }
-        }
-      ],
-      "source": "shape_5152",
-      "target": "shape_4405",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Com o diagnóstico. Precisa de 1 item",
-      "id": "shape_9017",
-      "x": 300,
-      "y": 95,
-      "width": 140,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_6300",
-      "waypoints": [
-        {
-          "original": {
-            "x": 353,
-            "y": 238
-          },
-          "x": 358,
-          "y": 200
-        },
-        {
-          "original": {
-            "x": 370,
-            "y": 117
-          },
-          "x": 367,
-          "y": 140
-        }
-      ],
-      "source": "shape_5152",
-      "target": "shape_9017"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Pelo link de acompanhamento",
-      "id": "shape_6416",
-      "x": 415,
-      "y": 330,
-      "width": 140,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_9064",
-      "waypoints": [
-        {
-          "original": {
-            "x": 353,
-            "y": 438
-          },
-          "x": 391,
-          "y": 413
-        },
-        {
-          "original": {
-            "x": 485,
-            "y": 352
-          },
-          "x": 450,
-          "y": 374
-        }
-      ],
-      "source": "shape_2699",
-      "target": "shape_6416"
-    },
-    {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Por e-mail",
-      "id": "shape_5853",
-      "x": 239,
-      "y": 606,
-      "width": 140,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_2116",
-      "waypoints": [
-        {
-          "original": {
-            "x": 177,
-            "y": 714
-          },
-          "x": 215,
-          "y": 689
-        },
-        {
-          "original": {
-            "x": 309,
-            "y": 628
-          },
-          "x": 274,
-          "y": 650
-        }
-      ],
-      "source": "shape_8414",
-      "target": "shape_5853"
-    },
-    {
-      "type": "domainStory:workObjectConversation",
-      "name": "Notificação",
-      "id": "shape_7664",
-      "x": 139,
-      "y": 200
     },
     {
       "type": "domainStory:activity",
@@ -1275,32 +806,536 @@
       "multipleNumberAllowed": false
     },
     {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_8297",
+      "waypoints": [
+        {
+          "original": {
+            "x": 881,
+            "y": 852
+          },
+          "x": 913,
+          "y": 871
+        },
+        {
+          "original": {
+            "x": 1000,
+            "y": 924
+          },
+          "x": 964,
+          "y": 902
+        }
+      ],
+      "source": "shape_4429",
+      "target": "shape_1650"
+    },
+    {
       "type": "domainStory:activity",
       "name": "para",
-      "id": "connection_4342",
+      "id": "connection_8788",
       "pickedColor": "black",
       "number": null,
       "waypoints": [
         {
           "original": {
-            "x": 177,
+            "x": 353,
+            "y": 438
+          },
+          "x": 353,
+          "y": 493.75
+        },
+        {
+          "x": 353,
+          "y": 852
+        },
+        {
+          "original": {
+            "x": 881,
+            "y": 852
+          },
+          "x": 843,
+          "y": 852
+        }
+      ],
+      "source": "shape_2699",
+      "target": "shape_4429",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_9064",
+      "waypoints": [
+        {
+          "original": {
+            "x": 353,
+            "y": 438
+          },
+          "x": 374,
+          "y": 417
+        },
+        {
+          "original": {
+            "x": 447,
+            "y": 342
+          },
+          "x": 424,
+          "y": 365
+        }
+      ],
+      "source": "shape_2699",
+      "target": "shape_6416"
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_9203",
+      "waypoints": [
+        {
+          "original": {
+            "x": 881,
+            "y": 438
+          },
+          "x": 901,
+          "y": 416
+        },
+        {
+          "original": {
+            "x": 967,
+            "y": 342
+          },
+          "x": 946,
+          "y": 365
+        }
+      ],
+      "source": "shape_5729",
+      "target": "shape_5308"
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "para",
+      "id": "connection_9284",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 353,
             "y": 238
           },
-          "x": 177,
-          "y": 275
+          "x": 315,
+          "y": 238
+        },
+        {
+          "x": 250,
+          "y": 238
+        },
+        {
+          "x": 250,
+          "y": 415
         },
         {
           "original": {
             "x": 177,
             "y": 438
           },
-          "x": 177,
+          "x": 214,
+          "y": 415
+        }
+      ],
+      "source": "shape_5152",
+      "target": "shape_4405",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "no",
+      "id": "connection_9600",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 529,
+            "y": 603
+          },
+          "x": 529,
+          "y": 658.75
+        },
+        {
+          "x": 529,
+          "y": 790
+        },
+        {
+          "x": 850,
+          "y": 790
+        },
+        {
+          "original": {
+            "x": 881,
+            "y": 852
+          },
+          "x": 850,
+          "y": 814
+        }
+      ],
+      "source": "shape_2339",
+      "target": "shape_4429",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_9809",
+      "waypoints": [
+        {
+          "original": {
+            "x": 1233,
+            "y": 438
+          },
+          "x": 1253,
+          "y": 416
+        },
+        {
+          "original": {
+            "x": 1322,
+            "y": 342
+          },
+          "x": 1301,
+          "y": 365
+        }
+      ],
+      "source": "shape_9075",
+      "target": "shape_8279"
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "da",
+      "id": "connection_9907",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 1057,
+            "y": 438
+          },
+          "x": 1057,
+          "y": 479.75
+        },
+        {
+          "original": {
+            "x": 1057,
+            "y": 603
+          },
+          "x": 1057,
+          "y": 565
+        }
+      ],
+      "source": "shape_3614",
+      "target": "shape_9595",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "atualiza",
+      "id": "connection_9945",
+      "pickedColor": "black",
+      "number": 6,
+      "waypoints": [
+        {
+          "original": {
+            "x": 793,
+            "y": 157
+          },
+          "x": 806,
+          "y": 199
+        },
+        {
+          "x": 806,
+          "y": 260
+        },
+        {
+          "x": 881,
+          "y": 260
+        },
+        {
+          "original": {
+            "x": 881,
+            "y": 438
+          },
+          "x": 881,
           "y": 400
         }
       ],
-      "source": "shape_7664",
-      "target": "shape_4405",
+      "source": "shape_8796",
+      "target": "shape_5729",
       "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:actorSettings",
+      "name": "Mecânico",
+      "id": "shape_1502",
+      "x": 1019,
+      "y": 119
+    },
+    {
+      "type": "domainStory:actorGroup",
+      "name": "Atendente",
+      "id": "shape_1543",
+      "x": 1195,
+      "y": 119
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Transição fora da ordem é recusada",
+      "id": "shape_1650",
+      "x": 930,
+      "y": 902,
+      "width": 140,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:workObjectAssignment",
+      "name": "Ordem de serviço",
+      "id": "shape_2120",
+      "x": 843,
+      "y": 565
+    },
+    {
+      "type": "domainStory:workObjectAssignment",
+      "name": "Ordem de serviço",
+      "id": "shape_2339",
+      "x": 491,
+      "y": 565
+    },
+    {
+      "type": "domainStory:workObjectExtension",
+      "name": "Peças e insumos",
+      "id": "shape_2532",
+      "x": 1459,
+      "y": 814
+    },
+    {
+      "type": "domainStory:workObjectCheck-Circle",
+      "name": "Aprovação do orçamento",
+      "id": "shape_2699",
+      "x": 315,
+      "y": 400
+    },
+    {
+      "type": "domainStory:workObjectAssignment",
+      "name": "Ordem de serviço",
+      "id": "shape_2969",
+      "x": 1195,
+      "y": 565
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Finalizada, sem reparo pendente e com o tempo de execução registrado",
+      "id": "shape_3232",
+      "x": 1076,
+      "y": 320,
+      "width": 150,
+      "height": 60,
+      "number": 60
+    },
+    {
+      "type": "domainStory:workObjectFlag",
+      "name": "Status",
+      "id": "shape_3614",
+      "x": 1019,
+      "y": 400
+    },
+    {
+      "type": "domainStory:actorPerson",
+      "name": "Cliente",
+      "id": "shape_4405",
+      "x": 139,
+      "y": 400
+    },
+    {
+      "type": "domainStory:actorDesktop",
+      "name": "Sistema",
+      "id": "shape_4429",
+      "x": 843,
+      "y": 814
+    },
+    {
+      "type": "domainStory:workObjectAssignment",
+      "name": "Ordem de serviço",
+      "id": "shape_4569",
+      "x": 667,
+      "y": 565
+    },
+    {
+      "type": "domainStory:workObjectFlag",
+      "name": "Status",
+      "id": "shape_4986",
+      "x": 667,
+      "y": 400
+    },
+    {
+      "type": "domainStory:workObjectDollar",
+      "name": "Orçamento",
+      "id": "shape_5152",
+      "x": 315,
+      "y": 200
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Em execução",
+      "id": "shape_5308",
+      "x": 892,
+      "y": 320,
+      "width": 150,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:workObjectFlag",
+      "name": "Status",
+      "id": "shape_5510",
+      "x": 491,
+      "y": 400
+    },
+    {
+      "type": "domainStory:workObjectFlag",
+      "name": "Status",
+      "id": "shape_5729",
+      "x": 843,
+      "y": 400
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Por e-mail",
+      "id": "shape_5853",
+      "x": 239,
+      "y": 606,
+      "width": 140,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Pelo link de acompanhamento",
+      "id": "shape_6416",
+      "x": 377,
+      "y": 320,
+      "width": 140,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Aguardando aprovação (automático ao enviar o orçamento)",
+      "id": "shape_6924",
+      "x": 718,
+      "y": 320,
+      "width": 150,
+      "height": 60,
+      "number": 60
+    },
+    {
+      "type": "domainStory:workObjectConversation",
+      "name": "Notificação",
+      "id": "shape_7664",
+      "x": 139,
+      "y": 200
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Baixa as peças usadas na OS",
+      "id": "shape_7699",
+      "x": 1295,
+      "y": 744,
+      "width": 140,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:actorSettings",
+      "name": "Mecânico",
+      "id": "shape_7821",
+      "x": 491,
+      "y": 119
+    },
+    {
+      "type": "domainStory:workObjectGrid",
+      "name": "Estoque",
+      "id": "shape_7874",
+      "x": 1195,
+      "y": 814
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Entregue (veículo entregue ao cliente)",
+      "id": "shape_8279",
+      "x": 1247,
+      "y": 320,
+      "width": 150,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:workObjectConversation",
+      "name": "Notificação",
+      "id": "shape_8414",
+      "x": 139,
+      "y": 676
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Em diagnóstico",
+      "id": "shape_8483",
+      "x": 538,
+      "y": 320,
+      "width": 150,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:actorDesktop",
+      "name": "Sistema",
+      "id": "shape_8796",
+      "x": 755,
+      "y": 119
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Com o diagnóstico. Precisa de 1 item",
+      "id": "shape_9017",
+      "x": 250,
+      "y": 110,
+      "width": 140,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:workObjectFlag",
+      "name": "Status",
+      "id": "shape_9075",
+      "x": 1195,
+      "y": 400
+    },
+    {
+      "type": "domainStory:workObjectAssignment",
+      "name": "Ordem de serviço",
+      "id": "shape_9595",
+      "x": 1019,
+      "y": 565
     },
     {
       "type": "domainStory:textAnnotation",
@@ -1310,32 +1345,8 @@
       "x": 10,
       "y": 110,
       "width": 140,
-      "height": 45
-    },
-    {
-      "type": "domainStory:connection",
-      "name": "",
-      "id": "connection_1837",
-      "source": "shape_7664",
-      "target": "shape_9929",
-      "waypoints": [
-        {
-          "original": {
-            "x": 177,
-            "y": 238
-          },
-          "x": 142,
-          "y": 200
-        },
-        {
-          "original": {
-            "x": 80,
-            "y": 132
-          },
-          "x": 101,
-          "y": 154
-        }
-      ]
+      "height": 45,
+      "number": 45
     },
     {
       "info": "Status: Em diagnóstico, Aguardando aprovação, Em execução, Finalizada e Entregue"
