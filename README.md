@@ -2,9 +2,9 @@
 
 MVP do back-end do **Sistema Integrado de Atendimento e Execução de Serviços** de uma oficina mecânica de médio porte. Feito em Go, com Domain-Driven Design, PostgreSQL, Docker e testes automatizados.
 
-- **Documentação DDD (Miro):** _[inserir link público do Miro]_
+- **Documentação DDD (Miro):** https://miro.com/app/board/uXjVEWinF0A=/
 - **Documentação DDD exportada:** [docs/ddd/](docs/ddd/) — [linguagem ubíqua e relação com o código](docs/ddd/linguagem-ubiqua.md), [mapa de contexto](docs/ddd/mapa-de-contexto.md), [diagramas](docs/ddd/diagramas.pdf), [event storming](docs/ddd/event-storming.pdf)
-- **Vídeo da entrega:** _[inserir link do YouTube]_
+- **Vídeo da entrega:** _[link do vídeo: o grupo preenche na entrega]_
 - **Análise de vulnerabilidades:** [docs/security/README.md](docs/security/README.md)
 - **Evidência de testes e cobertura:** [docs/testes/](docs/testes/)
 
@@ -109,7 +109,7 @@ docker compose up --build -d
 
 O compose sobe o PostgreSQL, espera ele ficar saudável, aplica as migrations (schema + dados de demonstração) e inicia a API em **http://localhost:8080**.
 
-- Health check: `curl http://localhost:8080/api/v1/helper`
+- Health check: `curl http://localhost:8080/api/v1/health` (o compose usa essa rota no `healthcheck` da API; `/helper` continua por compatibilidade, marcado obsoleto)
 - Se a porta 8080 estiver ocupada: `API_PORT=8090 docker compose up --build -d`
 - Para parar: `docker compose down`. Para zerar o banco: `docker compose down -v`
 
