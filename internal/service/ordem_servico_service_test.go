@@ -479,6 +479,22 @@ func TestEnviarOrcamentoNotificacaoFalhaNaoDesfaz(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
 	c.sender.err = errors.New("smtp fora do ar")
 	fxExecTx(c.store)
+	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, fxServico(true), 1)}, nil, nil)
+	fxCapturaEstado(c.store)
+	fxCapturaHistorico(c.store)
+	c.travaOS()
+
+	rsp, err := c.svc.EnviarOrcamento(context.Background(), c.os.Uuid, dto.EnviarOrcamentoRequest{}, 2)
+	require.NoError(t, err)
+	require.NotNil(t, rsp)
+	require.Equal(t, c.cliente.Email, c.sender.msgs[0].To)
+}
+
+// A notificação é por e-mail (linguagem ubíqua §1.2): cliente sem e-mail não
+// recebe aviso, e o envio do orçamento continua válido.
+func TestEnviarOrcamentoClienteSemEmailNaoNotifica(t *testing.T) {
+	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	fxExecTx(c.store)
 	c.cliente.Email = ""
 	c.cliente.Telefone = "11999990000"
 	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, fxServico(true), 1)}, nil, nil)
@@ -489,7 +505,7 @@ func TestEnviarOrcamentoNotificacaoFalhaNaoDesfaz(t *testing.T) {
 	rsp, err := c.svc.EnviarOrcamento(context.Background(), c.os.Uuid, dto.EnviarOrcamentoRequest{}, 2)
 	require.NoError(t, err)
 	require.NotNil(t, rsp)
-	require.Equal(t, "11999990000", c.sender.msgs[0].To)
+	require.Empty(t, c.sender.msgs)
 }
 
 func TestAprovarOrcamentoIniciaExecucaoEBaixaEstoque(t *testing.T) {

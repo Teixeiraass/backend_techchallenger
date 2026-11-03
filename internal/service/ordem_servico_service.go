@@ -259,7 +259,7 @@ func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.
 		if err != nil {
 			return nil, err
 		}
-		response.Aviso = "Orçamento aprovado. A execução será iniciada assim que o estoque das peças for reposto."
+		response.Aviso = "Orçamento aprovado, mas falta saldo de peça. Depois da reposição, o atendente ou o mecânico inicia a execução."
 		return response, nil
 	}
 	return response, err
@@ -386,7 +386,7 @@ func (s *ordemServicoService) EntregarVeiculo(ctx context.Context, osUUID uuid.U
 
 		observacao := "Veículo entregue ao cliente"
 		if os.StatusOrcamento == ordemservico.OrcamentoRejeitado {
-			observacao = "Veículo devolvido sem execução (orçamento rejeitado)"
+			observacao = "Veículo entregue sem execução (orçamento rejeitado)"
 		}
 		return salvar(ctx, q, row, os, usuarioID, observacao)
 	})
@@ -906,7 +906,9 @@ func registrarHistorico(ctx context.Context, q db.Querier, osID int64, anterior 
 	return err
 }
 
-// notificarCliente envia o aviso depois do commit; falha de envio não desfaz a operação.
+// notificarCliente envia o aviso por e-mail depois do commit; falha de envio
+// não desfaz a operação. Cliente sem e-mail não recebe aviso: acompanha a OS
+// pelo link de acompanhamento.
 func (s *ordemServicoService) notificarCliente(ctx context.Context, clienteID int64, assunto string, mensagem string) {
 	dono, err := s.store.GetClienteByID(ctx, clienteID)
 	if err != nil {
@@ -914,12 +916,12 @@ func (s *ordemServicoService) notificarCliente(ctx context.Context, clienteID in
 		return
 	}
 
-	to := dono.Email
-	if to == "" {
-		to = dono.Telefone
+	if dono.Email == "" {
+		log.Printf("customer %d has no e-mail; notification skipped", clienteID)
+		return
 	}
 
-	if err := s.sender.Send(ctx, notification.Message{To: to, Subject: assunto, Body: mensagem}); err != nil {
+	if err := s.sender.Send(ctx, notification.Message{To: dono.Email, Subject: assunto, Body: mensagem}); err != nil {
 		log.Printf("cannot notify customer %d: %v", clienteID, err)
 	}
 }
