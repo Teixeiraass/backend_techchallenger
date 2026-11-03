@@ -245,12 +245,12 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "API pública, sem JWT, com o CPF/CNPJ do dono",
+      "text": "Status atual e histórico. API pública, sem JWT, com o CPF/CNPJ do dono",
       "id": "shape_6559",
       "x": 683,
       "y": 75,
       "width": 190,
-      "height": 45
+      "height": 60
     },
     {
       "type": "domainStory:connection",
@@ -263,15 +263,15 @@
             "y": 183
           },
           "x": 659,
-          "y": 162
+          "y": 164
         },
         {
           "original": {
             "x": 778,
-            "y": 97
+            "y": 105
           },
-          "x": 737,
-          "y": 120
+          "x": 718,
+          "y": 135
         }
       ],
       "source": "shape_1410",
