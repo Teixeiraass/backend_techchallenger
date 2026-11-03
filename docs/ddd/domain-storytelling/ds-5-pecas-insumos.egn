@@ -37,20 +37,24 @@
       "number": 1,
       "waypoints": [
         {
+          "x": 170,
+          "y": 379,
           "original": {
             "x": 170,
             "y": 417
-          },
-          "x": 208,
-          "y": 402
+          }
         },
         {
+          "x": 170,
+          "y": 285
+        },
+        {
+          "x": 466,
+          "y": 285,
           "original": {
             "x": 504,
             "y": 285
-          },
-          "x": 466,
-          "y": 300
+          }
         }
       ],
       "source": "shape_2068",
@@ -72,20 +76,28 @@
       "number": null,
       "waypoints": [
         {
+          "x": 541,
+          "y": 285,
           "original": {
             "x": 504,
             "y": 285
-          },
-          "x": 542,
-          "y": 300
+          }
         },
         {
+          "x": 700,
+          "y": 285
+        },
+        {
+          "x": 700,
+          "y": 395
+        },
+        {
+          "x": 800,
+          "y": 395,
           "original": {
             "x": 838,
             "y": 417
-          },
-          "x": 800,
-          "y": 402
+          }
         }
       ],
       "source": "shape_8090",
@@ -104,23 +116,31 @@
       "name": "repõe",
       "id": "connection_6000",
       "pickedColor": "black",
-      "number": 2,
+      "number": 6,
       "waypoints": [
         {
+          "x": 207,
+          "y": 440,
           "original": {
             "x": 170,
             "y": 417
-          },
-          "x": 208,
-          "y": 442
+          }
         },
         {
+          "x": 300,
+          "y": 440
+        },
+        {
+          "x": 300,
+          "y": 638
+        },
+        {
+          "x": 466,
+          "y": 638,
           "original": {
             "x": 504,
             "y": 638
-          },
-          "x": 466,
-          "y": 613
+          }
         }
       ],
       "source": "shape_2068",
@@ -135,20 +155,28 @@
       "number": null,
       "waypoints": [
         {
+          "x": 541,
+          "y": 638,
           "original": {
             "x": 504,
             "y": 638
-          },
-          "x": 542,
-          "y": 613
+          }
         },
         {
+          "x": 760,
+          "y": 638
+        },
+        {
+          "x": 760,
+          "y": 440
+        },
+        {
+          "x": 800,
+          "y": 440,
           "original": {
             "x": 838,
             "y": 417
-          },
-          "x": 800,
-          "y": 442
+          }
         }
       ],
       "source": "shape_4082",
@@ -167,23 +195,23 @@
       "name": "atualiza",
       "id": "connection_4359",
       "pickedColor": "black",
-      "number": 3,
+      "number": 2,
       "waypoints": [
         {
+          "x": 875,
+          "y": 400,
           "original": {
             "x": 838,
             "y": 417
-          },
-          "x": 875,
-          "y": 417
+          }
         },
         {
+          "x": 1136,
+          "y": 400,
           "original": {
             "x": 1174,
             "y": 417
-          },
-          "x": 1136,
-          "y": 417
+          }
         }
       ],
       "source": "shape_4326",
@@ -237,23 +265,31 @@
       "name": "confere",
       "id": "connection_9255",
       "pickedColor": "black",
-      "number": 4,
+      "number": 3,
       "waypoints": [
         {
+          "x": 875,
+          "y": 445,
           "original": {
             "x": 838,
             "y": 417
-          },
-          "x": 875,
-          "y": 446
+          }
         },
         {
+          "x": 1000,
+          "y": 445
+        },
+        {
+          "x": 1000,
+          "y": 681
+        },
+        {
+          "x": 1136,
+          "y": 681,
           "original": {
             "x": 1174,
             "y": 681
-          },
-          "x": 1136,
-          "y": 651
+          }
         }
       ],
       "source": "shape_4326",
@@ -272,23 +308,23 @@
       "name": "envia",
       "id": "connection_1059",
       "pickedColor": "black",
-      "number": 5,
+      "number": 4,
       "waypoints": [
         {
+          "x": 838,
+          "y": 454,
           "original": {
             "x": 838,
             "y": 417
-          },
-          "x": 838,
-          "y": 454
+          }
         },
         {
+          "x": 838,
+          "y": 700,
           "original": {
             "x": 838,
             "y": 738
-          },
-          "x": 838,
-          "y": 700
+          }
         }
       ],
       "source": "shape_4326",
@@ -303,28 +339,28 @@
       "number": null,
       "waypoints": [
         {
+          "x": 800,
+          "y": 738,
           "original": {
             "x": 838,
             "y": 738
-          },
-          "x": 838,
-          "y": 775
+          }
         },
         {
-          "x": 838,
-          "y": 860
+          "x": 100,
+          "y": 738
         },
         {
-          "x": 170,
-          "y": 860
+          "x": 100,
+          "y": 417
         },
         {
+          "x": 132,
+          "y": 417,
           "original": {
             "x": 170,
             "y": 417
-          },
-          "x": 170,
-          "y": 454
+          }
         }
       ],
       "source": "shape_9417",
@@ -413,7 +449,7 @@
       "name": "consulta",
       "id": "connection_9167",
       "pickedColor": "black",
-      "number": 6,
+      "number": 5,
       "waypoints": [
         {
           "original": {
@@ -476,8 +512,8 @@
       "name": "",
       "text": "Reposição só com quantidade maior que zero",
       "id": "shape_8878",
-      "x": 330,
-      "y": 690,
+      "x": 560,
+      "y": 655,
       "width": 190,
       "height": 45
     },
@@ -491,16 +527,16 @@
             "x": 504,
             "y": 638
           },
-          "x": 466,
-          "y": 674
+          "x": 542,
+          "y": 648
         },
         {
           "original": {
-            "x": 425,
-            "y": 712
+            "x": 655,
+            "y": 677
           },
-          "x": 449,
-          "y": 690
+          "x": 568,
+          "y": 654
         }
       ],
       "source": "shape_4082",
@@ -647,7 +683,105 @@
       "target": "shape_3137"
     },
     {
-      "info": "Cadastro, reposição, baixa ao iniciar a execução, estoque mínimo e consulta"
+      "type": "domainStory:workObjectGrid",
+      "name": "Estoque",
+      "id": "shape_1263",
+      "x": 466,
+      "y": 379
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "ajusta",
+      "id": "connection_7608",
+      "pickedColor": "black",
+      "number": 7,
+      "waypoints": [
+        {
+          "x": 207,
+          "y": 395,
+          "original": {
+            "x": 170,
+            "y": 417
+          }
+        },
+        {
+          "x": 466,
+          "y": 395,
+          "original": {
+            "x": 504,
+            "y": 417
+          }
+        }
+      ],
+      "source": "shape_2068",
+      "target": "shape_1263",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "no",
+      "id": "connection_3499",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "x": 541,
+          "y": 417,
+          "original": {
+            "x": 504,
+            "y": 417
+          }
+        },
+        {
+          "x": 800,
+          "y": 417,
+          "original": {
+            "x": 838,
+            "y": 417
+          }
+        }
+      ],
+      "source": "shape_1263",
+      "target": "shape_4326",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Saldo final não pode ficar negativo",
+      "id": "shape_2377",
+      "x": 560,
+      "y": 470,
+      "width": 140,
+      "height": 45
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_8417",
+      "waypoints": [
+        {
+          "original": {
+            "x": 504,
+            "y": 417
+          },
+          "x": 542,
+          "y": 440
+        },
+        {
+          "original": {
+            "x": 630,
+            "y": 492
+          },
+          "x": 592,
+          "y": 470
+        }
+      ],
+      "source": "shape_1263",
+      "target": "shape_2377"
+    },
+    {
+      "info": "Cadastro, reposição, ajuste, baixa ao iniciar a execução, estoque mínimo e consulta"
     },
     {
       "version": "3.2.1"
