@@ -285,7 +285,7 @@
     },
     {
       "type": "domainStory:activity",
-      "name": "cria",
+      "name": "envia",
       "id": "connection_1059",
       "pickedColor": "black",
       "number": 5,
@@ -468,16 +468,16 @@
             "x": 504,
             "y": 285
           },
-          "x": 541,
+          "x": 542,
           "y": 260
         },
         {
           "original": {
             "x": 636,
-            "y": 200
+            "y": 199
           },
-          "x": 599,
-          "y": 224
+          "x": 601,
+          "y": 222
         }
       ],
       "source": "shape_8090",
@@ -503,16 +503,16 @@
             "x": 504,
             "y": 549
           },
-          "x": 541,
+          "x": 542,
           "y": 524
         },
         {
           "original": {
             "x": 636,
-            "y": 464
+            "y": 463
           },
-          "x": 599,
-          "y": 488
+          "x": 601,
+          "y": 486
         }
       ],
       "source": "shape_4082",
@@ -521,12 +521,12 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Só baixa se houver saldo para todas as peças",
+      "text": "Baixa ao iniciar a execução e ao autorizar o reparo. Só baixa se houver saldo para todas as peças; sem saldo, a OS aguarda a reposição",
       "id": "shape_3458",
       "x": 1236,
-      "y": 309,
+      "y": 285,
       "width": 140,
-      "height": 45
+      "height": 75
     },
     {
       "type": "domainStory:connection",
@@ -538,16 +538,16 @@
             "x": 1174,
             "y": 417
           },
-          "x": 1211,
-          "y": 392
+          "x": 1212,
+          "y": 390
         },
         {
           "original": {
             "x": 1306,
-            "y": 332
+            "y": 322
           },
-          "x": 1269,
-          "y": 356
+          "x": 1254,
+          "y": 360
         }
       ],
       "source": "shape_2992",
@@ -573,16 +573,16 @@
             "x": 1174,
             "y": 153
           },
-          "x": 1211,
+          "x": 1212,
           "y": 128
         },
         {
           "original": {
             "x": 1306,
-            "y": 68
+            "y": 67
           },
-          "x": 1269,
-          "y": 92
+          "x": 1271,
+          "y": 90
         }
       ],
       "source": "shape_7003",
@@ -591,12 +591,12 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Saldo abaixo do mínimo gera pedido de reposição",
+      "text": "Conferido após a baixa e o ajuste. Saldo no mínimo ou abaixo gera pedido de reposição",
       "id": "shape_3011",
       "x": 1236,
       "y": 573,
       "width": 140,
-      "height": 45
+      "height": 60
     },
     {
       "type": "domainStory:connection",
@@ -608,20 +608,55 @@
             "x": 1174,
             "y": 681
           },
-          "x": 1211,
-          "y": 656
+          "x": 1212,
+          "y": 659
         },
         {
           "original": {
             "x": 1306,
-            "y": 596
+            "y": 603
           },
-          "x": 1269,
-          "y": 620
+          "x": 1255,
+          "y": 633
         }
       ],
       "source": "shape_2048",
       "target": "shape_3011"
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Por e-mail",
+      "id": "shape_3137",
+      "x": 870,
+      "y": 740,
+      "width": 140,
+      "height": 45
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_7746",
+      "waypoints": [
+        {
+          "original": {
+            "x": 838,
+            "y": 681
+          },
+          "x": 876,
+          "y": 711
+        },
+        {
+          "original": {
+            "x": 940,
+            "y": 762
+          },
+          "x": 912,
+          "y": 740
+        }
+      ],
+      "source": "shape_9417",
+      "target": "shape_3137"
     },
     {
       "info": "Cadastro, reposição, baixa ao iniciar a execução, estoque mínimo e consulta"
