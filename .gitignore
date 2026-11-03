@@ -31,3 +31,6 @@ Network Trash Folder
 Temporary Items
 .apdisk
 Icon?
+
+# Relatório do E2E (newman), gerado por make e2e
+/e2e-report/

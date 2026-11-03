@@ -1,0 +1,1401 @@
+{
+  "info": {
+    "name": "Oficina Mecânica API - E2E",
+    "description": "Fluxo completo da Ordem de Serviço e fluxo de rejeição do orçamento, contra o ambiente real (docker compose up). Usa os usuários, o cliente e o catálogo do seed de demonstração.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "0. Preparação",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/helper",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "helper"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = ok\", () => pm.expect(pm.response.json().status).to.eql(\"ok\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login atendente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_atendente}}\",\n  \"senha\": \"{{senha_atendente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"devolve access_token e refresh_token\", () => { const b = pm.response.json(); pm.expect(b.access_token).to.be.a(\"string\"); pm.expect(b.refresh_token).to.be.a(\"string\"); });",
+                  "pm.environment.set(\"token_atendente\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login mecânico",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_mecanico}}\",\n  \"senha\": \"{{senha_mecanico}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"devolve access_token e refresh_token\", () => { const b = pm.response.json(); pm.expect(b.access_token).to.be.a(\"string\"); pm.expect(b.refresh_token).to.be.a(\"string\"); });",
+                  "pm.environment.set(\"token_mecanico\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_admin}}\",\n  \"senha\": \"{{senha_admin}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"devolve access_token e refresh_token\", () => { const b = pm.response.json(); pm.expect(b.access_token).to.be.a(\"string\"); pm.expect(b.refresh_token).to.be.a(\"string\"); });",
+                  "pm.environment.set(\"token_admin\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login com senha errada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/usuarios/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "usuarios",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email_admin}}\",\n  \"senha\": \"senha-errada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code = CREDENCIAIS_INVALIDAS\", () => pm.expect(pm.response.json().code).to.eql(\"CREDENCIAIS_INVALIDAS\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rota protegida sem token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clientes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "clientes"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identificar serviço do catálogo",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/servicos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "servicos"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const s = pm.response.json().find(x => x.nome === \"Troca de óleo\") || pm.response.json()[0];",
+                  "pm.test(\"há serviço no catálogo\", () => pm.expect(s).to.be.an(\"object\"));",
+                  "pm.environment.set(\"servico_uuid\", s.uuid); pm.environment.set(\"servico_preco\", s.preco_centavos);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Identificar peça do estoque",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pecas?busca=FLT-OLEO",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pecas"
+              ],
+              "query": [
+                {
+                  "key": "busca",
+                  "value": "FLT-OLEO"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json()[0];",
+                  "pm.test(\"há peça com estoque\", () => { pm.expect(p).to.be.an(\"object\"); pm.expect(p.quantidade_estoque).to.be.above(1); });",
+                  "pm.environment.set(\"peca_uuid\", p.uuid); pm.environment.set(\"peca_preco\", p.preco_centavos); pm.environment.set(\"saldo_inicial\", p.quantidade_estoque);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Fluxo completo da OS",
+      "item": [
+        {
+          "name": "Abrir OS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"{{documento_cliente}}\",\n  \"placa\": \"{{placa_veiculo}}\",\n  \"descricao_problema\": \"Barulho ao frear (E2E)\",\n  \"servicos\": [\n    {\n      \"servico_uuid\": \"{{servico_uuid}}\"\n    }\n  ],\n  \"pecas\": [\n    {\n      \"peca_uuid\": \"{{peca_uuid}}\",\n      \"quantidade\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"status = RECEBIDA\", () => pm.expect(pm.response.json().status).to.eql(\"RECEBIDA\"));",
+                  "pm.test(\"orçamento = serviço + peça\", () => pm.expect(pm.response.json().orcamento.total_centavos).to.eql(Number(pm.environment.get(\"servico_preco\")) + Number(pm.environment.get(\"peca_preco\"))));",
+                  "pm.environment.set(\"os_uuid\", pm.response.json().uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizar fora da ordem é recusado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/finalizar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "finalizar"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = TRANSICAO_INVALIDA\", () => pm.expect(pm.response.json().code).to.eql(\"TRANSICAO_INVALIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Atendente não inicia diagnóstico",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/diagnostico",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "diagnostico"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = PAPEL_SEM_PERMISSAO\", () => pm.expect(pm.response.json().code).to.eql(\"PAPEL_SEM_PERMISSAO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar diagnóstico",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/diagnostico",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "diagnostico"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = EM_DIAGNOSTICO\", () => pm.expect(pm.response.json().status).to.eql(\"EM_DIAGNOSTICO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enviar orçamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/orcamento/enviar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "orcamento",
+                "enviar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diagnostico\": \"Pastilhas gastas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = AGUARDANDO_APROVACAO\", () => pm.expect(pm.response.json().status).to.eql(\"AGUARDANDO_APROVACAO\"));",
+                  "pm.test(\"orcamento.status = AGUARDANDO\", () => pm.expect(pm.response.json().orcamento.status).to.eql(\"AGUARDANDO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Itens não mudam depois do envio",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/servicos",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "servicos"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"servico_uuid\": \"{{servico_uuid}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = ITENS_NAO_EDITAVEIS\", () => pm.expect(pm.response.json().code).to.eql(\"ITENS_NAO_EDITAVEIS\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consulta pública do cliente",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Documento",
+                "value": "{{documento_cliente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/andamento?documento={{documento_cliente}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "andamento"
+              ],
+              "query": [
+                {
+                  "key": "documento",
+                  "value": "{{documento_cliente}}"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = AGUARDANDO_APROVACAO\", () => pm.expect(pm.response.json().status).to.eql(\"AGUARDANDO_APROVACAO\"));",
+                  "pm.test(\"resposta traz orçamento e histórico\", () => { const b = pm.response.json(); pm.expect(b.orcamento.total_centavos).to.be.above(0); pm.expect(b.historico).to.be.an(\"array\").that.is.not.empty; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consulta pública com documento errado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Documento",
+                "value": "11144477735"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/andamento?documento=11144477735",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "andamento"
+              ],
+              "query": [
+                {
+                  "key": "documento",
+                  "value": "11144477735"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente aprova o orçamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/orcamento/aprovar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "orcamento",
+                "aprovar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"{{documento_cliente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = EM_EXECUCAO\", () => pm.expect(pm.response.json().status).to.eql(\"EM_EXECUCAO\"));",
+                  "pm.test(\"orcamento.status = APROVADO\", () => pm.expect(pm.response.json().orcamento.status).to.eql(\"APROVADO\"));",
+                  "pm.test(\"sem aviso de falta de peça\", () => pm.expect(pm.response.json().aviso).to.be.undefined);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Estoque baixado após a aprovação",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pecas/{{peca_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pecas",
+                "{{peca_uuid}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"saldo caiu em 1\", () => pm.expect(pm.response.json().quantidade_estoque).to.eql(Number(pm.environment.get(\"saldo_inicial\")) - 1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Registrar reparo adicional",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/reparos-adicionais",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "reparos-adicionais"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descricao\": \"Disco de freio empenado\",\n  \"pecas\": [\n    {\n      \"peca_uuid\": \"{{peca_uuid}}\",\n      \"quantidade\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json(); pm.test(\"reparo pendente fora do orçamento\", () => { pm.expect(b.reparos_adicionais).to.have.lengthOf(1); pm.expect(b.reparos_adicionais[0].status).to.eql(\"PENDENTE\"); });",
+                  "pm.environment.set(\"reparo_uuid\", b.reparos_adicionais[0].uuid); pm.environment.set(\"total_antes_reparo\", b.orcamento.total_centavos);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Não finaliza com reparo pendente",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/finalizar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "finalizar"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = REPARO_PENDENTE\", () => pm.expect(pm.response.json().code).to.eql(\"REPARO_PENDENTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente autoriza o reparo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/reparos-adicionais/{{reparo_uuid}}/autorizar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "reparos-adicionais",
+                "{{reparo_uuid}}",
+                "autorizar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"{{documento_cliente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"reparos_adicionais[0].status = AUTORIZADO\", () => pm.expect(pm.response.json().reparos_adicionais[0].status).to.eql(\"AUTORIZADO\"));",
+                  "pm.test(\"orçamento soma a peça do reparo\", () => pm.expect(pm.response.json().orcamento.total_centavos).to.eql(Number(pm.environment.get(\"total_antes_reparo\")) + Number(pm.environment.get(\"peca_preco\"))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decidir o mesmo reparo de novo é recusado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/reparos-adicionais/{{reparo_uuid}}/recusar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "reparos-adicionais",
+                "{{reparo_uuid}}",
+                "recusar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"{{documento_cliente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = REPARO_JA_DECIDIDO\", () => pm.expect(pm.response.json().code).to.eql(\"REPARO_JA_DECIDIDO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Finalizar OS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/finalizar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "finalizar"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = FINALIZADA\", () => pm.expect(pm.response.json().status).to.eql(\"FINALIZADA\"));",
+                  "pm.test(\"tempo de execução registrado\", () => pm.expect(pm.response.json().tempo_execucao_segundos).to.be.a(\"number\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entregar veículo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_uuid}}/entregar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_uuid}}",
+                "entregar"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = ENTREGUE\", () => pm.expect(pm.response.json().status).to.eql(\"ENTREGUE\"));",
+                  "pm.test(\"histórico passou por todos os status\", () => { const s = pm.response.json().historico.map(h => h.status_novo); [\"EM_DIAGNOSTICO\",\"AGUARDANDO_APROVACAO\",\"EM_EXECUCAO\",\"FINALIZADA\",\"ENTREGUE\"].forEach(x => pm.expect(s).to.include(x)); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tempo médio (somente administrador)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/tempo-medio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "tempo-medio"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tempo médio de execução",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/tempo-medio",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "tempo-medio"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"conta ao menos a OS deste fluxo\", () => pm.expect(pm.response.json().total_ordens).to.be.at.least(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar OS entregues",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico?status=ENTREGUE",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ENTREGUE"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"a OS do fluxo está na lista\", () => pm.expect(pm.response.json().map(o => o.uuid)).to.include(pm.environment.get(\"os_uuid\")));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Orçamento rejeitado",
+      "item": [
+        {
+          "name": "Abrir OS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"{{documento_cliente}}\",\n  \"placa\": \"{{placa_veiculo}}\",\n  \"descricao_problema\": \"Barulho ao frear (E2E)\",\n  \"servicos\": [\n    {\n      \"servico_uuid\": \"{{servico_uuid}}\"\n    }\n  ],\n  \"pecas\": [\n    {\n      \"peca_uuid\": \"{{peca_uuid}}\",\n      \"quantidade\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"status = RECEBIDA\", () => pm.expect(pm.response.json().status).to.eql(\"RECEBIDA\"));",
+                  "pm.test(\"orçamento = serviço + peça\", () => pm.expect(pm.response.json().orcamento.total_centavos).to.eql(Number(pm.environment.get(\"servico_preco\")) + Number(pm.environment.get(\"peca_preco\"))));",
+                  "pm.environment.set(\"os_rejeitada_uuid\", pm.response.json().uuid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Iniciar diagnóstico",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_rejeitada_uuid}}/diagnostico",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_rejeitada_uuid}}",
+                "diagnostico"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enviar orçamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_mecanico}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_rejeitada_uuid}}/orcamento/enviar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_rejeitada_uuid}}",
+                "orcamento",
+                "enviar"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = AGUARDANDO_APROVACAO\", () => pm.expect(pm.response.json().status).to.eql(\"AGUARDANDO_APROVACAO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entregar antes da decisão é recusado",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_rejeitada_uuid}}/entregar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_rejeitada_uuid}}",
+                "entregar"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = ENTREGA_NAO_PERMITIDA\", () => pm.expect(pm.response.json().code).to.eql(\"ENTREGA_NAO_PERMITIDA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cliente rejeita o orçamento",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_rejeitada_uuid}}/orcamento/rejeitar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_rejeitada_uuid}}",
+                "orcamento",
+                "rejeitar"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"{{documento_cliente}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = EM_DIAGNOSTICO\", () => pm.expect(pm.response.json().status).to.eql(\"EM_DIAGNOSTICO\"));",
+                  "pm.test(\"orcamento.status = REJEITADO\", () => pm.expect(pm.response.json().orcamento.status).to.eql(\"REJEITADO\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rejeição não mexe no estoque",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_admin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/pecas/{{peca_uuid}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "pecas",
+                "{{peca_uuid}}"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"saldo igual ao fim do fluxo anterior\", () => pm.expect(pm.response.json().quantidade_estoque).to.eql(Number(pm.environment.get(\"saldo_inicial\")) - 2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entregar veículo sem execução",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token_atendente}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/ordens-servico/{{os_rejeitada_uuid}}/entregar",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "ordens-servico",
+                "{{os_rejeitada_uuid}}",
+                "entregar"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status = ENTREGUE\", () => pm.expect(pm.response.json().status).to.eql(\"ENTREGUE\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

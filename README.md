@@ -184,6 +184,7 @@ curl -s -X POST $API/ordens-servico/$OS/entregar  -H "Authorization: Bearer $ATD
 | Integração das queries, transações e concorrência | `db/sqlc` | sim |
 | Integração dos fluxos principais pela API (aprovação, rejeição, falta de estoque, reparo adicional, segurança) | `internal/integration` | sim |
 | Integração da gestão administrativa pela API (CRUD de clientes, veículos, serviços e peças, controle de estoque, detalhe e itens da OS, usuários) | `internal/integration` | sim |
+| E2E contra o ambiente real (Dockerfile + compose + migrations): fluxo completo da OS e orçamento rejeitado, coleção Postman rodada pelo newman | `docs/api/` | sim (compose) |
 
 ```bash
 # Só unitários (sem Docker): os testes de banco são pulados
@@ -195,7 +196,12 @@ make test
 
 # Cobertura dos domínios críticos (internal/domain + internal/service) + coverage.html
 make coverage
+
+# E2E: sobe o docker compose e roda a coleção Postman (docs/api) com o newman em Docker
+make e2e
 ```
+
+A coleção `docs/api/oficina.postman_collection.json` (com o ambiente `local.postman_environment.json`) também abre no Postman. O CI roda o E2E no job `e2e` e publica o relatório JUnit como artefato.
 
 **Cobertura dos domínios críticos: 96,8%** (mínimo exigido: 80%). O CI falha se ficar abaixo de 80%.
 

@@ -98,3 +98,42 @@ jobs:
         severity: HIGH,CRITICAL
         exit-code: "1"
         ignore-unfixed: true
+
+  e2e:
+    name: E2E (Postman/newman contra o docker compose)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Sobe o ambiente real
+      run: docker compose up --build -d
+
+    - name: Espera a API responder
+      run: |
+        for i in $(seq 1 60); do
+          curl -sf http://localhost:8080/api/v1/helper >/dev/null && exit 0
+          sleep 2
+        done
+        echo "API não respondeu a tempo"; docker compose logs api; exit 1
+
+    - name: Roda a coleção Postman (newman)
+      run: |
+        mkdir -p e2e-report
+        docker run --rm --add-host=host.docker.internal:host-gateway \
+          -v "$PWD/docs/api:/etc/newman:ro" -v "$PWD/e2e-report:/out" postman/newman:alpine \
+          run oficina.postman_collection.json -e local.postman_environment.json \
+          --env-var base_url=http://host.docker.internal:8080/api/v1 \
+          -r cli,junit --reporter-junit-export /out/newman-report.xml
+
+    - name: Publica o relatório
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-report
+        path: e2e-report/
+
+    - name: Derruba o ambiente
+      if: always()
+      run: docker compose down -v
