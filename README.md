@@ -56,7 +56,7 @@ Elementos de DDD no código:
 | Bounded context | Agregados | Objetos de valor / regras |
 |---|---|---|
 | Cadastro | Cliente, Veículo | `cliente.Documento` (CPF/CNPJ), `veiculo.Placa` |
-| Ordem de Serviço | OrdemServico (itens, reparos, histórico) | `ordemservico.Status` (máquina de estados), `Orcamento`, `StatusOrcamento` |
+| Ordem de Serviço | `ordemservico.OrdemServico` (raiz com `Item` e `ReparoAdicional` como entidades internas; todo comando é um método da raiz) | `ordemservico.Status` (máquina de estados), `Orcamento`, `StatusOrcamento`, `CatalogoServico`/`CatalogoPeca` |
 | Catálogo e estoque | Peça (peça ou insumo), Serviço | `estoque` (saldo nunca negativo, reposição > 0, estoque mínimo) |
 | Identidade e acesso | Usuário | papéis `ADMINISTRADOR`, `ATENDENTE`, `MECANICO` (`middleware.RequireRole`) |
 
@@ -236,8 +236,9 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 │   ├── testes/            # evidências de testes e cobertura
 │   └── swagger.*          # OpenAPI gerado
 ├── internal/
-│   ├── domain/            # DDD: cliente, veiculo, ordemservico, estoque (regras puras)
-│   ├── service/           # casos de uso (comandos e consultas) e transações
+│   ├── domain/            # DDD: cliente, veiculo, ordemservico (agregado com itens e reparos), estoque
+│   ├── service/           # casos de uso: ordem_servico_comandos.go, ordem_servico_consultas.go,
+│   │                      # ordem_servico_repositorio.go (carga/persistência do agregado) e demais *_service.go
 │   ├── handler/           # handlers HTTP + anotações Swagger
 │   ├── routes/            # registro de rotas e papéis por rota
 │   ├── middleware/        # autenticação e autorização por papel

@@ -59,8 +59,8 @@ U = upstream (fornece). D = downstream (consome).
 
 | Relação | Padrão | Como funciona | Onde está no código |
 |---|---|---|---|
-| Cadastro → Ordem de Serviço | Cliente-Fornecedor | A OS busca o cliente pelo documento e o veículo pela placa. Guarda só os ids. | `AbrirOrdemServico` em `internal/service/ordem_servico_service.go` |
-| Catálogo e estoque → Ordem de Serviço | Cliente-Fornecedor | Ao incluir um item, a OS copia o preço do serviço ou da peça para o item (`ValorUnitarioCentavos`). Se o preço mudar depois, o orçamento não muda. Ao iniciar a execução, a OS pede a baixa das peças na mesma transação. | `incluirServico`, `incluirPeca` e `baixarEstoque` em `ordem_servico_service.go`; regras em `internal/domain/estoque` |
+| Cadastro → Ordem de Serviço | Cliente-Fornecedor | A OS busca o cliente pelo documento e o veículo pela placa. Guarda só os ids. | `AbrirOrdemServico` em `internal/service/ordem_servico_comandos.go` |
+| Catálogo e estoque → Ordem de Serviço | Cliente-Fornecedor | Ao incluir um item, a OS copia o preço do serviço ou da peça para o item (`ValorUnitarioCentavos`). Se o preço mudar depois, o orçamento não muda. Ao iniciar a execução, a OS pede a baixa das peças na mesma transação. | `servicoDoCatalogo`, `pecaDoCatalogo` e `baixarEstoque` em `internal/service/ordem_servico_repositorio.go`; `OrdemServico.AdicionarServico/AdicionarPeca` em `internal/domain/ordemservico`; regras de saldo em `internal/domain/estoque` |
 | Identidade e acesso → todos | Conformista | Os contextos usam o papel do usuário como o middleware entrega, sem tradução. | `internal/middleware/auth.go` (`RequireRole`), `token/` |
 | E-mail → Ordem de Serviço | Camada anticorrupção | A OS só conhece a porta `notification.Sender`. O provedor fica atrás dela. No MVP, o envio é só registrado em log (`LogSender`). | `notification/sender.go`, `cmd/server/main.go` |
 | Todos os contextos | Kernel compartilhado | Os contextos usam os mesmos erros de domínio e a mesma transação de banco. | `internal/domain/errors.go`, `db/sqlc/store.go` |

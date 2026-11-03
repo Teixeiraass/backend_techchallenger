@@ -249,6 +249,10 @@ func TestItensOrdemServicoAPI(t *testing.T) {
 		{
 			name: "RemoverServicoOK", method: http.MethodDelete, path: osPath + "/servicos/" + itemUUID.String(), papel: papelAtendente,
 			stubs: func(store *mockdb.MockStore) {
+				// O item precisa existir na OS carregada: a raiz confere antes do DELETE.
+				store.EXPECT().ListItensServicoByOrdemServico(gomock.Any(), gomock.Any()).AnyTimes().Return([]db.ListItensServicoByOrdemServicoRow{
+					{ID: 10, Uuid: itemUUID, OrdemServicoID: os.ID, Quantidade: 1, ValorUnitarioCentavos: 8000, ServicoUuid: servico.Uuid, ServicoNome: servico.Nome},
+				}, nil)
 				store.EXPECT().DeleteItemServico(gomock.Any(), db.DeleteItemServicoParams{Uuid: itemUUID, OrdemServicoID: os.ID}).Return(int64(10), nil)
 				stubOS(store, os, nil, nil)
 			},
@@ -258,10 +262,7 @@ func TestItensOrdemServicoAPI(t *testing.T) {
 		{name: "RemoverServicoItemUUIDInvalido", method: http.MethodDelete, path: osPath + "/servicos/x", papel: papelAtendente, status: http.StatusBadRequest},
 		{
 			name: "RemoverServicoItemNaoEncontrado", method: http.MethodDelete, path: osPath + "/servicos/" + itemUUID.String(), papel: papelAtendente,
-			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().DeleteItemServico(gomock.Any(), gomock.Any()).Return(int64(0), sql.ErrNoRows)
-				stubOS(store, os, nil, nil)
-			},
+			stubs:  func(store *mockdb.MockStore) { stubOS(store, os, nil, nil) },
 			status: http.StatusNotFound, check: requireErrorCode("ITEM_NAO_ENCONTRADO"),
 		},
 		{
@@ -295,8 +296,10 @@ func TestItensOrdemServicoAPI(t *testing.T) {
 		{
 			name: "RemoverPecaOK", method: http.MethodDelete, path: osPath + "/pecas/" + itemUUID.String(), papel: papelMecanico,
 			stubs: func(store *mockdb.MockStore) {
+				item := itemPeca(peca, 1, nil)
+				item.Uuid = itemUUID
 				store.EXPECT().DeleteItemPeca(gomock.Any(), db.DeleteItemPecaParams{Uuid: itemUUID, OrdemServicoID: os.ID}).Return(int64(20), nil)
-				stubOS(store, os, nil, nil)
+				stubOS(store, os, []db.ListItensPecaByOrdemServicoRow{item}, nil)
 			},
 			status: http.StatusOK,
 		},
@@ -304,10 +307,7 @@ func TestItensOrdemServicoAPI(t *testing.T) {
 		{name: "RemoverPecaItemUUIDInvalido", method: http.MethodDelete, path: osPath + "/pecas/x", papel: papelMecanico, status: http.StatusBadRequest},
 		{
 			name: "RemoverPecaItemNaoEncontrado", method: http.MethodDelete, path: osPath + "/pecas/" + itemUUID.String(), papel: papelMecanico,
-			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().DeleteItemPeca(gomock.Any(), gomock.Any()).Return(int64(0), sql.ErrNoRows)
-				stubOS(store, os, nil, nil)
-			},
+			stubs:  func(store *mockdb.MockStore) { stubOS(store, os, nil, nil) },
 			status: http.StatusNotFound,
 		},
 	})

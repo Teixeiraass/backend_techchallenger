@@ -1,25 +1,5 @@
 package ordemservico
 
-// Item é a linha de serviço ou peça usada no cálculo do orçamento, com o
-// valor unitário congelado no momento em que entrou na OS.
-type Item struct {
-	Quantidade            int32
-	ValorUnitarioCentavos int64
-	// StatusReparo vem preenchido só quando o item pertence a um reparo
-	// adicional; itens de reparo pendente ou recusado não entram no total.
-	StatusReparo StatusReparo
-}
-
-// Subtotal é quantidade x valor unitário.
-func (i Item) Subtotal() int64 {
-	return int64(i.Quantidade) * i.ValorUnitarioCentavos
-}
-
-// EntraNoOrcamento indica se o item conta no valor total.
-func (i Item) EntraNoOrcamento() bool {
-	return i.StatusReparo == "" || i.StatusReparo == ReparoAutorizado
-}
-
 // Orcamento é o objeto de valor com o valor da OS: soma dos serviços e das peças.
 type Orcamento struct {
 	TotalServicosCentavos int64 `json:"total_servicos_centavos"`
