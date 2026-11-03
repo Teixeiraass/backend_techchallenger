@@ -247,7 +247,7 @@ Em vez de um `PATCH /status` genérico, cada transição tem sua rota de comando
 
 ### 5.3 Eventos → onde acontecem no código
 
-Os eventos ficam registrados na tabela `historico_status_os` (status anterior, novo, observação, usuário e data) e aparecem no campo `historico` da OS.
+Nem todo evento da tabela abaixo vira registro no banco. A tabela `historico_status_os` (status anterior, novo, observação, usuário e data), exposta no campo `historico` da OS, grava exatamente três coisas: as **mudanças de status** da OS, as **decisões do cliente sobre o orçamento** (aprovação e rejeição) e as **decisões do cliente sobre reparos adicionais** (autorização e recusa). Os demais eventos (item adicionado, estoque baixado, reparo identificado, notificações) acontecem no código, mas não são persistidos como evento: a evidência deles está nos próprios dados (itens da OS, `movimentos_estoque`, `reparos_adicionais`) e no log.
 
 | Evento | Quem o produz | Quem reage |
 |---|---|---|
