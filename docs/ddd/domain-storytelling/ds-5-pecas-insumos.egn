@@ -781,6 +781,122 @@
       "target": "shape_2377"
     },
     {
+      "type": "domainStory:actorGroup",
+      "name": "Atendente",
+      "id": "shape_1334",
+      "x": 1470,
+      "y": 880
+    },
+    {
+      "type": "domainStory:workObjectGrid",
+      "name": "Saldo da peça",
+      "id": "shape_6876",
+      "x": 1136,
+      "y": 880
+    },
+    {
+      "type": "domainStory:workObjectExtension",
+      "name": "Peças e insumos",
+      "id": "shape_5267",
+      "x": 1136,
+      "y": 1040
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "consulta",
+      "id": "connection_1760",
+      "pickedColor": "black",
+      "number": 8,
+      "waypoints": [
+        {
+          "x": 1470,
+          "y": 918,
+          "original": {
+            "x": 1508,
+            "y": 918
+          }
+        },
+        {
+          "x": 1211,
+          "y": 918,
+          "original": {
+            "x": 1174,
+            "y": 918
+          }
+        }
+      ],
+      "source": "shape_1334",
+      "target": "shape_6876",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "lista",
+      "id": "connection_6106",
+      "pickedColor": "black",
+      "number": 9,
+      "waypoints": [
+        {
+          "x": 1508,
+          "y": 955,
+          "original": {
+            "x": 1508,
+            "y": 918
+          }
+        },
+        {
+          "x": 1508,
+          "y": 1078
+        },
+        {
+          "x": 1211,
+          "y": 1078,
+          "original": {
+            "x": 1174,
+            "y": 1078
+          }
+        }
+      ],
+      "source": "shape_1334",
+      "target": "shape_5267",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Quantidade e estoque mínimo da peça",
+      "id": "shape_7890",
+      "x": 1099,
+      "y": 800,
+      "width": 150,
+      "height": 45
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_1361",
+      "waypoints": [
+        {
+          "original": {
+            "x": 1174,
+            "y": 918
+          },
+          "x": 1174,
+          "y": 880
+        },
+        {
+          "original": {
+            "x": 1174,
+            "y": 822
+          },
+          "x": 1174,
+          "y": 844
+        }
+      ],
+      "source": "shape_6876",
+      "target": "shape_7890"
+    },
+    {
       "info": "Cadastro, reposição, ajuste, baixa ao iniciar a execução, estoque mínimo e consulta"
     },
     {
