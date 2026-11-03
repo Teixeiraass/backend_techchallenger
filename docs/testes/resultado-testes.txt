@@ -3,19 +3,19 @@
 DB_SOURCE="postgresql://root:secret@localhost:5433/oficina_test?sslmode=disable" go test -count=1 -cover ./...
 	github.com/Teixeiraass/backend_techchallenger/cmd/server		coverage: 0.0% of statements
 	github.com/Teixeiraass/backend_techchallenger/db/mock		coverage: 0.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/db/sqlc	0.184s	coverage: 67.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/db/sqlc	0.466s	coverage: 67.0% of statements
 	github.com/Teixeiraass/backend_techchallenger/docs		coverage: 0.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain	0.071s	coverage: 100.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/cliente	0.071s	coverage: 100.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque	0.068s	coverage: 100.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico	0.057s	coverage: 99.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/veiculo	0.054s	coverage: 100.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain	0.012s	coverage: 100.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/cliente	0.008s	coverage: 100.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque	0.012s	coverage: 100.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico	0.014s	coverage: 99.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/domain/veiculo	0.044s	coverage: 100.0% of statements
 	github.com/Teixeiraass/backend_techchallenger/internal/dto		coverage: 0.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/handler	0.583s	coverage: 99.4% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/integration	1.013s	coverage: [no statements]
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/middleware	0.115s	coverage: 100.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/handler	0.541s	coverage: 99.4% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/integration	3.174s	coverage: [no statements]
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/middleware	0.007s	coverage: 100.0% of statements
 	github.com/Teixeiraass/backend_techchallenger/internal/routes		coverage: 0.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/internal/service	0.733s	coverage: 95.9% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/internal/service	0.956s	coverage: 95.9% of statements
 	github.com/Teixeiraass/backend_techchallenger/notification		coverage: 0.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/token	0.078s	coverage: 92.0% of statements
-ok  	github.com/Teixeiraass/backend_techchallenger/util	0.286s	coverage: 98.8% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/token	0.007s	coverage: 92.0% of statements
+ok  	github.com/Teixeiraass/backend_techchallenger/util	0.316s	coverage: 98.8% of statements

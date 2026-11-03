@@ -183,6 +183,7 @@ curl -s -X POST $API/ordens-servico/$OS/entregar  -H "Authorization: Bearer $ATD
 | HTTP dos handlers, autenticação e papéis (gomock) | `internal/handler`, `internal/middleware` | não |
 | Integração das queries, transações e concorrência | `db/sqlc` | sim |
 | Integração dos fluxos principais pela API (aprovação, rejeição, falta de estoque, reparo adicional, segurança) | `internal/integration` | sim |
+| Integração da gestão administrativa pela API (CRUD de clientes, veículos, serviços e peças, controle de estoque, detalhe e itens da OS, usuários) | `internal/integration` | sim |
 
 ```bash
 # Só unitários (sem Docker): os testes de banco são pulados
@@ -196,7 +197,7 @@ make test
 make coverage
 ```
 
-**Cobertura dos domínios críticos: 96,7%** (mínimo exigido: 80%). O CI falha se ficar abaixo de 80%.
+**Cobertura dos domínios críticos: 96,8%** (mínimo exigido: 80%). O CI falha se ficar abaixo de 80%.
 
 | Pacote | Cobertura |
 |---|---|
