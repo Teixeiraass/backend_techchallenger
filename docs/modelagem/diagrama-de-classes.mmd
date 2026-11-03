@@ -1,0 +1,249 @@
+classDiagram
+    direction LR
+
+    namespace Cadastro {
+        class Cliente {
+            <<Entidade>>
+            +UUID uuid
+            +string nome
+            +Documento documento
+            +string email
+            +string telefone
+        }
+        class Documento {
+            <<Objeto de valor>>
+            -string numero
+            -TipoDocumento tipo
+            +NovoDocumento(valor string)$ Documento
+            +Numero() string
+            +Tipo() TipoDocumento
+            +Formatado() string
+        }
+        class TipoDocumento {
+            <<enumeração>>
+            CPF
+            CNPJ
+        }
+        class Veiculo {
+            <<Entidade>>
+            +UUID uuid
+            +Placa placa
+            +string marca
+            +string modelo
+            +int ano
+            +ValidarAno(ano int, agora Time)$ error
+        }
+        class Placa {
+            <<Objeto de valor>>
+            -string valor
+            +NovaPlaca(valor string)$ Placa
+            +String() string
+            +Mercosul() bool
+        }
+    }
+
+    namespace CatalogoEEstoque {
+        class Servico {
+            <<Entidade>>
+            +UUID uuid
+            +string nome
+            +string descricao
+            +int64 precoCentavos
+            +int tempoEstimadoMinutos
+            +bool ativo
+        }
+        class Peca {
+            <<Raiz de agregado>>
+            +UUID uuid
+            +string codigo
+            +string nome
+            +TipoPeca tipo
+            +string unidade
+            +int64 precoCentavos
+            +int quantidadeEstoque
+            +int estoqueMinimo
+            +bool ativo
+        }
+        class MovimentoEstoque {
+            <<Entidade>>
+            +UUID uuid
+            +TipoMovimento tipo
+            +int quantidade
+            +int saldoAnterior
+            +int saldoPosterior
+            +string observacao
+        }
+        class Estoque {
+            <<Serviço de domínio>>
+            +ValidarCadastro(tipo, preco, saldoInicial, minimo)$ error
+            +ValidarReposicao(quantidade)$ error
+            +ValidarAjuste(novoSaldo)$ error
+            +ValidarDisponibilidade(saldo, jaNaOS, quantidade, ativa)$ error
+            +EstoqueBaixo(saldo, minimo)$ bool
+        }
+        class TipoPeca {
+            <<enumeração>>
+            PECA
+            INSUMO
+        }
+        class TipoMovimento {
+            <<enumeração>>
+            ENTRADA
+            SAIDA
+            AJUSTE
+        }
+    }
+
+    namespace OrdemDeServico {
+        class OrdemServico {
+            <<Raiz de agregado>>
+            +Status status
+            +StatusOrcamento statusOrcamento
+            +int64 valorTotalCentavos
+            +string diagnostico
+            +Time orcamentoEnviadoEm
+            +Time orcamentoDecididoEm
+            +Time diagnosticoIniciadoEm
+            +Time execucaoIniciadaEm
+            +Time finalizadaEm
+            +Time entregueEm
+            +Nova()$ OrdemServico
+            +IniciarDiagnostico(agora) error
+            +PodeAlterarItens() error
+            +AtualizarOrcamento(servicos, pecas) Orcamento
+            +EnviarOrcamento(servicos, pecas, diagnostico, agora) error
+            +AprovarOrcamento(agora) error
+            +RejeitarOrcamento(agora) error
+            +IniciarExecucao(agora) error
+            +PodeRegistrarReparoAdicional() error
+            +Finalizar(reparosPendentes, agora) error
+            +Entregar(agora) error
+            +TempoExecucao() Duration
+            -transitar(destino Status) error
+        }
+        class ItemServico {
+            <<Entidade>>
+            +UUID uuid
+            +int quantidade
+            +int64 valorUnitarioCentavos
+        }
+        class ItemPeca {
+            <<Entidade>>
+            +UUID uuid
+            +int quantidade
+            +int64 valorUnitarioCentavos
+        }
+        class Item {
+            <<Objeto de valor>>
+            +int quantidade
+            +int64 valorUnitarioCentavos
+            +StatusReparo statusReparo
+            +Subtotal() int64
+            +EntraNoOrcamento() bool
+        }
+        class Orcamento {
+            <<Objeto de valor>>
+            +int64 totalServicosCentavos
+            +int64 totalPecasCentavos
+            +int64 totalCentavos
+            +CalcularOrcamento(servicos, pecas)$ Orcamento
+        }
+        class ReparoAdicional {
+            <<Entidade>>
+            +UUID uuid
+            +string descricao
+            +StatusReparo status
+            +Time decididoEm
+            +DecidirReparo(atual, statusOS)$ error
+        }
+        class HistoricoStatus {
+            <<Entidade>>
+            +Status statusAnterior
+            +Status statusNovo
+            +string observacao
+            +Time createdAt
+        }
+        class Status {
+            <<enumeração>>
+            RECEBIDA
+            EM_DIAGNOSTICO
+            AGUARDANDO_APROVACAO
+            EM_EXECUCAO
+            FINALIZADA
+            ENTREGUE
+            +PodeIrPara(destino Status) bool
+            +Descricao() string
+        }
+        class StatusOrcamento {
+            <<enumeração>>
+            NAO_ENVIADO
+            AGUARDANDO
+            APROVADO
+            REJEITADO
+        }
+        class StatusReparo {
+            <<enumeração>>
+            PENDENTE
+            AUTORIZADO
+            RECUSADO
+        }
+    }
+
+    namespace IdentidadeEAcesso {
+        class Usuario {
+            <<Entidade>>
+            +UUID uuid
+            +string nome
+            +string email
+            +string hashedPassword
+            +Papel papel
+            +bool ativo
+        }
+        class Sessao {
+            <<Entidade>>
+            +UUID id
+            +string refreshToken
+            +bool isBlocked
+            +Time expiresAt
+        }
+        class Papel {
+            <<enumeração>>
+            ADMINISTRADOR
+            ATENDENTE
+            MECANICO
+        }
+    }
+
+    Cliente *-- "1" Documento
+    Documento --> TipoDocumento
+    Veiculo "0..*" --> "1" Cliente : dono
+    Veiculo *-- "1" Placa
+
+    Peca --> TipoPeca
+    Peca "1" *-- "0..*" MovimentoEstoque
+    MovimentoEstoque --> TipoMovimento
+    Estoque ..> Peca : valida
+
+    OrdemServico "0..*" --> "1" Cliente
+    OrdemServico "0..*" --> "1" Veiculo
+    OrdemServico --> Status
+    OrdemServico --> StatusOrcamento
+    OrdemServico "1" *-- "0..*" ItemServico
+    OrdemServico "1" *-- "0..*" ItemPeca
+    OrdemServico "1" *-- "0..*" ReparoAdicional
+    OrdemServico "1" *-- "1..*" HistoricoStatus
+    OrdemServico ..> Orcamento : calcula
+    ItemServico "0..*" --> "1" Servico
+    ItemPeca "0..*" --> "1" Peca
+    ItemServico ..> Item : vira
+    ItemPeca ..> Item : vira
+    Orcamento ..> Item : soma
+    ReparoAdicional "0..1" o-- "0..*" ItemServico
+    ReparoAdicional "0..1" o-- "0..*" ItemPeca
+    ReparoAdicional --> StatusReparo
+    MovimentoEstoque "0..*" --> "0..1" OrdemServico : baixa
+
+    Usuario "1" *-- "0..*" Sessao
+    Usuario --> Papel
+    HistoricoStatus "0..*" --> "0..1" Usuario : registrado por
+    MovimentoEstoque "0..*" --> "0..1" Usuario : registrado por

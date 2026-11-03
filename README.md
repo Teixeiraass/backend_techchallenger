@@ -4,6 +4,7 @@ MVP do back-end do **Sistema Integrado de Atendimento e Execução de Serviços*
 
 - **Documentação DDD (Miro):** _[inserir link público do Miro]_
 - **Documentação DDD exportada:** [docs/ddd/](docs/ddd/) — [linguagem ubíqua e relação com o código](docs/ddd/linguagem-ubiqua.md), [mapa de contexto](docs/ddd/mapa-de-contexto.md), [diagramas](docs/ddd/diagramas.pdf), [event storming](docs/ddd/event-storming.pdf)
+- **Modelagem:** [DER e diagrama de classes (UML)](docs/modelagem/README.md)
 - **Vídeo da entrega:** _[inserir link do YouTube]_
 - **Análise de vulnerabilidades:** [docs/security/README.md](docs/security/README.md)
 - **Evidência de testes e cobertura:** [docs/testes/](docs/testes/)
@@ -231,6 +232,7 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 │   └── init/              # script do Postgres que cria o banco de testes
 ├── docs/
 │   ├── ddd/               # linguagem ubíqua, diagramas e event storming
+│   ├── modelagem/         # DER e diagrama de classes (Mermaid, SVG e PNG)
 │   ├── security/          # relatórios de vulnerabilidades
 │   ├── testes/            # evidências de testes e cobertura
 │   └── swagger.*          # OpenAPI gerado

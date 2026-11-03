@@ -1,0 +1,168 @@
+erDiagram
+    usuarios ||--o{ sessoes : "abre"
+    usuarios |o--o{ historico_status_os : "registra"
+    usuarios |o--o{ movimentos_estoque : "registra"
+    clientes ||--o{ veiculos : "possui"
+    clientes ||--o{ ordens_servico : "solicita"
+    veiculos ||--o{ ordens_servico : "recebe"
+    ordens_servico ||--o{ itens_servico : "contém"
+    ordens_servico ||--o{ itens_peca : "contém"
+    ordens_servico ||--o{ reparos_adicionais : "tem"
+    ordens_servico ||--o{ historico_status_os : "registra"
+    ordens_servico |o--o{ movimentos_estoque : "baixa"
+    reparos_adicionais |o--o{ itens_servico : "agrupa"
+    reparos_adicionais |o--o{ itens_peca : "agrupa"
+    servicos ||--o{ itens_servico : "é usado em"
+    pecas ||--o{ itens_peca : "é usada em"
+    pecas ||--o{ movimentos_estoque : "movimenta"
+
+    usuarios {
+        bigserial id PK
+        uuid uuid UK
+        varchar nome "150"
+        varchar email UK "150"
+        varchar hashed_password "bcrypt"
+        varchar papel "ADMINISTRADOR | ATENDENTE | MECANICO"
+        boolean ativo "default true"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    sessoes {
+        uuid id PK
+        bigint usuario_id FK "ON DELETE CASCADE"
+        varchar refresh_token
+        varchar user_agent
+        varchar client_ip
+        boolean is_blocked "default false"
+        timestamptz expires_at
+        timestamptz created_at
+    }
+
+    clientes {
+        bigserial id PK
+        uuid uuid UK
+        varchar nome "150"
+        varchar documento UK "CPF ou CNPJ sem pontuação (14)"
+        varchar tipo_documento "CPF | CNPJ"
+        varchar email "150"
+        varchar telefone "20"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    veiculos {
+        bigserial id PK
+        uuid uuid UK
+        bigint cliente_id FK "ON DELETE RESTRICT"
+        varchar placa UK "antiga ou Mercosul, sem hífen (7)"
+        varchar marca "60"
+        varchar modelo "80"
+        integer ano
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    servicos {
+        bigserial id PK
+        uuid uuid UK
+        varchar nome UK "120"
+        text descricao
+        bigint preco_centavos ">= 0"
+        integer tempo_estimado_minutos ">= 0"
+        boolean ativo "default true"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    pecas {
+        bigserial id PK
+        uuid uuid UK
+        varchar codigo UK "40"
+        varchar nome "120"
+        text descricao
+        varchar tipo "PECA | INSUMO"
+        varchar unidade "default UN"
+        bigint preco_centavos ">= 0"
+        integer quantidade_estoque ">= 0 (nunca negativo)"
+        integer estoque_minimo ">= 0"
+        boolean ativo "default true"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    movimentos_estoque {
+        bigserial id PK
+        uuid uuid UK
+        bigint peca_id FK "ON DELETE CASCADE"
+        varchar tipo "ENTRADA | SAIDA | AJUSTE"
+        integer quantidade
+        integer saldo_anterior
+        integer saldo_posterior
+        bigint ordem_servico_id FK "opcional, ON DELETE SET NULL"
+        bigint usuario_id FK "opcional, ON DELETE SET NULL"
+        text observacao
+        timestamptz created_at
+    }
+
+    ordens_servico {
+        bigserial id PK
+        uuid uuid UK
+        bigint cliente_id FK "ON DELETE RESTRICT"
+        bigint veiculo_id FK "ON DELETE RESTRICT"
+        varchar status "RECEBIDA ... ENTREGUE"
+        text descricao_problema
+        text diagnostico
+        varchar orcamento_status "NAO_ENVIADO | AGUARDANDO | APROVADO | REJEITADO"
+        bigint valor_total_centavos
+        timestamptz orcamento_enviado_em
+        timestamptz orcamento_decidido_em
+        timestamptz diagnostico_iniciado_em
+        timestamptz execucao_iniciada_em
+        timestamptz finalizada_em
+        timestamptz entregue_em
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    reparos_adicionais {
+        bigserial id PK
+        uuid uuid UK
+        bigint ordem_servico_id FK "ON DELETE CASCADE"
+        text descricao
+        varchar status "PENDENTE | AUTORIZADO | RECUSADO"
+        timestamptz decidido_em
+        timestamptz created_at
+    }
+
+    itens_servico {
+        bigserial id PK
+        uuid uuid UK
+        bigint ordem_servico_id FK "ON DELETE CASCADE"
+        bigint servico_id FK "ON DELETE RESTRICT"
+        bigint reparo_adicional_id FK "opcional, ON DELETE CASCADE"
+        integer quantidade "> 0"
+        bigint valor_unitario_centavos "congelado na inclusão"
+        timestamptz created_at
+    }
+
+    itens_peca {
+        bigserial id PK
+        uuid uuid UK
+        bigint ordem_servico_id FK "ON DELETE CASCADE"
+        bigint peca_id FK "ON DELETE RESTRICT"
+        bigint reparo_adicional_id FK "opcional, ON DELETE CASCADE"
+        integer quantidade "> 0"
+        bigint valor_unitario_centavos "congelado na inclusão"
+        timestamptz created_at
+    }
+
+    historico_status_os {
+        bigserial id PK
+        bigint ordem_servico_id FK "ON DELETE CASCADE"
+        varchar status_anterior
+        varchar status_novo
+        bigint usuario_id FK "opcional, ON DELETE SET NULL"
+        text observacao
+        timestamptz created_at
+    }
