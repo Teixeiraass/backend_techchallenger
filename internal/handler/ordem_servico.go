@@ -242,7 +242,7 @@ func (server *Server) IniciarDiagnostico(ctx *gin.Context) {
 
 // EnviarOrcamento godoc
 // @Summary      Enviar orçamento ao cliente
-// @Description  Em diagnóstico -> Aguardando aprovação (automático). Recalcula o orçamento, notifica o cliente e disponibiliza a aprovação pelo link de acompanhamento.
+// @Description  Em diagnóstico -> Aguardando aprovação. Mecânico ou administrador. Recebe o texto do diagnóstico, recalcula o orçamento, notifica o cliente por e-mail e disponibiliza a aprovação pelo link de acompanhamento.
 // @Tags         ordens-servico
 // @Accept       json
 // @Produce      json
@@ -327,7 +327,7 @@ func (server *Server) FinalizarOrdemServico(ctx *gin.Context) {
 
 // EntregarVeiculo godoc
 // @Summary      Entregar veículo
-// @Description  Finalizada -> Entregue. Também devolve o veículo sem execução quando o orçamento foi rejeitado.
+// @Description  Finalizada -> Entregue. Também entrega o veículo sem execução (Em diagnóstico -> Entregue) quando o orçamento foi rejeitado.
 // @Tags         ordens-servico
 // @Produce      json
 // @Security     BearerAuth

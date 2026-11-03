@@ -117,7 +117,7 @@ func (os *OrdemServico) AprovarOrcamento(agora time.Time) error {
 }
 
 // RejeitarOrcamento: Aguardando aprovação -> Em diagnóstico. A OS não segue
-// para execução; a oficina pode montar um novo orçamento ou devolver o veículo.
+// para execução; a oficina pode montar um novo orçamento ou entregar o veículo.
 func (os *OrdemServico) RejeitarOrcamento(agora time.Time) error {
 	if os.Status != StatusAguardandoAprovacao || os.StatusOrcamento != OrcamentoAguardando {
 		return ErrOrcamentoNaoAguardando
@@ -164,7 +164,7 @@ func (os *OrdemServico) Finalizar(reparosPendentes int, agora time.Time) error {
 }
 
 // Entregar: Finalizada -> Entregue, ou Em diagnóstico -> Entregue quando o
-// cliente rejeitou o orçamento e o veículo é devolvido sem execução.
+// cliente rejeitou o orçamento e o veículo é entregue sem execução.
 func (os *OrdemServico) Entregar(agora time.Time) error {
 	if os.Status == StatusEmDiagnostico && os.StatusOrcamento != OrcamentoRejeitado {
 		return ErrEntregaNaoPermitida

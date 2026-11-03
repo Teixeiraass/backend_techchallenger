@@ -1101,8 +1101,8 @@ paths:
       - ordens-servico
   /ordens-servico/{uuid}/entregar:
     post:
-      description: Finalizada -> Entregue. Também devolve o veículo sem execução quando
-        o orçamento foi rejeitado.
+      description: Finalizada -> Entregue. Também entrega o veículo sem execução (Em
+        diagnóstico -> Entregue) quando o orçamento foi rejeitado.
       parameters:
       - description: UUID da OS
         in: path
@@ -1235,8 +1235,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Em diagnóstico -> Aguardando aprovação (automático). Recalcula
-        o orçamento, notifica o cliente e disponibiliza a aprovação pelo link de acompanhamento.
+      description: Em diagnóstico -> Aguardando aprovação. Mecânico ou administrador.
+        Recebe o texto do diagnóstico, recalcula o orçamento, notifica o cliente por
+        e-mail e disponibiliza a aprovação pelo link de acompanhamento.
       parameters:
       - description: UUID da OS
         in: path
@@ -1273,7 +1274,7 @@ paths:
       consumes:
       - application/json
       description: 'Rota pública. A OS volta para Em diagnóstico: a oficina pode montar
-        um novo orçamento ou devolver o veículo.'
+        um novo orçamento ou entregar o veículo sem execução.'
       parameters:
       - description: UUID da OS
         in: path
