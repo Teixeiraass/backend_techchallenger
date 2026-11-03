@@ -37,7 +37,8 @@ Status: `RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO �
 
 ```
 HTTP (Gin)                    internal/routes + internal/handler   rotas, binding, mapeamento erro → status
-   │                          internal/middleware                  autenticação (JWT/PASETO) e papéis
+   │                          internal/middleware                  autenticação (JWT/PASETO), papéis, limite de tentativas,
+   │                                                               limite de corpo e log de acesso sem dado pessoal
    ▼
 Aplicação (casos de uso)      internal/service                     um método por comando; abre a transação,
    │                                                               carrega dados, aplica o domínio, persiste
@@ -46,7 +47,7 @@ Domínio (DDD)                 internal/domain/...                  agregados, o
    │                                                               (sem dependência de banco ou framework)
    ▼
 Infraestrutura                db/sqlc (sqlc + Store.ExecTx)        acesso ao PostgreSQL e transações
-                              db/migration (golang-migrate)        schema versionado + dados de demonstração
+                              db/migration (golang-migrate)        schema versionado (seed de demonstração em db/seed)
                               notification/                        porta de notificação (adaptador de log)
                               token/                               JWT HS256 (padrão) e PASETO v2
 ```
@@ -107,11 +108,13 @@ Um banco de documentos (MongoDB, por exemplo) facilitaria guardar a OS como um �
 docker compose up --build -d
 ```
 
-O compose sobe o PostgreSQL, espera ele ficar saudável, aplica as migrations (schema + dados de demonstração) e inicia a API em **http://localhost:8080**.
+O compose sobe o PostgreSQL, espera ele ficar saudável, aplica as migrations (schema), aplica o seed de demonstração (`SEED_DEMO=true`, padrão só no compose) e inicia a API em **http://localhost:8080**.
 
 - Health check: `curl http://localhost:8080/api/v1/helper`
 - Se a porta 8080 estiver ocupada: `API_PORT=8090 docker compose up --build -d`
 - Para parar: `docker compose down`. Para zerar o banco: `docker compose down -v`
+- Se o banco foi criado antes de o seed sair das migrations (versão 5 registrada em `schema_migrations`), zere com `docker compose down -v` antes de subir de novo.
+- O compose define `ENVIRONMENT=development` e `TZ=America/Sao_Paulo`. Fora do desenvolvimento a API recusa subir com a chave de exemplo (`TOKEN_SYMMETRIC_KEY`) ou com chave menor que 32 caracteres.
 
 ### Localmente (API fora do container)
 
@@ -119,6 +122,7 @@ O compose sobe o PostgreSQL, espera ele ficar saudável, aplica as migrations (s
 cp app.env.example app.env        # configuração local
 docker compose up -d postgres     # só o banco (porta 5433)
 make migrateup                    # aplica as migrations
+make seed                         # dados de demonstração (opcional)
 make server                       # API em http://localhost:8080
 ```
 
@@ -133,7 +137,7 @@ Os arquivos OpenAPI ficam em [docs/swagger.yaml](docs/swagger.yaml) e [docs/swag
 
 ## Usuários de demonstração e autenticação
 
-A migration `000005_seed_dados_demo` cria:
+O seed de demonstração (`db/seed/`, aplicado por `make seed` ou por `SEED_DEMO=true` no `start.sh`) cria:
 
 | Papel | E-mail | Senha | Pode |
 |---|---|---|---|
@@ -141,13 +145,18 @@ A migration `000005_seed_dados_demo` cria:
 | ATENDENTE | `atendente@oficina.com` | `atendente123` | clientes, veículos, abrir OS, itens, iniciar execução após reposição, entregar |
 | MECANICO | `mecanico@oficina.com` | `mecanico123` | diagnóstico, itens, enviar orçamento, iniciar execução após reposição, reparo adicional, finalizar |
 
-Ela também cria 5 serviços, 4 peças/insumos (um deles já abaixo do estoque mínimo), a cliente **Maria Silva** (CPF `52998224725`, veículo `ABC1D23`) e a empresa **Transportes Exemplo LTDA** (CNPJ `11222333000181`, veículo `XYZ1234`).
+Ele também cria 5 serviços, 4 peças/insumos (um deles já abaixo do estoque mínimo), a cliente **Maria Silva** (CPF `52998224725`, veículo `ABC1D23`) e a empresa **Transportes Exemplo LTDA** (CNPJ `11222333000181`, veículo `XYZ1234`).
+
+O seed não é schema: fica fora de `db/migration`, é controlado na tabela `seed_migrations` e só roda quando `SEED_DEMO=true`. O `docker-compose.yaml` liga por padrão porque é ambiente local. Em qualquer outro ambiente o seed fica desligado (`SEED_DEMO=false` ou ausente), e os usuários são criados por um administrador em `POST /usuarios`. Para remover: `make seeddown`.
 
 **Como funciona a autenticação:**
 - **Rotas administrativas** exigem `Authorization: Bearer <access_token>`.
-- **Tokens:** o access token vale 15 min. O refresh token (`POST /tokens/refresh`) vale 24 h e é revogado em `POST /usuarios/logout`.
+- **Tokens:** o access token vale 15 min. O refresh token (`POST /tokens/refresh`) vale 24 h e é revogado em `POST /usuarios/logout`. Cada token leva o tipo (claim `typ`: `access` ou `refresh`): o refresh token não autentica rota administrativa (401 `TOKEN_TIPO_INVALIDO`) e o access token não renova sessão (401 `SESSAO_INVALIDA`). A sessão guarda só o SHA-256 do refresh token.
+- **Limite de tentativas:** login, renovação de token e as rotas públicas do cliente aceitam `RATE_LIMIT_RPS` requisições por segundo por IP, com rajada de `RATE_LIMIT_BURST` (padrão 1 e 10). Acima disso a resposta é 429 `MUITAS_TENTATIVAS` com `Retry-After`. Senha de usuário tem no mínimo 8 caracteres.
+- **Corpo e conexões:** corpo acima de 1 MiB recebe 413 `CORPO_GRANDE_DEMAIS`; o servidor usa timeouts de leitura/escrita e encerra de forma graciosa em `SIGTERM`.
 - **Formato:** o padrão é **JWT** (HS256), como pede o enunciado. O algoritmo é fixado na verificação. Como opção, `TOKEN_TYPE=paseto` emite **PASETO v2**, que tem o mesmo papel de um JWT, mas é cifrado e não tem negociação de algoritmo. Trocar o `TOKEN_TYPE` invalida os tokens já emitidos, e os usuários precisam fazer login de novo.
-- **Rotas do cliente** são públicas e exigem o UUID da OS + o CPF/CNPJ do dono: `GET /ordens-servico/{uuid}/andamento`, aprovar/rejeitar orçamento e autorizar/recusar reparo.
+- **Rotas do cliente** são públicas e exigem o UUID da OS + o CPF/CNPJ do dono: `GET /ordens-servico/{uuid}/andamento` (documento no header `X-Documento`), aprovar/rejeitar orçamento e autorizar/recusar reparo (documento no corpo).
+- **CPF/CNPJ fora da URL:** o log de acesso registra só método, caminho (sem query string), status e latência. Por isso o documento vai no header `X-Documento` na consulta pública e em `GET /clientes/por-documento`. O parâmetro `?documento=` da consulta pública ainda é aceito por uma versão, marcado como obsoleto no Swagger.
 
 ### Roteiro rápido do fluxo (curl)
 
@@ -167,7 +176,7 @@ OS=$(curl -s -X POST $API/ordens-servico -H "Authorization: Bearer $ATD" -H 'Con
 
 curl -s -X POST $API/ordens-servico/$OS/diagnostico -H "Authorization: Bearer $MEC"
 curl -s -X POST $API/ordens-servico/$OS/orcamento/enviar -H "Authorization: Bearer $MEC"
-curl -s "$API/ordens-servico/$OS/andamento?documento=52998224725"                      # cliente, sem token
+curl -s $API/ordens-servico/$OS/andamento -H 'X-Documento: 52998224725'                # cliente, sem token
 curl -s -X POST $API/ordens-servico/$OS/orcamento/aprovar -H 'Content-Type: application/json' \
   -d '{"documento":"52998224725"}'                                                     # -> EM_EXECUCAO
 curl -s -X POST $API/ordens-servico/$OS/finalizar -H "Authorization: Bearer $MEC"
@@ -180,16 +189,17 @@ curl -s -X POST $API/ordens-servico/$OS/entregar  -H "Authorization: Bearer $ATD
 |---|---|---|
 | Unitários de domínio | `internal/domain/**` | não |
 | Unitários de casos de uso (gomock) | `internal/service` | não |
-| HTTP dos handlers, autenticação e papéis (gomock) | `internal/handler`, `internal/middleware` | não |
+| HTTP dos handlers, autenticação, papéis, limite de tentativas e log (gomock) | `internal/handler`, `internal/middleware` | não |
 | Integração das queries, transações e concorrência | `db/sqlc` | sim |
-| Integração dos fluxos principais pela API (aprovação, rejeição, falta de estoque, reparo adicional, segurança) | `internal/integration` | sim |
+| Integração dos fluxos principais pela API (aprovação, rejeição, falta de estoque, reparo adicional) | `internal/integration` | sim |
+| Integração de segurança pela API (tipos de token, logout, 429, senha curta, documento fora do log, corpo grande) | `internal/integration` | sim |
 | Integração da gestão administrativa pela API (CRUD de clientes, veículos, serviços e peças, controle de estoque, detalhe e itens da OS, usuários) | `internal/integration` | sim |
 
 ```bash
 # Só unitários (sem Docker): os testes de banco são pulados
 go test -short ./...
 
-# Suíte completa: sobe o banco e usa o banco separado oficina_test
+# Suíte completa: sobe o banco e usa o banco separado oficina_test (migrations + seed)
 docker compose up -d postgres
 make test
 
@@ -224,7 +234,8 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 .
 ├── cmd/server/            # main: carrega config, conecta no banco, sobe o servidor
 ├── db/
-│   ├── migration/         # migrations versionadas (schema + seed de demonstração)
+│   ├── migration/         # migrations versionadas (schema)
+│   ├── seed/              # dados de demonstração (só com SEED_DEMO=true ou make seed)
 │   ├── query/             # SQL de entrada do sqlc
 │   ├── sqlc/              # código gerado pelo sqlc + Store com ExecTx + testes de integração
 │   ├── mock/              # mock do Store (mockgen)
@@ -258,6 +269,7 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 |---|---|
 | `make up` / `make down` | sobe ou derruba o ambiente completo |
 | `make migrateup` / `make migratedown` | aplica ou desfaz as migrations no banco local |
+| `make seed` / `make seeddown` | aplica ou remove os dados de demonstração |
 | `make new_migration name=xxx` | cria uma nova migration |
 | `make sqlc` / `make mock` / `make swag` | gera de novo o código do sqlc, o mock e o Swagger |
 | `make server` | roda a API localmente |

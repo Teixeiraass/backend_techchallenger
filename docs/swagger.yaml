@@ -259,7 +259,7 @@ definitions:
         - MECANICO
         type: string
       senha:
-        minLength: 6
+        minLength: 8
         type: string
     required:
     - email
@@ -387,7 +387,7 @@ definitions:
       email:
         type: string
       senha:
-        minLength: 6
+        minLength: 8
         type: string
     required:
     - email
@@ -710,8 +710,19 @@ definitions:
       uuid:
         type: string
     type: object
+  handler.CampoErrado:
+    properties:
+      campo:
+        type: string
+      regra:
+        type: string
+    type: object
   handler.ErrorResponse:
     properties:
+      campos:
+        items:
+          $ref: '#/definitions/handler.CampoErrado'
+        type: array
       code:
         type: string
       error:
@@ -892,12 +903,14 @@ paths:
       summary: Atualizar cliente
       tags:
       - clientes
-  /clientes/documento/{documento}:
+  /clientes/por-documento:
     get:
+      description: O documento vai no header X-Documento, e não na URL, para não aparecer
+        em logs de acesso.
       parameters:
-      - description: CPF ou CNPJ (somente números)
-        in: path
-        name: documento
+      - description: CPF ou CNPJ (com ou sem pontuação)
+        in: header
+        name: X-Documento
         required: true
         type: string
       produces:
@@ -909,6 +922,10 @@ paths:
             $ref: '#/definitions/dto.ClienteResponse'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
           schema:
             $ref: '#/definitions/handler.ErrorResponse'
         "404":
@@ -1049,10 +1066,14 @@ paths:
         name: uuid
         required: true
         type: string
-      - description: CPF ou CNPJ do cliente
+      - description: CPF ou CNPJ do cliente (caminho recomendado)
+        in: header
+        name: X-Documento
+        type: string
+      - description: 'CPF ou CNPJ do cliente. Obsoleto: use o header X-Documento,
+          a query string pode parar em logs'
         in: query
         name: documento
-        required: true
         type: string
       produces:
       - application/json
