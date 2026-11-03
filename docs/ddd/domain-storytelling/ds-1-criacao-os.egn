@@ -387,7 +387,7 @@
     },
     {
       "type": "domainStory:activity",
-      "name": "calcula",
+      "name": "gera",
       "id": "connection_4532",
       "pickedColor": "black",
       "number": 6,
@@ -433,16 +433,16 @@
             "x": 504,
             "y": 285
           },
-          "x": 541,
+          "x": 542,
           "y": 260
         },
         {
           "original": {
             "x": 636,
-            "y": 200
+            "y": 199
           },
-          "x": 599,
-          "y": 224
+          "x": 601,
+          "y": 222
         }
       ],
       "source": "shape_4880",
@@ -468,16 +468,16 @@
             "x": 504,
             "y": 416
           },
-          "x": 541,
+          "x": 542,
           "y": 391
         },
         {
           "original": {
             "x": 636,
-            "y": 331
+            "y": 330
           },
-          "x": 599,
-          "y": 355
+          "x": 601,
+          "y": 352
         }
       ],
       "source": "shape_1313",
@@ -503,16 +503,16 @@
             "x": 504,
             "y": 548
           },
-          "x": 541,
+          "x": 542,
           "y": 523
         },
         {
           "original": {
             "x": 636,
-            "y": 463
+            "y": 462
           },
-          "x": 599,
-          "y": 487
+          "x": 601,
+          "y": 484
         }
       ],
       "source": "shape_4561",
@@ -521,7 +521,7 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Só serviço ativo no catálogo",
+      "text": "Atendente ou mecânico. Só serviço ativo no catálogo",
       "id": "shape_4745",
       "x": 566,
       "y": 573,
@@ -538,16 +538,16 @@
             "x": 504,
             "y": 681
           },
-          "x": 541,
+          "x": 542,
           "y": 656
         },
         {
           "original": {
             "x": 636,
-            "y": 596
+            "y": 595
           },
-          "x": 599,
-          "y": 620
+          "x": 601,
+          "y": 618
         }
       ],
       "source": "shape_2113",
@@ -556,7 +556,7 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Só entra se houver estoque",
+      "text": "Atendente ou mecânico. Só entra se houver saldo; sem saldo, é recusada",
       "id": "shape_3492",
       "x": 566,
       "y": 705,
@@ -573,16 +573,16 @@
             "x": 504,
             "y": 813
           },
-          "x": 541,
+          "x": 542,
           "y": 788
         },
         {
           "original": {
             "x": 636,
-            "y": 728
+            "y": 727
           },
-          "x": 599,
-          "y": 752
+          "x": 601,
+          "y": 750
         }
       ],
       "source": "shape_1704",
@@ -608,23 +608,23 @@
             "x": 1174,
             "y": 548
           },
-          "x": 1211,
+          "x": 1212,
           "y": 523
         },
         {
           "original": {
             "x": 1306,
-            "y": 463
+            "y": 462
           },
-          "x": 1269,
-          "y": 487
+          "x": 1271,
+          "y": 484
         }
       ],
       "source": "shape_3517",
       "target": "shape_7547"
     },
     {
-      "info": "Cadastro, abertura da OS, serviços e peças"
+      "info": "Cadastro, abertura da OS, serviços, peças e orçamento"
     },
     {
       "version": "3.2.1"
