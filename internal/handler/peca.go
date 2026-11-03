@@ -17,6 +17,7 @@ import (
 // @Param        request body dto.CriarPecaRequest true "Peça ou insumo"
 // @Success      201 {object} dto.PecaResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /pecas [post]
@@ -47,6 +48,7 @@ func (server *Server) CriarPeca(ctx *gin.Context) {
 // @Param        tamanho       query int    false "Itens por página (padrão 20, máx 100)"
 // @Success      200 {array} dto.PecaResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Router       /pecas [get]
 func (server *Server) ListarPecas(ctx *gin.Context) {
 	var query dto.ListPecasQuery
@@ -75,6 +77,7 @@ func (server *Server) ListarPecas(ctx *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Success      200 {array} dto.PecaResponse
+// @Failure      401 {object} ErrorResponse
 // @Router       /pecas/estoque-baixo [get]
 func (server *Server) ListarEstoqueBaixo(ctx *gin.Context) {
 	pecas, err := server.PecaService.ListarEstoqueBaixo(ctx)
@@ -98,6 +101,7 @@ func (server *Server) ListarEstoqueBaixo(ctx *gin.Context) {
 // @Param        uuid path string true "UUID da peça"
 // @Success      200 {object} dto.PecaResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /pecas/{uuid} [get]
 func (server *Server) BuscarPeca(ctx *gin.Context) {
@@ -125,6 +129,8 @@ func (server *Server) BuscarPeca(ctx *gin.Context) {
 // @Param        request body dto.AtualizarPecaRequest true "Dados"
 // @Success      200 {object} dto.PecaResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /pecas/{uuid} [put]
@@ -157,6 +163,8 @@ func (server *Server) AtualizarPeca(ctx *gin.Context) {
 // @Param        uuid path string true "UUID da peça"
 // @Success      200 {object} dto.PecaResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /pecas/{uuid} [delete]
 func (server *Server) InativarPeca(ctx *gin.Context) {
@@ -184,6 +192,8 @@ func (server *Server) InativarPeca(ctx *gin.Context) {
 // @Param        request body dto.ReporEstoqueRequest true "Reposição"
 // @Success      200 {object} dto.PecaResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /pecas/{uuid}/reposicao [post]
 func (server *Server) ReporEstoque(ctx *gin.Context) {
@@ -217,6 +227,8 @@ func (server *Server) ReporEstoque(ctx *gin.Context) {
 // @Param        request body dto.AjustarEstoqueRequest true "Ajuste"
 // @Success      200 {object} dto.PecaResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /pecas/{uuid}/ajuste [post]
 func (server *Server) AjustarEstoque(ctx *gin.Context) {
@@ -250,6 +262,7 @@ func (server *Server) AjustarEstoque(ctx *gin.Context) {
 // @Param        tamanho query int    false "Itens por página (padrão 20, máx 100)"
 // @Success      200 {array} dto.MovimentoEstoqueResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /pecas/{uuid}/movimentos [get]
 func (server *Server) ListarMovimentosEstoque(ctx *gin.Context) {

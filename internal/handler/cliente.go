@@ -18,6 +18,7 @@ import (
 // @Success      201 {object} dto.ClienteResponse
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /clientes [post]
 func (server *Server) CriarCliente(ctx *gin.Context) {
@@ -45,6 +46,7 @@ func (server *Server) CriarCliente(ctx *gin.Context) {
 // @Param        tamanho query int    false "Itens por página (padrão 20, máx 100)"
 // @Success      200 {array} dto.ClienteResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Router       /clientes [get]
 func (server *Server) ListarClientes(ctx *gin.Context) {
 	var query dto.ListClientesQuery
@@ -74,6 +76,7 @@ func (server *Server) ListarClientes(ctx *gin.Context) {
 // @Param        uuid path string true "UUID do cliente"
 // @Success      200 {object} dto.ClienteResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /clientes/{uuid} [get]
 func (server *Server) BuscarCliente(ctx *gin.Context) {
@@ -98,6 +101,7 @@ func (server *Server) BuscarCliente(ctx *gin.Context) {
 // @Param        documento path string true "CPF ou CNPJ (somente números)"
 // @Success      200 {object} dto.ClienteResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /clientes/documento/{documento} [get]
 func (server *Server) BuscarClientePorDocumento(ctx *gin.Context) {
@@ -120,6 +124,8 @@ func (server *Server) BuscarClientePorDocumento(ctx *gin.Context) {
 // @Param        request body dto.AtualizarClienteRequest true "Dados"
 // @Success      200 {object} dto.ClienteResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /clientes/{uuid} [put]
 func (server *Server) AtualizarCliente(ctx *gin.Context) {
@@ -150,6 +156,8 @@ func (server *Server) AtualizarCliente(ctx *gin.Context) {
 // @Param        uuid path string true "UUID do cliente"
 // @Success      204
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /clientes/{uuid} [delete]

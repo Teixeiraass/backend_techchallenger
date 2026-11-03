@@ -17,6 +17,8 @@ import (
 // @Param        request body dto.AbrirOrdemServicoRequest true "Dados da OS"
 // @Success      201 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico [post]
@@ -46,6 +48,7 @@ func (server *Server) AbrirOrdemServico(ctx *gin.Context) {
 // @Param        tamanho      query int    false "Itens por página (padrão 20, máx 100)"
 // @Success      200 {array} dto.OrdemServicoResumoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Router       /ordens-servico [get]
 func (server *Server) ListarOrdensServico(ctx *gin.Context) {
 	var query dto.ListOrdensServicoQuery
@@ -71,6 +74,7 @@ func (server *Server) ListarOrdensServico(ctx *gin.Context) {
 // @Param        uuid path string true "UUID da OS"
 // @Success      200 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid} [get]
 func (server *Server) BuscarOrdemServico(ctx *gin.Context) {
@@ -98,6 +102,8 @@ func (server *Server) BuscarOrdemServico(ctx *gin.Context) {
 // @Param        request body dto.ItemServicoRequest true "Serviço"
 // @Success      200 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/servicos [post]
@@ -130,6 +136,8 @@ func (server *Server) AdicionarServicoOS(ctx *gin.Context) {
 // @Param        item_uuid path string true "UUID do item de serviço"
 // @Success      200 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/servicos/{item_uuid} [delete]
@@ -162,6 +170,8 @@ func (server *Server) RemoverServicoOS(ctx *gin.Context) {
 // @Param        request body dto.ItemPecaRequest true "Peça"
 // @Success      200 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/pecas [post]
@@ -194,6 +204,8 @@ func (server *Server) AdicionarPecaOS(ctx *gin.Context) {
 // @Param        item_uuid path string true "UUID do item de peça"
 // @Success      200 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/pecas/{item_uuid} [delete]
@@ -223,6 +235,8 @@ func (server *Server) RemoverPecaOS(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        uuid path string true "UUID da OS"
 // @Success      200 {object} dto.OrdemServicoResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/diagnostico [post]
@@ -250,6 +264,8 @@ func (server *Server) IniciarDiagnostico(ctx *gin.Context) {
 // @Param        uuid    path string                     true  "UUID da OS"
 // @Param        request body dto.EnviarOrcamentoRequest false "Diagnóstico"
 // @Success      200 {object} dto.OrdemServicoResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/orcamento/enviar [post]
@@ -283,6 +299,8 @@ func (server *Server) EnviarOrcamento(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        uuid path string true "UUID da OS"
 // @Success      200 {object} dto.OrdemServicoResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/execucao [post]
@@ -308,6 +326,8 @@ func (server *Server) IniciarExecucao(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        uuid path string true "UUID da OS"
 // @Success      200 {object} dto.OrdemServicoResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/finalizar [post]
@@ -333,6 +353,8 @@ func (server *Server) FinalizarOrdemServico(ctx *gin.Context) {
 // @Security     BearerAuth
 // @Param        uuid path string true "UUID da OS"
 // @Success      200 {object} dto.OrdemServicoResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/entregar [post]
@@ -361,6 +383,8 @@ func (server *Server) EntregarVeiculo(ctx *gin.Context) {
 // @Param        request body dto.RegistrarReparoAdicionalRequest true "Reparo"
 // @Success      201 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /ordens-servico/{uuid}/reparos-adicionais [post]
@@ -394,6 +418,8 @@ func (server *Server) RegistrarReparoAdicional(ctx *gin.Context) {
 // @Param        data_fim    query string false "AAAA-MM-DD (inclusiva)"
 // @Success      200 {object} dto.TempoMedioExecucaoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Router       /ordens-servico/tempo-medio [get]
 func (server *Server) TempoMedioExecucao(ctx *gin.Context) {
 	var query dto.TempoMedioQuery

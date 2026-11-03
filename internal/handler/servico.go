@@ -17,6 +17,7 @@ import (
 // @Param        request body dto.CriarServicoRequest true "Serviço"
 // @Success      201 {object} dto.ServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /servicos [post]
@@ -46,6 +47,7 @@ func (server *Server) CriarServico(ctx *gin.Context) {
 // @Param        tamanho       query int    false "Itens por página (padrão 20, máx 100)"
 // @Success      200 {array} dto.ServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Router       /servicos [get]
 func (server *Server) ListarServicos(ctx *gin.Context) {
 	var query dto.ListServicosQuery
@@ -75,6 +77,7 @@ func (server *Server) ListarServicos(ctx *gin.Context) {
 // @Param        uuid path string true "UUID do serviço"
 // @Success      200 {object} dto.ServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /servicos/{uuid} [get]
 func (server *Server) BuscarServico(ctx *gin.Context) {
@@ -102,6 +105,8 @@ func (server *Server) BuscarServico(ctx *gin.Context) {
 // @Param        request body dto.AtualizarServicoRequest true "Dados"
 // @Success      200 {object} dto.ServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /servicos/{uuid} [put]
@@ -134,6 +139,8 @@ func (server *Server) AtualizarServico(ctx *gin.Context) {
 // @Param        uuid path string true "UUID do serviço"
 // @Success      200 {object} dto.ServicoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /servicos/{uuid} [delete]
 func (server *Server) InativarServico(ctx *gin.Context) {

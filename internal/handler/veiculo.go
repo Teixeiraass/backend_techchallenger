@@ -17,6 +17,8 @@ import (
 // @Param        request body dto.CriarVeiculoRequest true "Veículo"
 // @Success      201 {object} dto.VeiculoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /veiculos [post]
@@ -45,6 +47,7 @@ func (server *Server) CriarVeiculo(ctx *gin.Context) {
 // @Param        tamanho      query int    false "Itens por página (padrão 20, máx 100)"
 // @Success      200 {array} dto.VeiculoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /veiculos [get]
 func (server *Server) ListarVeiculos(ctx *gin.Context) {
@@ -70,6 +73,7 @@ func (server *Server) ListarVeiculos(ctx *gin.Context) {
 // @Param        uuid path string true "UUID do veículo"
 // @Success      200 {object} dto.VeiculoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Router       /veiculos/{uuid} [get]
 func (server *Server) BuscarVeiculo(ctx *gin.Context) {
@@ -96,6 +100,8 @@ func (server *Server) BuscarVeiculo(ctx *gin.Context) {
 // @Param        request body dto.AtualizarVeiculoRequest true "Dados"
 // @Success      200 {object} dto.VeiculoResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /veiculos/{uuid} [put]
@@ -127,6 +133,8 @@ func (server *Server) AtualizarVeiculo(ctx *gin.Context) {
 // @Param        uuid path string true "UUID do veículo"
 // @Success      204
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
 // @Failure      409 {object} ErrorResponse
 // @Router       /veiculos/{uuid} [delete]
