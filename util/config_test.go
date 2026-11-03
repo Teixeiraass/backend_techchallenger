@@ -59,3 +59,47 @@ func TestLoadConfigInvalidFile(t *testing.T) {
 	_, err := LoadConfig(dir)
 	require.Error(t, err)
 }
+
+func TestLoadConfigRecusaChaveDeExemploForaDoDesenvolvimento(t *testing.T) {
+	viper.Reset()
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("TOKEN_SYMMETRIC_KEY", ChaveExemplo)
+
+	_, err := LoadConfig(t.TempDir())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "valor de exemplo")
+}
+
+func TestLoadConfigRecusaChaveCurtaForaDoDesenvolvimento(t *testing.T) {
+	viper.Reset()
+	t.Setenv("ENVIRONMENT", "staging")
+	t.Setenv("TOKEN_SYMMETRIC_KEY", "curta")
+
+	_, err := LoadConfig(t.TempDir())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "32 caracteres")
+}
+
+func TestLoadConfigAceitaChaveDeExemploEmDesenvolvimento(t *testing.T) {
+	viper.Reset()
+	t.Setenv("ENVIRONMENT", "development")
+	t.Setenv("TOKEN_SYMMETRIC_KEY", ChaveExemplo)
+
+	config, err := LoadConfig(t.TempDir())
+	require.NoError(t, err)
+	require.Equal(t, 1.0, config.RateLimitRPS)
+	require.Equal(t, 10, config.RateLimitBurst)
+}
+
+func TestLoadConfigAceitaChavePropriaEmProducao(t *testing.T) {
+	viper.Reset()
+	t.Setenv("ENVIRONMENT", "production")
+	t.Setenv("TOKEN_SYMMETRIC_KEY", "12345678901234567890123456789012")
+	t.Setenv("RATE_LIMIT_RPS", "5")
+	t.Setenv("RATE_LIMIT_BURST", "50")
+
+	config, err := LoadConfig(t.TempDir())
+	require.NoError(t, err)
+	require.Equal(t, 5.0, config.RateLimitRPS)
+	require.Equal(t, 50, config.RateLimitBurst)
+}

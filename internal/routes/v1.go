@@ -7,12 +7,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func registerV1Routes(router *gin.Engine, tokenMaker token.Maker, store db.Store, handlers Handlers) {
+func registerV1Routes(router *gin.Engine, tokenMaker token.Maker, store db.Store, handlers Handlers, opcoes Opcoes) {
 	v1 := router.Group(V1Prefix)
 
 	registerHelperRoutes(v1, handlers)
-	registerUsuarioRoutes(v1, handlers)
-	registerAcompanhamentoRoutes(v1, handlers)
+
+	// Rotas sem token: login, renovação e acompanhamento do cliente. São as
+	// únicas em que um IP pode tentar adivinhar credenciais ou CPF/CNPJ, por
+	// isso recebem limite de tentativas.
+	limitadas := v1.Group("/")
+	limitadas.Use(middleware.NewRateLimiter(opcoes.RateLimitRPS, opcoes.RateLimitBurst).Handler())
+	registerUsuarioRoutes(limitadas, handlers)
+	registerAcompanhamentoRoutes(limitadas, handlers)
 
 	authRoutes := v1.Group("/")
 	authRoutes.Use(middleware.Auth(tokenMaker, store))
