@@ -1,6 +1,7 @@
 package estoque
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -88,4 +89,10 @@ func TestEstoqueBaixo(t *testing.T) {
 	require.True(t, EstoqueBaixo(1, 2))
 	require.False(t, EstoqueBaixo(3, 2))
 	require.True(t, EstoqueBaixo(0, 0))
+}
+
+func TestErrEstoqueInsuficientePara(t *testing.T) {
+	err := ErrEstoqueInsuficientePara("Filtro", "FLT-01")
+	require.True(t, errors.Is(err, ErrEstoqueInsuficiente))
+	require.Equal(t, "estoque insuficiente para a peça: Filtro (FLT-01)", err.Error())
 }

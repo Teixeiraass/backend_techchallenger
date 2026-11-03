@@ -3,6 +3,8 @@
 package estoque
 
 import (
+	"fmt"
+
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain"
 )
 
@@ -93,4 +95,10 @@ func ValidarDisponibilidade(saldo int32, jaNaOS int32, quantidade int32, ativa b
 // EstoqueBaixo indica se o saldo chegou ao estoque mínimo (dispara pedido de reposição).
 func EstoqueBaixo(saldo int32, estoqueMinimo int32) bool {
 	return saldo <= estoqueMinimo
+}
+
+// ErrEstoqueInsuficientePara é ErrEstoqueInsuficiente com o nome e o código
+// da peça na mensagem (errors.Is continua encontrando o erro base).
+func ErrEstoqueInsuficientePara(nome string, codigo string) error {
+	return fmt.Errorf("%w: %s (%s)", ErrEstoqueInsuficiente, nome, codigo)
 }
