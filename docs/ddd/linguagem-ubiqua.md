@@ -231,7 +231,7 @@ Prefixo: `/api/v1`. "Token" = Bearer (PASETO ou JWT). Entre parênteses, os pap�
 | Abrir OS | `POST /ordens-servico` | token (atendente) |
 | Adicionar / remover serviço e peça | `POST /ordens-servico/{uuid}/servicos`, `/pecas` e `DELETE .../{item_uuid}` | token (atendente, mecânico) |
 | Iniciar diagnóstico | `POST /ordens-servico/{uuid}/diagnostico` | token (mecânico) |
-| Enviar orçamento | `POST /ordens-servico/{uuid}/orcamento/enviar` | token (atendente, mecânico) |
+| Enviar orçamento | `POST /ordens-servico/{uuid}/orcamento/enviar` | token (mecânico) |
 | Aprovar ou rejeitar orçamento | `POST /ordens-servico/{uuid}/orcamento/aprovar`, `/rejeitar` | **público** + CPF/CNPJ |
 | Iniciar execução (nova tentativa após reposição) | `POST /ordens-servico/{uuid}/execucao` | token (atendente, mecânico) |
 | Identificar reparo adicional | `POST /ordens-servico/{uuid}/reparos-adicionais` | token (mecânico) |
