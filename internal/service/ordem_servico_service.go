@@ -234,7 +234,18 @@ func (s *ordemServicoService) EnviarOrcamento(ctx context.Context, osUUID uuid.U
 // inicia a execução (com baixa de estoque). Se faltar estoque, a aprovação
 // continua registrada, o administrador recebe o pedido de reposição e a OS
 // aguarda a reposição para iniciar a execução.
+// AprovarOrcamento grava a aprovação do cliente e, em seguida, inicia a
+// execução (política "ao aprovar, iniciar execução"). São duas transações de
+// propósito: a aprovação fica registrada mesmo quando a execução não pode
+// começar (falta de peça, falha transitória). Por isso a operação é
+// idempotente: repetir a aprovação devolve o estado atual com 200, nunca 409.
+//   - aprovação gravada e OS ainda Aguardando aprovação: tenta iniciar a
+//     execução de novo (com aviso se ainda faltar peça);
+//   - OS já Em execução ou além: devolve o estado atual com o aviso
+//     "Orçamento já aprovado".
 func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
+	var jaAprovada bool
+	var statusAtual ordemservico.Status
 	err := s.store.ExecTx(ctx, func(q db.Querier) error {
 		row, err := q.GetOrdemServicoForUpdate(ctx, osUUID)
 		if err != nil {
@@ -245,13 +256,28 @@ func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.
 		}
 
 		os := paraDominio(row)
+		jaAprovada = os.OrcamentoJaAprovado()
+		statusAtual = os.Status
 		if err := os.AprovarOrcamento(s.now()); err != nil {
 			return err
+		}
+		if jaAprovada {
+			// Nada mudou: não grava estado nem histórico de novo.
+			return nil
 		}
 		return salvar(ctx, q, row, os, 0, "Orçamento aprovado pelo cliente")
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	if jaAprovada && statusAtual != ordemservico.StatusAguardandoAprovacao {
+		response, err := s.BuscarOrdemServico(ctx, osUUID)
+		if err != nil {
+			return nil, err
+		}
+		response.Aviso = "Orçamento já aprovado"
+		return response, nil
 	}
 
 	response, err := s.IniciarExecucao(ctx, osUUID, 0)
@@ -959,6 +985,10 @@ func (s *ordemServicoService) notificarCliente(ctx context.Context, clienteID in
 	}
 }
 
+// parseData interpreta a data do filtro (AAAA-MM-DD) no fuso horário do
+// servidor (time.Local). O docker-compose.yaml e o Dockerfile fixam
+// TZ=America/Sao_Paulo; sem TZ o container usaria UTC e um filtro
+// data_fim=2026-11-03 terminaria às 21h de Brasília.
 func parseData(valor string) (sql.NullTime, error) {
 	if valor == "" {
 		return sql.NullTime{}, nil

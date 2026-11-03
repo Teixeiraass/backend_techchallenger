@@ -136,13 +136,29 @@ func TestAprovarOrcamento(t *testing.T) {
 	require.Equal(t, OrcamentoAprovado, os.StatusOrcamento)
 	require.Equal(t, StatusAguardandoAprovacao, os.Status)
 
-	// já decidido
-	require.ErrorIs(t, os.AprovarOrcamento(agora), ErrOrcamentoNaoAguardando)
+	// Aprovar de novo é idempotente: nada muda e não há erro.
+	decididoEm := *os.OrcamentoDecididoEm
+	require.True(t, os.OrcamentoJaAprovado())
+	require.NoError(t, os.AprovarOrcamento(agora.Add(time.Hour)))
+	require.Equal(t, decididoEm, *os.OrcamentoDecididoEm)
+	require.Equal(t, StatusAguardandoAprovacao, os.Status)
 
-	for _, status := range []Status{StatusRecebida, StatusEmDiagnostico, StatusEmExecucao, StatusFinalizada, StatusEntregue} {
+	// Com a execução já iniciada (ou além) a aprovação repetida também é aceita sem mudar nada.
+	for _, status := range []Status{StatusEmExecucao, StatusFinalizada, StatusEntregue} {
 		other := osNoStatus(t, status)
+		require.NoError(t, other.AprovarOrcamento(agora))
+		require.Equal(t, status, other.Status)
+	}
+
+	// Sem orçamento aguardando (não enviado ou rejeitado) continua sendo conflito.
+	for _, status := range []Status{StatusRecebida, StatusEmDiagnostico} {
+		other := osNoStatus(t, status)
+		require.False(t, other.OrcamentoJaAprovado())
 		require.ErrorIs(t, other.AprovarOrcamento(agora), ErrOrcamentoNaoAguardando)
 	}
+	rejeitada := osNoStatus(t, StatusAguardandoAprovacao)
+	require.NoError(t, rejeitada.RejeitarOrcamento(agora))
+	require.ErrorIs(t, rejeitada.AprovarOrcamento(agora), ErrOrcamentoNaoAguardando)
 }
 
 func TestRejeitarOrcamento(t *testing.T) {

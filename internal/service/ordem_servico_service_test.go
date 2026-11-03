@@ -578,6 +578,51 @@ func TestAprovarOrcamentoEstoqueInsuficienteMantemAprovacao(t *testing.T) {
 	require.Contains(t, c.sender.msgs[0].Body, c.os.Uuid.String())
 }
 
+// Repetir a aprovação com a execução ainda não iniciada (aprovação gravada,
+// faltou peça) não dá 409: o serviço tenta iniciar a execução de novo.
+func TestAprovarOrcamentoRepetidaTentaIniciarExecucao(t *testing.T) {
+	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+	fxExecTx(c.store)
+	peca := fxPeca(5, 1)
+	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 2)}, nil)
+	estados := fxCapturaEstado(c.store)
+	historico := fxCapturaHistorico(c.store)
+	c.travaOS()
+	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), c.os.Uuid).Times(1).Return(c.os, nil)
+	depois := peca
+	depois.QuantidadeEstoque = 3
+	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), db.BaixarEstoquePecaParams{ID: peca.ID, Quantidade: 2}).Times(1).Return(depois, nil)
+	c.store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, nil)
+
+	rsp, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+	require.NoError(t, err)
+	require.Empty(t, rsp.Aviso)
+	// Só a execução é gravada: a aprovação não entra de novo no histórico.
+	require.Len(t, *estados, 1)
+	require.Equal(t, string(ordemservico.StatusEmExecucao), (*estados)[0].Status)
+	require.Len(t, *historico, 1)
+	require.Equal(t, string(ordemservico.StatusEmExecucao), (*historico)[0].StatusNovo)
+}
+
+func TestAprovarOrcamentoRepetidaComExecucaoIniciada(t *testing.T) {
+	for _, status := range []ordemservico.Status{ordemservico.StatusEmExecucao, ordemservico.StatusFinalizada} {
+		t.Run(string(status), func(t *testing.T) {
+			c := novoCenario(t, status, ordemservico.OrcamentoAprovado)
+			fxExecTx(c.store)
+			c.leitura(nil, nil, nil)
+			c.travaOS()
+			c.store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).Times(0)
+			c.store.EXPECT().CreateHistoricoStatusOS(gomock.Any(), gomock.Any()).Times(0)
+			c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Times(0)
+
+			rsp, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+			require.NoError(t, err)
+			require.Equal(t, "Orçamento já aprovado", rsp.Aviso)
+			require.Equal(t, string(status), rsp.Status)
+		})
+	}
+}
+
 func TestAprovarOrcamentoDocumentoErrado(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
 	fxExecTx(c.store)

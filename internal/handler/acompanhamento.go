@@ -44,7 +44,7 @@ func (server *Server) ConsultarAndamento(ctx *gin.Context) {
 
 // AprovarOrcamento godoc
 // @Summary      Aprovar orçamento (cliente)
-// @Description  Rota pública. Registra a aprovação e o sistema inicia a execução automaticamente, baixando o estoque. Se faltar peça, a aprovação fica registrada e o campo "aviso" explica que a execução aguarda reposição.
+// @Description  Rota pública. Registra a aprovação e o sistema inicia a execução automaticamente, baixando o estoque. Se faltar peça, a aprovação fica registrada e o campo "aviso" explica que a execução aguarda reposição. Operação idempotente: repetir a aprovação devolve 200 com o estado atual (e tenta iniciar a execução de novo se ela ainda não começou).
 // @Tags         acompanhamento
 // @Accept       json
 // @Produce      json

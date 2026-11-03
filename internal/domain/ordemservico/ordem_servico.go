@@ -107,13 +107,27 @@ func (os *OrdemServico) EnviarOrcamento(servicos []Item, pecas []Item, diagnosti
 
 // AprovarOrcamento registra a aprovação do cliente. A OS continua em
 // Aguardando aprovação até IniciarExecucao, que o sistema chama em seguida.
+//
+// A operação é idempotente: se o orçamento já estiver aprovado (a OS pode
+// estar Aguardando aprovação, por falta de peça, ou já Em execução e além),
+// nada muda e nenhum erro é devolvido. Assim o cliente pode repetir a
+// aprovação depois de uma falha de rede sem receber conflito. O chamador
+// descobre se houve mudança por OrcamentoJaAprovado antes da chamada.
 func (os *OrdemServico) AprovarOrcamento(agora time.Time) error {
+	if os.OrcamentoJaAprovado() {
+		return nil
+	}
 	if os.Status != StatusAguardandoAprovacao || os.StatusOrcamento != OrcamentoAguardando {
 		return ErrOrcamentoNaoAguardando
 	}
 	os.StatusOrcamento = OrcamentoAprovado
 	os.OrcamentoDecididoEm = &agora
 	return nil
+}
+
+// OrcamentoJaAprovado informa se a aprovação do cliente já está registrada.
+func (os *OrdemServico) OrcamentoJaAprovado() bool {
+	return os.StatusOrcamento == OrcamentoAprovado
 }
 
 // RejeitarOrcamento: Aguardando aprovação -> Em diagnóstico. A OS não segue

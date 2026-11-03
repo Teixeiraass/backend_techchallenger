@@ -1196,9 +1196,11 @@ paths:
     post:
       consumes:
       - application/json
-      description: Rota pública. Registra a aprovação e o sistema inicia a execução
+      description: 'Rota pública. Registra a aprovação e o sistema inicia a execução
         automaticamente, baixando o estoque. Se faltar peça, a aprovação fica registrada
-        e o campo "aviso" explica que a execução aguarda reposição.
+        e o campo "aviso" explica que a execução aguarda reposição. Operação idempotente:
+        repetir a aprovação devolve 200 com o estado atual (e tenta iniciar a execução
+        de novo se ela ainda não começou).'
       parameters:
       - description: UUID da OS
         in: path

@@ -25,6 +25,7 @@ type osResponse struct {
 	} `json:"reparos_adicionais"`
 	Historico []struct {
 		StatusNovo string `json:"status_novo"`
+		Observacao string `json:"observacao"`
 	} `json:"historico"`
 	TempoExecucaoSegundos *int64 `json:"tempo_execucao_segundos"`
 }
@@ -330,4 +331,79 @@ func TestValidacoesESeguranca(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, rsp.Code, string(rsp.Body))
 	rsp = call(t, http.MethodPost, "/tokens/refresh", "", map[string]string{"refresh_token": sessao.RefreshToken})
 	require.Equal(t, http.StatusUnauthorized, rsp.Code)
+}
+
+// Aprovar duas vezes é idempotente: 200 nas duas, uma única baixa de
+// estoque e um único registro de aprovação no histórico.
+func TestAprovacaoRepetidaEhIdempotente(t *testing.T) {
+	c := prepararCenario(t, 5)
+	os := abrirOS(t, c, 2)
+	base := "/ordens-servico/" + os.Uuid
+
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/diagnostico", c.mecanico, nil).Code)
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.mecanico, nil).Code)
+
+	rsp := call(t, http.MethodPost, base+"/orcamento/aprovar", "", map[string]string{"documento": c.documento})
+	require.Equal(t, http.StatusOK, rsp.Code, string(rsp.Body))
+	rsp.decode(t, &os)
+	require.Equal(t, "EM_EXECUCAO", os.Status)
+	require.Empty(t, os.Aviso)
+	require.Equal(t, int32(3), saldoPeca(t, c))
+
+	rsp = call(t, http.MethodPost, base+"/orcamento/aprovar", "", map[string]string{"documento": c.documento})
+	require.Equal(t, http.StatusOK, rsp.Code, string(rsp.Body))
+	rsp.decode(t, &os)
+	require.Equal(t, "EM_EXECUCAO", os.Status)
+	require.Equal(t, "Orçamento já aprovado", os.Aviso)
+	require.Equal(t, int32(3), saldoPeca(t, c), "estoque não baixa de novo")
+
+	aprovacoes, execucoes := 0, 0
+	for _, h := range os.Historico {
+		switch {
+		case h.Observacao == "Orçamento aprovado pelo cliente":
+			aprovacoes++
+		case h.StatusNovo == "EM_EXECUCAO":
+			execucoes++
+		}
+	}
+	require.Equal(t, 1, aprovacoes)
+	require.Equal(t, 1, execucoes)
+
+	// Documento errado continua 404 mesmo com a aprovação já gravada.
+	require.Equal(t, http.StatusNotFound, call(t, http.MethodPost, base+"/orcamento/aprovar", "", map[string]string{"documento": "52998224725"}).Code)
+}
+
+// Aprovação gravada sem execução (faltou peça): repetir a aprovação tenta
+// iniciar a execução de novo e, depois da reposição, consegue.
+func TestAprovacaoRepetidaAposReposicaoIniciaExecucao(t *testing.T) {
+	c := prepararCenario(t, 1)
+	os := abrirOS(t, c, 1)
+	base := "/ordens-servico/" + os.Uuid
+
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/diagnostico", c.mecanico, nil).Code)
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.mecanico, nil).Code)
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, "/pecas/"+c.pecaUuid+"/ajuste", c.admin, map[string]any{"quantidade": 0, "observacao": "Avaria"}).Code)
+
+	aprovar := func() osResponse {
+		rsp := call(t, http.MethodPost, base+"/orcamento/aprovar", "", map[string]string{"documento": c.documento})
+		require.Equal(t, http.StatusOK, rsp.Code, string(rsp.Body))
+		var os osResponse
+		rsp.decode(t, &os)
+		return os
+	}
+
+	os = aprovar()
+	require.Equal(t, "AGUARDANDO_APROVACAO", os.Status)
+	require.NotEmpty(t, os.Aviso)
+
+	// Repetir sem reposição: continua aguardando, sem 409.
+	os = aprovar()
+	require.Equal(t, "AGUARDANDO_APROVACAO", os.Status)
+	require.NotEmpty(t, os.Aviso)
+
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, "/pecas/"+c.pecaUuid+"/reposicao", c.admin, map[string]any{"quantidade": 2}).Code)
+	os = aprovar()
+	require.Equal(t, "EM_EXECUCAO", os.Status)
+	require.Empty(t, os.Aviso)
+	require.Equal(t, int32(1), saldoPeca(t, c))
 }

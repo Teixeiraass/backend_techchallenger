@@ -24,7 +24,7 @@ Hoje a oficina controla atendimento, diagnóstico, execução e entrega com anot
 1. O **atendente** cadastra o cliente (CPF/CNPJ validado e e-mail obrigatório) e o veículo (placa validada) e abre a OS com os serviços e peças. A OS nasce **Recebida** e o orçamento é calculado na hora.
 2. O **mecânico** inicia o **diagnóstico**, ajusta os itens e envia o orçamento. A OS passa para **Aguardando aprovação** e o cliente é notificado por e-mail.
 3. O **cliente** aprova ou rejeita pelo link de acompanhamento, informando o CPF/CNPJ:
-   - **Aprovou:** o sistema coloca a OS **Em execução** e baixa o estoque das peças na mesma transação. Se faltar peça, a aprovação fica registrada, o administrador recebe um pedido de reposição e, depois da reposição, o atendente ou o mecânico inicia a execução.
+   - **Aprovou:** o sistema coloca a OS **Em execução** e baixa o estoque das peças na mesma transação. Se faltar peça, a aprovação fica registrada, o administrador recebe um pedido de reposição e, depois da reposição, o atendente ou o mecânico inicia a execução. Aprovar de novo não dá erro: a resposta é 200 com o estado atual.
    - **Rejeitou:** a OS volta para diagnóstico. Dali sai um novo orçamento ou o veículo é entregue sem execução.
 4. Durante a execução, o mecânico pode registrar um **reparo adicional**. Ele só entra na OS se o cliente autorizar.
 5. O mecânico **finaliza** a OS, e o tempo de execução fica registrado. O atendente **entrega** o veículo.
@@ -85,7 +85,7 @@ Tipos de subdomínio e padrões de integração entre os contextos: [mapa de con
 
 O domínio é relacional e transacional. Por isso a escolha foi o PostgreSQL:
 
-- **Consistência forte (ACID):** aprovar o orçamento, mudar o status e baixar o estoque precisa acontecer de forma atômica. Se faltar uma peça, nada pode ser gravado. Transações e `SELECT ... FOR UPDATE` resolvem isso de forma nativa.
+- **Consistência forte (ACID):** iniciar a execução e baixar o estoque das peças acontece em uma única transação: se faltar uma peça, a OS não entra em execução e nenhuma baixa é gravada. A aprovação do cliente fica registrada em uma transação própria, antes dessa, para não se perder quando a execução não puder começar; por isso repetir a aprovação devolve 200 com o estado atual (operação idempotente). Transações e `SELECT ... FOR UPDATE` resolvem isso de forma nativa.
 - **Integridade garantida pelo banco:** chaves estrangeiras (cliente → veículo → OS → itens), `UNIQUE` (CPF/CNPJ, placa, código da peça) e `CHECK` (status válidos, saldo ≥ 0) protegem as invariantes mesmo se a aplicação tiver um bug.
 - **Concorrência no estoque:** o `UPDATE` condicional permite que várias OS disputem a mesma peça sem lock global e sem saldo negativo.
 - **Consultas analíticas:** o tempo médio de execução sai de agregações (`AVG`, `EXTRACT(EPOCH ...)`, `GROUP BY`) direto em SQL.
@@ -111,6 +111,7 @@ O compose sobe o PostgreSQL, espera ele ficar saudável, aplica as migrations (s
 
 - Health check: `curl http://localhost:8080/api/v1/helper`
 - Se a porta 8080 estiver ocupada: `API_PORT=8090 docker compose up --build -d`
+- Fuso horário: o compose e a imagem fixam `TZ=America/Sao_Paulo`. As datas dos filtros (`data_inicio`/`data_fim` do tempo médio) são interpretadas no fuso do servidor; rodando a API fora do container, use o `TZ` da sua máquina ou exporte `TZ=America/Sao_Paulo`.
 - Para parar: `docker compose down`. Para zerar o banco: `docker compose down -v`
 
 ### Localmente (API fora do container)
