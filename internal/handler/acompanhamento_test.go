@@ -36,19 +36,25 @@ func TestAcompanhamentoAPI(t *testing.T) {
 
 	runCases(t, []apiCase{
 		{
-			name: "AndamentoOK", method: http.MethodGet, path: osPath(emExecucao, "/andamento?documento="+cpfTeste),
+			name: "AndamentoOK", method: http.MethodGet, path: osPath(emExecucao, "/andamento"), headers: map[string]string{HeaderDocumento: cpfTeste},
 			stubs:  func(store *mockdb.MockStore) { stubOS(store, emExecucao, nil, nil) },
 			status: http.StatusOK,
 		},
 		{
-			name: "AndamentoDocumentoErrado", method: http.MethodGet, path: osPath(emExecucao, "/andamento?documento=11144477735"),
+			// Parâmetro de query obsoleto, mantido por uma versão.
+			name: "AndamentoQueryObsoleta", method: http.MethodGet, path: osPath(emExecucao, "/andamento?documento="+cpfTeste),
+			stubs:  func(store *mockdb.MockStore) { stubOS(store, emExecucao, nil, nil) },
+			status: http.StatusOK,
+		},
+		{
+			name: "AndamentoDocumentoErrado", method: http.MethodGet, path: osPath(emExecucao, "/andamento"), headers: map[string]string{HeaderDocumento: "11144477735"},
 			stubs:  func(store *mockdb.MockStore) { stubOS(store, emExecucao, nil, nil) },
 			status: http.StatusNotFound, check: requireErrorCode("OS_NAO_ENCONTRADA"),
 		},
-		{name: "AndamentoSemDocumento", method: http.MethodGet, path: osPath(emExecucao, "/andamento"), status: http.StatusBadRequest},
-		{name: "AndamentoUUIDInvalido", method: http.MethodGet, path: "/api/v1/ordens-servico/x/andamento?documento=" + cpfTeste, status: http.StatusBadRequest},
+		{name: "AndamentoSemDocumento", method: http.MethodGet, path: osPath(emExecucao, "/andamento"), status: http.StatusBadRequest, check: requireErrorCode("DOCUMENTO_AUSENTE")},
+		{name: "AndamentoUUIDInvalido", method: http.MethodGet, path: "/api/v1/ordens-servico/x/andamento", headers: map[string]string{HeaderDocumento: cpfTeste}, status: http.StatusBadRequest},
 		{
-			name: "AndamentoNaoEncontrada", method: http.MethodGet, path: osPath(emExecucao, "/andamento?documento="+cpfTeste),
+			name: "AndamentoNaoEncontrada", method: http.MethodGet, path: osPath(emExecucao, "/andamento"), headers: map[string]string{HeaderDocumento: cpfTeste},
 			stubs: func(store *mockdb.MockStore) {
 				store.EXPECT().GetOrdemServico(gomock.Any(), emExecucao.Uuid).Return(db.OrdemServico{}, sql.ErrNoRows)
 			},

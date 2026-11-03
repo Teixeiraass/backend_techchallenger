@@ -117,7 +117,7 @@ func TestCRUDClienteEVeiculo(t *testing.T) {
 	rsp = call(t, http.MethodGet, "/clientes/"+cliente.Uuid, atendente, nil)
 	require.Equal(t, http.StatusOK, rsp.Code)
 
-	rsp = call(t, http.MethodGet, "/clientes/documento/"+cliente.Documento, atendente, nil)
+	rsp = callDocumento(t, http.MethodGet, "/clientes/por-documento", atendente, cliente.Documento, nil)
 	require.Equal(t, http.StatusOK, rsp.Code)
 
 	rsp = call(t, http.MethodGet, "/clientes?busca="+url.QueryEscape(nome), atendente, nil)
@@ -344,7 +344,7 @@ func TestDetalheEItensDaOrdemServico(t *testing.T) {
 	require.Contains(t, string(rsp.Body), "PECA_INATIVA")
 
 	// Listagem filtrada por cliente e por status.
-	rsp = call(t, http.MethodGet, "/clientes/documento/"+c.documento, c.atendente, nil)
+	rsp = callDocumento(t, http.MethodGet, "/clientes/por-documento", c.atendente, c.documento, nil)
 	require.Equal(t, http.StatusOK, rsp.Code)
 	var cliente clienteResponse
 	rsp.decode(t, &cliente)

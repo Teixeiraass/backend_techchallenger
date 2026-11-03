@@ -138,11 +138,14 @@ func TestFluxoCompletoOrdemServico(t *testing.T) {
 	rsp = call(t, http.MethodPost, base+"/servicos", c.atendente, map[string]any{"servico_uuid": c.servicoUuid})
 	require.Equal(t, http.StatusConflict, rsp.Code)
 
-	// Consulta pública: sem token, com o documento certo; documento errado = 404.
+	// Consulta pública: sem token, com o documento certo no header; documento errado = 404.
+	rsp = callDocumento(t, http.MethodGet, base+"/andamento", "", c.documento, nil)
+	require.Equal(t, http.StatusOK, rsp.Code, string(rsp.Body))
+	rsp = callDocumento(t, http.MethodGet, base+"/andamento", "", "52998224725", nil)
+	require.Equal(t, http.StatusNotFound, rsp.Code)
+	// O parâmetro de query continua aceito por compatibilidade (obsoleto).
 	rsp = call(t, http.MethodGet, base+"/andamento?documento="+c.documento, "", nil)
 	require.Equal(t, http.StatusOK, rsp.Code, string(rsp.Body))
-	rsp = call(t, http.MethodGet, base+"/andamento?documento=52998224725", "", nil)
-	require.Equal(t, http.StatusNotFound, rsp.Code)
 
 	// Aprovação pelo cliente: sistema inicia a execução e baixa o estoque.
 	rsp = call(t, http.MethodPost, base+"/orcamento/aprovar", "", map[string]string{"documento": c.documento})
@@ -295,7 +298,7 @@ func TestValidacoesESeguranca(t *testing.T) {
 	require.Equal(t, http.StatusBadRequest, rsp.Code)
 	require.Contains(t, string(rsp.Body), "DOCUMENTO_INVALIDO")
 
-	rsp = call(t, http.MethodGet, "/clientes/documento/52998224725", atendente, nil)
+	rsp = callDocumento(t, http.MethodGet, "/clientes/por-documento", atendente, "52998224725", nil)
 	require.Equal(t, http.StatusOK, rsp.Code, "cliente do seed")
 	var cliente struct{ Uuid string }
 	rsp.decode(t, &cliente)
