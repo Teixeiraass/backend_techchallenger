@@ -30,7 +30,7 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("DB_DRIVER", "postgres")
 	viper.SetDefault("SERVER_ADDRESS", "0.0.0.0:8080")
-	viper.SetDefault("TOKEN_TYPE", "paseto")
+	viper.SetDefault("TOKEN_TYPE", "jwt")
 	viper.SetDefault("ACCESS_TOKEN_DURATION", "15m")
 	viper.SetDefault("REFRESH_TOKEN_DURATION", "24h")
 	viper.SetDefault("ADMIN_NOTIFICATION_TO", "admin@oficina.com")

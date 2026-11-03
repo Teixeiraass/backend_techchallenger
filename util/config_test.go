@@ -37,6 +37,7 @@ func TestLoadConfigFromFile(t *testing.T) {
 	// define DB_SOURCE, então este teste esvazia as duas chaves que confere.
 	t.Setenv("DB_SOURCE", "")
 	t.Setenv("SERVER_ADDRESS", "")
+	t.Setenv("TOKEN_TYPE", "")
 	dir := t.TempDir()
 	content := "DB_SOURCE=postgresql://file@localhost/oficina\nSERVER_ADDRESS=127.0.0.1:9090\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.env"), []byte(content), 0o600))
@@ -45,6 +46,8 @@ func TestLoadConfigFromFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "postgresql://file@localhost/oficina", config.DBSource)
 	require.Equal(t, "127.0.0.1:9090", config.ServerAddress)
+	// JWT é o padrão (decisão DC6); PASETO fica como opção.
+	require.Equal(t, "jwt", config.TokenType)
 }
 
 func TestLoadConfigInvalidFile(t *testing.T) {
