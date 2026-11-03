@@ -3,7 +3,7 @@
 MVP do back-end do **Sistema Integrado de Atendimento e Execução de Serviços** de uma oficina mecânica de médio porte. Feito em Go, com Domain-Driven Design, PostgreSQL, Docker e testes automatizados.
 
 - **Documentação DDD (Miro):** _[inserir link público do Miro]_
-- **Documentação DDD exportada:** [docs/ddd/](docs/ddd/) — [linguagem ubíqua e relação com o código](docs/ddd/linguagem-ubiqua.md), [diagramas](docs/ddd/diagramas.pdf), event storming (`docs/ddd/event-storming.pdf`)
+- **Documentação DDD exportada:** [docs/ddd/](docs/ddd/) — [linguagem ubíqua e relação com o código](docs/ddd/linguagem-ubiqua.md), [mapa de contexto](docs/ddd/mapa-de-contexto.md), [diagramas](docs/ddd/diagramas.pdf), [event storming](docs/ddd/event-storming.pdf)
 - **Vídeo da entrega:** _[inserir link do YouTube]_
 - **Análise de vulnerabilidades:** [docs/security/README.md](docs/security/README.md)
 - **Evidência de testes e cobertura:** [docs/testes/](docs/testes/)
@@ -21,11 +21,11 @@ Hoje a oficina controla atendimento, diagnóstico, execução e entrega com anot
 
 ## Solução em resumo
 
-1. O **atendente** cadastra o cliente (CPF/CNPJ validado) e o veículo (placa validada) e abre a OS com os serviços e peças. A OS nasce **Recebida** e o orçamento é calculado na hora.
-2. O **mecânico** inicia o **diagnóstico**, ajusta os itens e envia o orçamento. A OS passa para **Aguardando aprovação** e o cliente é notificado.
+1. O **atendente** cadastra o cliente (CPF/CNPJ validado e e-mail obrigatório) e o veículo (placa validada) e abre a OS com os serviços e peças. A OS nasce **Recebida** e o orçamento é calculado na hora.
+2. O **mecânico** inicia o **diagnóstico**, ajusta os itens e envia o orçamento. A OS passa para **Aguardando aprovação** e o cliente é notificado por e-mail.
 3. O **cliente** aprova ou rejeita pelo link de acompanhamento, informando o CPF/CNPJ:
-   - **Aprovou:** o sistema coloca a OS **Em execução** e baixa o estoque das peças na mesma transação.
-   - **Rejeitou:** a OS volta para diagnóstico. Dali sai um novo orçamento ou o veículo é devolvido.
+   - **Aprovou:** o sistema coloca a OS **Em execução** e baixa o estoque das peças na mesma transação. Se faltar peça, a aprovação fica registrada, o administrador recebe um pedido de reposição e, depois da reposição, o atendente ou o mecânico inicia a execução.
+   - **Rejeitou:** a OS volta para diagnóstico. Dali sai um novo orçamento ou o veículo é entregue sem execução.
 4. Durante a execução, o mecânico pode registrar um **reparo adicional**. Ele só entra na OS se o cliente autorizar.
 5. O mecânico **finaliza** a OS, e o tempo de execução fica registrado. O atendente **entrega** o veículo.
 
@@ -37,7 +37,7 @@ Status: `RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO �
 
 ```
 HTTP (Gin)                    internal/routes + internal/handler   rotas, binding, mapeamento erro → status
-   │                          internal/middleware                  autenticação (PASETO/JWT) e papéis
+   │                          internal/middleware                  autenticação (JWT/PASETO) e papéis
    ▼
 Aplicação (casos de uso)      internal/service                     um método por comando; abre a transação,
    │                                                               carrega dados, aplica o domínio, persiste
@@ -48,7 +48,7 @@ Domínio (DDD)                 internal/domain/...                  agregados, o
 Infraestrutura                db/sqlc (sqlc + Store.ExecTx)        acesso ao PostgreSQL e transações
                               db/migration (golang-migrate)        schema versionado + dados de demonstração
                               notification/                        porta de notificação (adaptador de log)
-                              token/                               PASETO v2 (padrão) e JWT HS256
+                              token/                               JWT HS256 (padrão) e PASETO v2
 ```
 
 Elementos de DDD no código:
@@ -58,6 +58,9 @@ Elementos de DDD no código:
 | Cadastro | Cliente, Veículo | `cliente.Documento` (CPF/CNPJ), `veiculo.Placa` |
 | Ordem de Serviço | OrdemServico (itens, reparos, histórico) | `ordemservico.Status` (máquina de estados), `Orcamento`, `StatusOrcamento` |
 | Catálogo e estoque | Peça (peça ou insumo), Serviço | `estoque` (saldo nunca negativo, reposição > 0, estoque mínimo) |
+| Identidade e acesso | Usuário | papéis `ADMINISTRADOR`, `ATENDENTE`, `MECANICO` (`middleware.RequireRole`) |
+
+Tipos de subdomínio e padrões de integração entre os contextos: [mapa de contexto](docs/ddd/mapa-de-contexto.md). Fluxos de negócio: [event storming](docs/ddd/event-storming.pdf).
 
 **Transações:** todo comando que altera mais de um registro roda dentro de `Store.ExecTx`, como abrir a OS com itens, aprovar e baixar estoque, ou autorizar um reparo. A OS fica travada com `SELECT ... FOR NO KEY UPDATE` durante o comando. A baixa usa `UPDATE ... WHERE quantidade_estoque >= qtd`, e a tabela tem `CHECK (quantidade_estoque >= 0)`. Assim, duas OS concorrentes nunca deixam o saldo negativo; há um teste de integração com 10 baixas simultâneas que prova isso.
 
@@ -70,7 +73,7 @@ Elementos de DDD no código:
 | Banco de dados | PostgreSQL 16 |
 | Acesso a dados | [sqlc](https://sqlc.dev/) (SQL tipado, sem ORM) |
 | Migrations | [golang-migrate](https://github.com/golang-migrate/migrate) |
-| Autenticação | PASETO v2 (padrão) ou JWT HS256 (`TOKEN_TYPE`), senhas com bcrypt |
+| Autenticação | JWT HS256 (padrão) ou PASETO v2 (`TOKEN_TYPE`), senhas com bcrypt |
 | Configuração | [Viper](https://github.com/spf13/viper) |
 | Documentação da API | [Swaggo](https://github.com/swaggo/swag) (Swagger/OpenAPI 2.0) |
 | Testes | `testing`, testify, gomock |
@@ -135,15 +138,15 @@ A migration `000005_seed_dados_demo` cria:
 | Papel | E-mail | Senha | Pode |
 |---|---|---|---|
 | ADMINISTRADOR | `admin@oficina.com` | `admin123` | tudo, incluindo catálogo, estoque, usuários e tempo médio |
-| ATENDENTE | `atendente@oficina.com` | `atendente123` | clientes, veículos, abrir OS, itens, enviar orçamento, entregar |
-| MECANICO | `mecanico@oficina.com` | `mecanico123` | diagnóstico, itens, enviar orçamento, reparo adicional, finalizar |
+| ATENDENTE | `atendente@oficina.com` | `atendente123` | clientes, veículos, abrir OS, itens, iniciar execução após reposição, entregar |
+| MECANICO | `mecanico@oficina.com` | `mecanico123` | diagnóstico, itens, enviar orçamento, iniciar execução após reposição, reparo adicional, finalizar |
 
 Ela também cria 5 serviços, 4 peças/insumos (um deles já abaixo do estoque mínimo), a cliente **Maria Silva** (CPF `52998224725`, veículo `ABC1D23`) e a empresa **Transportes Exemplo LTDA** (CNPJ `11222333000181`, veículo `XYZ1234`).
 
 **Como funciona a autenticação:**
 - **Rotas administrativas** exigem `Authorization: Bearer <access_token>`.
 - **Tokens:** o access token vale 15 min. O refresh token (`POST /tokens/refresh`) vale 24 h e é revogado em `POST /usuarios/logout`.
-- **Formato:** o padrão é **PASETO v2**, que tem o mesmo papel de um JWT, mas é cifrado e não tem negociação de algoritmo. Para emitir **JWT** (HS256), use `TOKEN_TYPE=jwt`.
+- **Formato:** o padrão é **JWT** (HS256), como pede o enunciado. O algoritmo é fixado na verificação. Como opção, `TOKEN_TYPE=paseto` emite **PASETO v2**, que tem o mesmo papel de um JWT, mas é cifrado e não tem negociação de algoritmo. Trocar o `TOKEN_TYPE` invalida os tokens já emitidos, e os usuários precisam fazer login de novo.
 - **Rotas do cliente** são públicas e exigem o UUID da OS + o CPF/CNPJ do dono: `GET /ordens-servico/{uuid}/andamento`, aprovar/rejeitar orçamento e autorizar/recusar reparo.
 
 ### Roteiro rápido do fluxo (curl)
@@ -180,6 +183,7 @@ curl -s -X POST $API/ordens-servico/$OS/entregar  -H "Authorization: Bearer $ATD
 | HTTP dos handlers, autenticação e papéis (gomock) | `internal/handler`, `internal/middleware` | não |
 | Integração das queries, transações e concorrência | `db/sqlc` | sim |
 | Integração dos fluxos principais pela API (aprovação, rejeição, falta de estoque, reparo adicional, segurança) | `internal/integration` | sim |
+| Integração da gestão administrativa pela API (CRUD de clientes, veículos, serviços e peças, controle de estoque, detalhe e itens da OS, usuários) | `internal/integration` | sim |
 
 ```bash
 # Só unitários (sem Docker): os testes de banco são pulados
@@ -193,7 +197,7 @@ make test
 make coverage
 ```
 
-**Cobertura dos domínios críticos: 96,7%** (mínimo exigido: 80%). O CI falha se ficar abaixo de 80%.
+**Cobertura dos domínios críticos: 96,8%** (mínimo exigido: 80%). O CI falha se ficar abaixo de 80%.
 
 | Pacote | Cobertura |
 |---|---|
@@ -239,7 +243,7 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 │   ├── dto/               # requests e responses da API
 │   └── integration/       # testes ponta a ponta dos fluxos principais
 ├── notification/          # porta de notificação (adaptador de log)
-├── token/                 # PASETO e JWT
+├── token/                 # JWT (padrão) e PASETO
 ├── util/                  # config, senha, conversores, geradores de dados de teste
 ├── .github/workflows/     # CI: testes, cobertura mínima e análise de segurança
 ├── Dockerfile

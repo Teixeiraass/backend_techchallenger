@@ -36,7 +36,7 @@ const (
 // transicoes lista para onde cada status pode ir. O fluxo normal só avança;
 // a única volta é Aguardando aprovação -> Em diagnóstico quando o cliente
 // rejeita o orçamento, e a única saída antecipada é Em diagnóstico -> Entregue
-// para devolver o veículo depois de um orçamento rejeitado.
+// para entregar o veículo sem execução depois de um orçamento rejeitado.
 var transicoes = map[Status][]Status{
 	StatusRecebida:            {StatusEmDiagnostico},
 	StatusEmDiagnostico:       {StatusAguardandoAprovacao, StatusEntregue},

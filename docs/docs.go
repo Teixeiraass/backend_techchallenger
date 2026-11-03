@@ -647,7 +647,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Finalizada -\u003e Entregue. Também devolve o veículo sem execução quando o orçamento foi rejeitado.",
+                "description": "Finalizada -\u003e Entregue. Também entrega o veículo sem execução (Em diagnóstico -\u003e Entregue) quando o orçamento foi rejeitado.",
                 "produces": [
                     "application/json"
                 ],
@@ -844,7 +844,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Em diagnóstico -\u003e Aguardando aprovação (automático). Recalcula o orçamento, notifica o cliente e disponibiliza a aprovação pelo link de acompanhamento.",
+                "description": "Em diagnóstico -\u003e Aguardando aprovação. Mecânico ou administrador. Recebe o texto do diagnóstico (opcional), recalcula o orçamento, notifica o cliente por e-mail e disponibiliza a aprovação pelo link de acompanhamento.",
                 "consumes": [
                     "application/json"
                 ],
@@ -896,7 +896,7 @@ const docTemplate = `{
         },
         "/ordens-servico/{uuid}/orcamento/rejeitar": {
             "post": {
-                "description": "Rota pública. A OS volta para Em diagnóstico: a oficina pode montar um novo orçamento ou devolver o veículo.",
+                "description": "Rota pública. A OS volta para Em diagnóstico: a oficina pode montar um novo orçamento ou entregar o veículo sem execução.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2791,6 +2791,7 @@ const docTemplate = `{
         "dto.AtualizarClienteRequest": {
             "type": "object",
             "required": [
+                "email",
                 "nome"
             ],
             "properties": {
@@ -2967,6 +2968,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "documento",
+                "email",
                 "nome"
             ],
             "properties": {

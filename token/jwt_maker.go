@@ -70,13 +70,14 @@ func (maker *JWTMaker) VerifyToken(token string) (*Payload, error) {
 	return &claims.Payload, nil
 }
 
-// NewMaker creates the token maker configured by TOKEN_TYPE (paseto or jwt)
+// NewMaker cria o emissor de token escolhido em TOKEN_TYPE (jwt ou paseto).
+// JWT é o padrão, como pede o enunciado; PASETO fica como opção.
 func NewMaker(tokenType string, symmetricKey string) (Maker, error) {
 	switch tokenType {
-	case "", "paseto":
-		return NewPasetoMaker(symmetricKey)
-	case "jwt":
+	case "", "jwt":
 		return NewJWTMaker(symmetricKey)
+	case "paseto":
+		return NewPasetoMaker(symmetricKey)
 	default:
 		return nil, fmt.Errorf("unsupported token type %q", tokenType)
 	}

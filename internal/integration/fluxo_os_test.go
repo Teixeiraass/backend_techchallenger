@@ -227,7 +227,7 @@ func TestFluxoOrcamentoRejeitado(t *testing.T) {
 	base := "/ordens-servico/" + os.Uuid
 
 	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/diagnostico", c.mecanico, nil).Code)
-	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.atendente, nil).Code)
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.mecanico, nil).Code)
 
 	// Antes da decisão do cliente o veículo não pode ser entregue.
 	require.Equal(t, http.StatusConflict, call(t, http.MethodPost, base+"/entregar", c.atendente, nil).Code)
@@ -241,7 +241,7 @@ func TestFluxoOrcamentoRejeitado(t *testing.T) {
 	// Rejeição não mexe no estoque.
 	require.Equal(t, int32(5), saldoPeca(t, c))
 
-	// O veículo é devolvido sem execução.
+	// O veículo é entregue sem execução.
 	rsp = call(t, http.MethodPost, base+"/entregar", c.atendente, nil)
 	require.Equal(t, http.StatusOK, rsp.Code, string(rsp.Body))
 	rsp.decode(t, &os)
@@ -254,7 +254,7 @@ func TestAprovacaoSemEstoqueAguardaReposicao(t *testing.T) {
 	base := "/ordens-servico/" + os.Uuid
 
 	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/diagnostico", c.mecanico, nil).Code)
-	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.atendente, nil).Code)
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.mecanico, nil).Code)
 
 	// O estoque cai depois da inclusão da peça na OS (não há reserva).
 	rsp := call(t, http.MethodPost, "/pecas/"+c.pecaUuid+"/ajuste", c.admin, map[string]any{"quantidade": 1, "observacao": "Avaria"})
@@ -291,7 +291,7 @@ func TestValidacoesESeguranca(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, rsp.Code)
 
 	// CPF inválido e placa inválida.
-	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "X", "documento": "123.456.789-00"})
+	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "X", "documento": "123.456.789-00", "email": util.RandomEmail()})
 	require.Equal(t, http.StatusBadRequest, rsp.Code)
 	require.Contains(t, string(rsp.Body), "DOCUMENTO_INVALIDO")
 
@@ -307,7 +307,7 @@ func TestValidacoesESeguranca(t *testing.T) {
 	require.Contains(t, string(rsp.Body), "PLACA_INVALIDA")
 
 	// Documento duplicado.
-	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "Duplicado", "documento": "529.982.247-25"})
+	rsp = call(t, http.MethodPost, "/clientes", atendente, map[string]any{"nome": "Duplicado", "documento": "529.982.247-25", "email": util.RandomEmail()})
 	require.Equal(t, http.StatusConflict, rsp.Code)
 
 	// Atendente não gerencia o estoque.

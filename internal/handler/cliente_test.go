@@ -49,8 +49,14 @@ func TestClienteAPI(t *testing.T) {
 		{name: "CriarBodyInvalido", method: http.MethodPost, path: basePath, body: "{", papel: papelAtendente, status: http.StatusBadRequest, check: requireErrorCode("REQUISICAO_INVALIDA")},
 		{
 			name: "CriarDocumentoInvalido", method: http.MethodPost, path: basePath, papel: papelAdmin,
-			body:   gin_h{"nome": "X", "documento": "111.111.111-11"},
+			body:   gin_h{"nome": "X", "documento": "111.111.111-11", "email": "x@email.com"},
 			status: http.StatusBadRequest, check: requireErrorCode("DOCUMENTO_INVALIDO"),
+		},
+		// A notificação ao cliente é por e-mail (linguagem ubíqua §1.2), então o e-mail é obrigatório.
+		{
+			name: "CriarSemEmail", method: http.MethodPost, path: basePath, papel: papelAtendente,
+			body:   gin_h{"nome": "Maria Silva", "documento": "529.982.247-25", "telefone": "11999990000"},
+			status: http.StatusBadRequest, check: requireErrorCode("REQUISICAO_INVALIDA"),
 		},
 		{
 			name: "CriarDuplicado", method: http.MethodPost, path: basePath, body: criar, papel: papelAtendente,
@@ -120,6 +126,7 @@ func TestClienteAPI(t *testing.T) {
 		},
 		{name: "AtualizarUUIDInvalido", method: http.MethodPut, path: basePath + "/x", body: atualizar, papel: papelAtendente, status: http.StatusBadRequest},
 		{name: "AtualizarBodyInvalido", method: http.MethodPut, path: itemPath, body: gin_h{"email": "nao-email"}, papel: papelAtendente, status: http.StatusBadRequest},
+		{name: "AtualizarSemEmail", method: http.MethodPut, path: itemPath, body: gin_h{"nome": "Maria S.", "telefone": "11"}, papel: papelAtendente, status: http.StatusBadRequest, check: requireErrorCode("REQUISICAO_INVALIDA")},
 		{
 			name: "AtualizarNaoEncontrado", method: http.MethodPut, path: itemPath, body: atualizar, papel: papelAtendente,
 			stubs: func(store *mockdb.MockStore) {

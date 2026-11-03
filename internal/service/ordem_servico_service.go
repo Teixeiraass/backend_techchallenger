@@ -232,7 +232,8 @@ func (s *ordemServicoService) EnviarOrcamento(ctx context.Context, osUUID uuid.U
 
 // AprovarOrcamento registra a decisão do cliente e, em seguida, o sistema
 // inicia a execução (com baixa de estoque). Se faltar estoque, a aprovação
-// continua registrada e a OS aguarda a reposição para iniciar a execução.
+// continua registrada, o administrador recebe o pedido de reposição e a OS
+// aguarda a reposição para iniciar a execução.
 func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
 	err := s.store.ExecTx(ctx, func(q db.Querier) error {
 		row, err := q.GetOrdemServicoForUpdate(ctx, osUUID)
@@ -259,7 +260,7 @@ func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.
 		if err != nil {
 			return nil, err
 		}
-		response.Aviso = "Orçamento aprovado. A execução será iniciada assim que o estoque das peças for reposto."
+		response.Aviso = "Orçamento aprovado. Falta uma peça no estoque: a oficina inicia o serviço assim que ela chegar."
 		return response, nil
 	}
 	return response, err
@@ -323,6 +324,7 @@ func (s *ordemServicoService) IniciarExecucao(ctx context.Context, osUUID uuid.U
 		return salvar(ctx, q, row, os, usuarioID, "Execução iniciada e estoque baixado")
 	})
 	if err != nil {
+		pedirReposicaoFaltante(ctx, s.sender, s.config.AdminNotificationTo, osUUID, err)
 		return nil, err
 	}
 
@@ -386,7 +388,7 @@ func (s *ordemServicoService) EntregarVeiculo(ctx context.Context, osUUID uuid.U
 
 		observacao := "Veículo entregue ao cliente"
 		if os.StatusOrcamento == ordemservico.OrcamentoRejeitado {
-			observacao = "Veículo devolvido sem execução (orçamento rejeitado)"
+			observacao = "Veículo entregue sem execução (orçamento rejeitado)"
 		}
 		return salvar(ctx, q, row, os, usuarioID, observacao)
 	})
@@ -492,6 +494,7 @@ func (s *ordemServicoService) AutorizarReparoAdicional(ctx context.Context, osUU
 		return registrarHistorico(ctx, q, row.ID, row.Status, row.Status, 0, "Reparo adicional autorizado pelo cliente: "+reparo.Descricao)
 	})
 	if err != nil {
+		pedirReposicaoFaltante(ctx, s.sender, s.config.AdminNotificationTo, osUUID, err)
 		return nil, err
 	}
 
@@ -772,7 +775,10 @@ func baixarEstoque(ctx context.Context, q db.Querier, osID int64, itens []db.Lis
 		peca, err := q.BaixarEstoquePeca(ctx, db.BaixarEstoquePecaParams{ID: item.PecaID, Quantidade: item.Quantidade})
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return nil, erroEstoqueInsuficiente(db.Peca{Nome: item.PecaNome, Codigo: item.PecaCodigo})
+				return nil, &faltaPeca{
+					err:  erroEstoqueInsuficiente(db.Peca{Nome: item.PecaNome, Codigo: item.PecaCodigo}),
+					item: item,
+				}
 			}
 			return nil, err
 		}
@@ -800,6 +806,33 @@ func baixarEstoque(ctx context.Context, q db.Querier, osID int64, itens []db.Lis
 
 func erroEstoqueInsuficiente(peca db.Peca) error {
 	return fmt.Errorf("%w: %s (%s)", estoque.ErrEstoqueInsuficiente, peca.Nome, peca.Codigo)
+}
+
+// faltaPeca é o erro de saldo insuficiente na baixa. Guarda o item da OS para
+// o pedido de reposição; errors.Is continua achando ErrEstoqueInsuficiente.
+type faltaPeca struct {
+	err  error
+	item db.ListItensPecaByOrdemServicoRow
+}
+
+func (f *faltaPeca) Error() string { return f.err.Error() }
+func (f *faltaPeca) Unwrap() error { return f.err }
+
+// pedirReposicaoFaltante avisa o administrador quando a baixa falhou por falta
+// de saldo. Sem a reposição, a OS aprovada não entra em execução.
+func pedirReposicaoFaltante(ctx context.Context, sender notification.Sender, to string, osUUID uuid.UUID, err error) {
+	var falta *faltaPeca
+	if !errors.As(err, &falta) {
+		return
+	}
+	if err := sender.Send(ctx, notification.Message{
+		To:      to,
+		Subject: "Pedido de reposição de estoque",
+		Body: fmt.Sprintf("%s (%s) não tem saldo para a OS %s, que precisa de %d. A OS aguarda a reposição para entrar em execução.",
+			falta.item.PecaNome, falta.item.PecaCodigo, osUUID, falta.item.Quantidade),
+	}); err != nil {
+		log.Printf("não foi possível enviar o pedido de reposição: %v", err)
+	}
 }
 
 func carregarItens(ctx context.Context, q db.Querier, osID int64) ([]db.ListItensServicoByOrdemServicoRow, []db.ListItensPecaByOrdemServicoRow, error) {
@@ -906,21 +939,23 @@ func registrarHistorico(ctx context.Context, q db.Querier, osID int64, anterior 
 	return err
 }
 
-// notificarCliente envia o aviso depois do commit; falha de envio não desfaz a operação.
+// notificarCliente envia o aviso por e-mail depois do commit; falha de envio
+// não desfaz a operação. O e-mail é obrigatório no cadastro; um cliente antigo
+// sem e-mail não recebe aviso e o fato fica no log.
 func (s *ordemServicoService) notificarCliente(ctx context.Context, clienteID int64, assunto string, mensagem string) {
 	dono, err := s.store.GetClienteByID(ctx, clienteID)
 	if err != nil {
-		log.Printf("cannot load customer %d to notify: %v", clienteID, err)
+		log.Printf("não foi possível carregar o cliente %d para o aviso: %v", clienteID, err)
 		return
 	}
 
-	to := dono.Email
-	if to == "" {
-		to = dono.Telefone
+	if dono.Email == "" {
+		log.Printf("cliente %d sem e-mail; aviso não enviado", clienteID)
+		return
 	}
 
-	if err := s.sender.Send(ctx, notification.Message{To: to, Subject: assunto, Body: mensagem}); err != nil {
-		log.Printf("cannot notify customer %d: %v", clienteID, err)
+	if err := s.sender.Send(ctx, notification.Message{To: dono.Email, Subject: assunto, Body: mensagem}); err != nil {
+		log.Printf("não foi possível avisar o cliente %d: %v", clienteID, err)
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Rotas públicas usadas pelo cliente (link de acompanhamento ou aplicativo).
+// Rotas públicas usadas pelo cliente (link de acompanhamento).
 // Não exigem token: o UUID da OS + o CPF/CNPJ do dono funcionam como
 // credencial. Documento errado devolve 404, igual a OS inexistente.
 
@@ -77,7 +77,7 @@ func (server *Server) AprovarOrcamento(ctx *gin.Context) {
 
 // RejeitarOrcamento godoc
 // @Summary      Rejeitar orçamento (cliente)
-// @Description  Rota pública. A OS volta para Em diagnóstico: a oficina pode montar um novo orçamento ou devolver o veículo.
+// @Description  Rota pública. A OS volta para Em diagnóstico: a oficina pode montar um novo orçamento ou entregar o veículo sem execução.
 // @Tags         acompanhamento
 // @Accept       json
 // @Produce      json

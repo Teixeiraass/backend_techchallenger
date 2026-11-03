@@ -341,7 +341,7 @@ func TestTransicoesOrdemServicoAPI(t *testing.T) {
 			status: http.StatusConflict, check: requireErrorCode("TRANSICAO_INVALIDA"),
 		},
 		{
-			name: "EnviarOrcamentoOK", method: http.MethodPost, path: path(emDiagnostico, "orcamento/enviar"), body: gin_h{"diagnostico": "Pastilhas gastas"}, papel: papelAtendente,
+			name: "EnviarOrcamentoOK", method: http.MethodPost, path: path(emDiagnostico, "orcamento/enviar"), body: gin_h{"diagnostico": "Pastilhas gastas"}, papel: papelMecanico,
 			stubs:  func(store *mockdb.MockStore) { stubOS(store, emDiagnostico, nil, nil) },
 			status: http.StatusOK,
 		},
@@ -350,6 +350,12 @@ func TestTransicoesOrdemServicoAPI(t *testing.T) {
 			stubs:  func(store *mockdb.MockStore) { stubOS(store, emDiagnostico, nil, nil) },
 			status: http.StatusOK,
 		},
+		{
+			name: "EnviarOrcamentoAdmin", method: http.MethodPost, path: path(emDiagnostico, "orcamento/enviar"), papel: papelAdmin,
+			stubs:  func(store *mockdb.MockStore) { stubOS(store, emDiagnostico, nil, nil) },
+			status: http.StatusOK,
+		},
+		{name: "EnviarOrcamentoPapelErrado", method: http.MethodPost, path: path(emDiagnostico, "orcamento/enviar"), papel: papelAtendente, status: http.StatusForbidden},
 		{name: "EnviarOrcamentoUUIDInvalido", method: http.MethodPost, path: "/api/v1/ordens-servico/x/orcamento/enviar", papel: papelMecanico, status: http.StatusBadRequest},
 		{name: "EnviarOrcamentoBodyInvalido", method: http.MethodPost, path: path(emDiagnostico, "orcamento/enviar"), body: "{", papel: papelMecanico, status: http.StatusBadRequest},
 		{

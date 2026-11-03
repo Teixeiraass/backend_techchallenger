@@ -126,7 +126,7 @@ func TestNewMaker(t *testing.T) {
 		wantType  interface{}
 		wantErr   bool
 	}{
-		{"Default", "", &PasetoMaker{}, false},
+		{"Default", "", &JWTMaker{}, false},
 		{"Paseto", "paseto", &PasetoMaker{}, false},
 		{"JWT", "jwt", &JWTMaker{}, false},
 		{"Unsupported", "saml", nil, true},
