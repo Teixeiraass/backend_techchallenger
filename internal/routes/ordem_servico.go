@@ -31,7 +31,7 @@ func registerOrdemServicoRoutes(authRoutes gin.IRoutes, h OrdemServicoHandler) {
 	authRoutes.DELETE("/ordens-servico/:uuid/pecas/:item_uuid", atendimentoEOfic, h.RemoverPecaOS)
 
 	authRoutes.POST("/ordens-servico/:uuid/diagnostico", oficina, h.IniciarDiagnostico)
-	authRoutes.POST("/ordens-servico/:uuid/orcamento/enviar", atendimentoEOfic, h.EnviarOrcamento)
+	authRoutes.POST("/ordens-servico/:uuid/orcamento/enviar", oficina, h.EnviarOrcamento)
 	authRoutes.POST("/ordens-servico/:uuid/execucao", atendimentoEOfic, h.IniciarExecucao)
 	authRoutes.POST("/ordens-servico/:uuid/reparos-adicionais", oficina, h.RegistrarReparoAdicional)
 	authRoutes.POST("/ordens-servico/:uuid/finalizar", oficina, h.FinalizarOrdemServico)

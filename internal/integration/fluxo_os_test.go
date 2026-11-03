@@ -227,7 +227,7 @@ func TestFluxoOrcamentoRejeitado(t *testing.T) {
 	base := "/ordens-servico/" + os.Uuid
 
 	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/diagnostico", c.mecanico, nil).Code)
-	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.atendente, nil).Code)
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.mecanico, nil).Code)
 
 	// Antes da decisão do cliente o veículo não pode ser entregue.
 	require.Equal(t, http.StatusConflict, call(t, http.MethodPost, base+"/entregar", c.atendente, nil).Code)
@@ -241,7 +241,7 @@ func TestFluxoOrcamentoRejeitado(t *testing.T) {
 	// Rejeição não mexe no estoque.
 	require.Equal(t, int32(5), saldoPeca(t, c))
 
-	// O veículo é devolvido sem execução.
+	// O veículo é entregue sem execução.
 	rsp = call(t, http.MethodPost, base+"/entregar", c.atendente, nil)
 	require.Equal(t, http.StatusOK, rsp.Code, string(rsp.Body))
 	rsp.decode(t, &os)
@@ -254,7 +254,7 @@ func TestAprovacaoSemEstoqueAguardaReposicao(t *testing.T) {
 	base := "/ordens-servico/" + os.Uuid
 
 	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/diagnostico", c.mecanico, nil).Code)
-	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.atendente, nil).Code)
+	require.Equal(t, http.StatusOK, call(t, http.MethodPost, base+"/orcamento/enviar", c.mecanico, nil).Code)
 
 	// O estoque cai depois da inclusão da peça na OS (não há reserva).
 	rsp := call(t, http.MethodPost, "/pecas/"+c.pecaUuid+"/ajuste", c.admin, map[string]any{"quantidade": 1, "observacao": "Avaria"})
