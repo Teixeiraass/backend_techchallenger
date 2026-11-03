@@ -18,115 +18,23 @@
   },
   "dst": [
     {
-      "type": "domainStory:actorGroup",
-      "name": "Atendente",
-      "id": "shape_5746",
-      "x": 100,
-      "y": 480
-    },
-    {
-      "type": "domainStory:workObjectDocument",
-      "name": "Cadastro do cliente",
-      "id": "shape_4880",
-      "x": 420,
-      "y": 100
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "cadastra",
-      "id": "connection_9368",
-      "pickedColor": "black",
-      "number": 1,
-      "waypoints": [
-        {
-          "original": {
-            "x": 138,
-            "y": 518
-          },
-          "x": 170,
-          "y": 480
-        },
-        {
-          "original": {
-            "x": 458,
-            "y": 138
-          },
-          "x": 426,
-          "y": 176
-        }
-      ],
-      "source": "shape_5746",
-      "target": "shape_4880",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:actorDesktop",
-      "name": "Sistema",
-      "id": "shape_4730",
-      "x": 740,
-      "y": 480
-    },
-    {
       "type": "domainStory:activity",
       "name": "no",
-      "id": "connection_7544",
+      "id": "connection_2220",
       "pickedColor": "black",
       "number": null,
       "waypoints": [
         {
-          "original": {
-            "x": 458,
-            "y": 138
-          },
-          "x": 490,
-          "y": 176
+          "x": 550,
+          "y": 518
         },
         {
-          "original": {
-            "x": 778,
-            "y": 518
-          },
-          "x": 746,
-          "y": 480
+          "x": 795,
+          "y": 518
         }
       ],
-      "source": "shape_4880",
+      "source": "shape_4561",
       "target": "shape_4730",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectDocument",
-      "name": "Cadastro do veículo",
-      "id": "shape_1313",
-      "x": 420,
-      "y": 290
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "cadastra",
-      "id": "connection_6659",
-      "pickedColor": "black",
-      "number": 2,
-      "waypoints": [
-        {
-          "original": {
-            "x": 138,
-            "y": 518
-          },
-          "x": 176,
-          "y": 495
-        },
-        {
-          "original": {
-            "x": 458,
-            "y": 328
-          },
-          "x": 420,
-          "y": 351
-        }
-      ],
-      "source": "shape_5746",
-      "target": "shape_1313",
       "multipleNumberAllowed": false
     },
     {
@@ -137,95 +45,21 @@
       "number": null,
       "waypoints": [
         {
-          "original": {
-            "x": 458,
-            "y": 328
-          },
-          "x": 496,
-          "y": 351
+          "x": 550,
+          "y": 328
         },
         {
-          "original": {
-            "x": 778,
-            "y": 518
-          },
-          "x": 740,
-          "y": 495
+          "x": 810,
+          "y": 328
+        },
+        {
+          "x": 810,
+          "y": 505
         }
       ],
       "source": "shape_1313",
       "target": "shape_4730",
       "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectAssignment",
-      "name": "Ordem de serviço",
-      "id": "shape_4561",
-      "x": 420,
-      "y": 480
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "abre",
-      "id": "connection_9674",
-      "pickedColor": "black",
-      "number": 3,
-      "waypoints": [
-        {
-          "original": {
-            "x": 138,
-            "y": 518
-          },
-          "x": 175,
-          "y": 518
-        },
-        {
-          "original": {
-            "x": 458,
-            "y": 518
-          },
-          "x": 420,
-          "y": 518
-        }
-      ],
-      "source": "shape_5746",
-      "target": "shape_4561",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "no",
-      "id": "connection_2220",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 458,
-            "y": 518
-          },
-          "x": 495,
-          "y": 518
-        },
-        {
-          "original": {
-            "x": 778,
-            "y": 518
-          },
-          "x": 740,
-          "y": 518
-        }
-      ],
-      "source": "shape_4561",
-      "target": "shape_4730",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectWrench",
-      "name": "Serviços",
-      "id": "shape_2113",
-      "x": 420,
-      "y": 670
     },
     {
       "type": "domainStory:activity",
@@ -235,87 +69,24 @@
       "number": 4,
       "waypoints": [
         {
-          "original": {
-            "x": 138,
-            "y": 518
-          },
-          "x": 176,
-          "y": 541
+          "x": 230,
+          "y": 546
         },
         {
-          "original": {
-            "x": 458,
-            "y": 708
-          },
-          "x": 420,
-          "y": 685
+          "x": 330,
+          "y": 546
+        },
+        {
+          "x": 330,
+          "y": 708
+        },
+        {
+          "x": 475,
+          "y": 708
         }
       ],
       "source": "shape_5746",
       "target": "shape_2113",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "no",
-      "id": "connection_8183",
-      "pickedColor": "black",
-      "number": null,
-      "waypoints": [
-        {
-          "original": {
-            "x": 458,
-            "y": 708
-          },
-          "x": 496,
-          "y": 685
-        },
-        {
-          "original": {
-            "x": 778,
-            "y": 518
-          },
-          "x": 740,
-          "y": 541
-        }
-      ],
-      "source": "shape_2113",
-      "target": "shape_4730",
-      "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectExtension",
-      "name": "Peças",
-      "id": "shape_1704",
-      "x": 420,
-      "y": 860
-    },
-    {
-      "type": "domainStory:activity",
-      "name": "adiciona",
-      "id": "connection_6149",
-      "pickedColor": "black",
-      "number": 5,
-      "waypoints": [
-        {
-          "original": {
-            "x": 138,
-            "y": 518
-          },
-          "x": 170,
-          "y": 556
-        },
-        {
-          "original": {
-            "x": 458,
-            "y": 898
-          },
-          "x": 426,
-          "y": 860
-        }
-      ],
-      "source": "shape_5746",
-      "target": "shape_1704",
       "multipleNumberAllowed": false
     },
     {
@@ -326,32 +97,25 @@
       "number": null,
       "waypoints": [
         {
-          "original": {
-            "x": 458,
-            "y": 898
-          },
-          "x": 490,
-          "y": 860
+          "x": 550,
+          "y": 898
         },
         {
-          "original": {
-            "x": 778,
-            "y": 518
-          },
-          "x": 746,
-          "y": 556
+          "x": 735,
+          "y": 898
+        },
+        {
+          "x": 735,
+          "y": 574
+        },
+        {
+          "x": 795,
+          "y": 574
         }
       ],
       "source": "shape_1704",
       "target": "shape_4730",
       "multipleNumberAllowed": false
-    },
-    {
-      "type": "domainStory:workObjectDollar",
-      "name": "Orçamento",
-      "id": "shape_3517",
-      "x": 1060,
-      "y": 480
     },
     {
       "type": "domainStory:activity",
@@ -361,20 +125,12 @@
       "number": 6,
       "waypoints": [
         {
-          "original": {
-            "x": 778,
-            "y": 518
-          },
-          "x": 815,
-          "y": 518
+          "x": 870,
+          "y": 542
         },
         {
-          "original": {
-            "x": 1098,
-            "y": 518
-          },
-          "x": 1060,
-          "y": 518
+          "x": 1115,
+          "y": 542
         }
       ],
       "source": "shape_4730",
@@ -382,49 +138,73 @@
       "multipleNumberAllowed": false
     },
     {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "CPF ou CNPJ válido e único",
-      "id": "shape_8086",
-      "x": 500,
-      "y": 45,
-      "width": 140,
-      "height": 45
-    },
-    {
       "type": "domainStory:connection",
       "name": "",
-      "id": "connection_8239",
+      "id": "connection_6043",
       "waypoints": [
         {
-          "original": {
-            "x": 458,
-            "y": 138
-          },
-          "x": 496,
-          "y": 114
+          "x": 512,
+          "y": 670
         },
         {
-          "original": {
-            "x": 570,
-            "y": 67
-          },
-          "x": 535,
-          "y": 90
+          "x": 512,
+          "y": 655
         }
       ],
-      "source": "shape_4880",
-      "target": "shape_8086"
+      "source": "shape_2113",
+      "target": "shape_4745"
     },
     {
-      "type": "domainStory:textAnnotation",
-      "name": "",
-      "text": "Placa válida e dono já cadastrado",
-      "id": "shape_1098",
-      "x": 500,
-      "y": 235,
-      "width": 140,
-      "height": 45
+      "type": "domainStory:activity",
+      "name": "adiciona",
+      "id": "connection_6149",
+      "pickedColor": "black",
+      "number": 5,
+      "waypoints": [
+        {
+          "x": 230,
+          "y": 574
+        },
+        {
+          "x": 290,
+          "y": 574
+        },
+        {
+          "x": 290,
+          "y": 898
+        },
+        {
+          "x": 475,
+          "y": 898
+        }
+      ],
+      "source": "shape_5746",
+      "target": "shape_1704",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "cadastra",
+      "id": "connection_6659",
+      "pickedColor": "black",
+      "number": 2,
+      "waypoints": [
+        {
+          "x": 215,
+          "y": 505
+        },
+        {
+          "x": 215,
+          "y": 328
+        },
+        {
+          "x": 475,
+          "y": 328
+        }
+      ],
+      "source": "shape_5746",
+      "target": "shape_1313",
+      "multipleNumberAllowed": false
     },
     {
       "type": "domainStory:connection",
@@ -432,34 +212,163 @@
       "id": "connection_7019",
       "waypoints": [
         {
-          "original": {
-            "x": 458,
-            "y": 328
-          },
-          "x": 496,
-          "y": 304
+          "x": 512,
+          "y": 290
         },
         {
-          "original": {
-            "x": 570,
-            "y": 257
-          },
-          "x": 535,
-          "y": 280
+          "x": 512,
+          "y": 275
         }
       ],
       "source": "shape_1313",
       "target": "shape_1098"
     },
     {
-      "type": "domainStory:textAnnotation",
+      "type": "domainStory:activity",
+      "name": "no",
+      "id": "connection_7544",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "x": 550,
+          "y": 138
+        },
+        {
+          "x": 850,
+          "y": 138
+        },
+        {
+          "x": 850,
+          "y": 505
+        }
+      ],
+      "source": "shape_4880",
+      "target": "shape_4730",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "no",
+      "id": "connection_8183",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "x": 550,
+          "y": 708
+        },
+        {
+          "x": 690,
+          "y": 708
+        },
+        {
+          "x": 690,
+          "y": 546
+        },
+        {
+          "x": 795,
+          "y": 546
+        }
+      ],
+      "source": "shape_2113",
+      "target": "shape_4730",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:connection",
       "name": "",
-      "text": "Nasce com o status Recebida",
-      "id": "shape_2056",
-      "x": 500,
-      "y": 425,
-      "width": 140,
-      "height": 45
+      "id": "connection_8239",
+      "waypoints": [
+        {
+          "x": 512,
+          "y": 100
+        },
+        {
+          "x": 512,
+          "y": 85
+        }
+      ],
+      "source": "shape_4880",
+      "target": "shape_8086"
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_8655",
+      "waypoints": [
+        {
+          "x": 512,
+          "y": 860
+        },
+        {
+          "x": 512,
+          "y": 845
+        }
+      ],
+      "source": "shape_1704",
+      "target": "shape_3492"
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_9147",
+      "waypoints": [
+        {
+          "x": 1152,
+          "y": 505
+        },
+        {
+          "x": 1152,
+          "y": 490
+        }
+      ],
+      "source": "shape_3517",
+      "target": "shape_7547"
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "cadastra",
+      "id": "connection_9368",
+      "pickedColor": "black",
+      "number": 1,
+      "waypoints": [
+        {
+          "x": 170,
+          "y": 505
+        },
+        {
+          "x": 170,
+          "y": 138
+        },
+        {
+          "x": 475,
+          "y": 138
+        }
+      ],
+      "source": "shape_5746",
+      "target": "shape_4880",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "abre",
+      "id": "connection_9674",
+      "pickedColor": "black",
+      "number": 3,
+      "waypoints": [
+        {
+          "x": 230,
+          "y": 518
+        },
+        {
+          "x": 475,
+          "y": 518
+        }
+      ],
+      "source": "shape_5746",
+      "target": "shape_4561",
+      "multipleNumberAllowed": false
     },
     {
       "type": "domainStory:connection",
@@ -467,20 +376,12 @@
       "id": "connection_9948",
       "waypoints": [
         {
-          "original": {
-            "x": 458,
-            "y": 518
-          },
-          "x": 496,
-          "y": 494
+          "x": 512,
+          "y": 480
         },
         {
-          "original": {
-            "x": 570,
-            "y": 447
-          },
-          "x": 535,
-          "y": 470
+          "x": 512,
+          "y": 465
         }
       ],
       "source": "shape_4561",
@@ -489,107 +390,124 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Atendente ou mecânico. Só serviço ativo no catálogo",
-      "id": "shape_4745",
-      "x": 615,
-      "y": 760,
-      "width": 190,
-      "height": 45
+      "text": "Placa válida e dono já cadastrado",
+      "id": "shape_1098",
+      "x": 442,
+      "y": 230,
+      "width": 140,
+      "height": 45,
+      "number": 45
     },
     {
-      "type": "domainStory:connection",
+      "type": "domainStory:workObjectDocument",
+      "name": "Cadastro do veículo",
+      "id": "shape_1313",
+      "x": 475,
+      "y": 290
+    },
+    {
+      "type": "domainStory:workObjectExtension",
+      "name": "Peças",
+      "id": "shape_1704",
+      "x": 475,
+      "y": 860
+    },
+    {
+      "type": "domainStory:textAnnotation",
       "name": "",
-      "id": "connection_6043",
-      "waypoints": [
-        {
-          "original": {
-            "x": 458,
-            "y": 708
-          },
-          "x": 496,
-          "y": 719
-        },
-        {
-          "original": {
-            "x": 710,
-            "y": 782
-          },
-          "x": 633,
-          "y": 760
-        }
-      ],
-      "source": "shape_2113",
-      "target": "shape_4745"
+      "text": "Nasce com o status Recebida",
+      "id": "shape_2056",
+      "x": 442,
+      "y": 420,
+      "width": 140,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:workObjectWrench",
+      "name": "Serviços",
+      "id": "shape_2113",
+      "x": 475,
+      "y": 670
     },
     {
       "type": "domainStory:textAnnotation",
       "name": "",
       "text": "Atendente ou mecânico. Só entra se houver saldo; sem saldo, é recusada",
       "id": "shape_3492",
-      "x": 510,
-      "y": 955,
-      "width": 190,
-      "height": 45
+      "x": 395,
+      "y": 800,
+      "width": 235,
+      "height": 45,
+      "number": 45
     },
     {
-      "type": "domainStory:connection",
+      "type": "domainStory:workObjectDollar",
+      "name": "Orçamento",
+      "id": "shape_3517",
+      "x": 1115,
+      "y": 505
+    },
+    {
+      "type": "domainStory:workObjectAssignment",
+      "name": "Ordem de serviço",
+      "id": "shape_4561",
+      "x": 475,
+      "y": 480
+    },
+    {
+      "type": "domainStory:actorDesktop",
+      "name": "Sistema",
+      "id": "shape_4730",
+      "x": 795,
+      "y": 505
+    },
+    {
+      "type": "domainStory:textAnnotation",
       "name": "",
-      "id": "connection_8655",
-      "waypoints": [
-        {
-          "original": {
-            "x": 458,
-            "y": 898
-          },
-          "x": 496,
-          "y": 918
-        },
-        {
-          "original": {
-            "x": 605,
-            "y": 977
-          },
-          "x": 563,
-          "y": 954
-        }
-      ],
-      "source": "shape_1704",
-      "target": "shape_3492"
+      "text": "Atendente ou mecânico. Só serviço ativo no catálogo",
+      "id": "shape_4745",
+      "x": 417,
+      "y": 610,
+      "width": 190,
+      "height": 45,
+      "number": 45
+    },
+    {
+      "type": "domainStory:workObjectDocument",
+      "name": "Cadastro do cliente",
+      "id": "shape_4880",
+      "x": 475,
+      "y": 100
+    },
+    {
+      "type": "domainStory:actorGroup",
+      "name": "Atendente",
+      "id": "shape_5746",
+      "x": 155,
+      "y": 505
     },
     {
       "type": "domainStory:textAnnotation",
       "name": "",
       "text": "Gerado e recalculado: serviços + peças",
       "id": "shape_7547",
-      "x": 1150,
-      "y": 420,
+      "x": 1082,
+      "y": 445,
       "width": 140,
-      "height": 45
+      "height": 45,
+      "number": 45
     },
     {
-      "type": "domainStory:connection",
+      "type": "domainStory:textAnnotation",
       "name": "",
-      "id": "connection_9147",
-      "waypoints": [
-        {
-          "original": {
-            "x": 1098,
-            "y": 518
-          },
-          "x": 1136,
-          "y": 494
-        },
-        {
-          "original": {
-            "x": 1220,
-            "y": 442
-          },
-          "x": 1184,
-          "y": 464
-        }
-      ],
-      "source": "shape_3517",
-      "target": "shape_7547"
+      "text": "CPF ou CNPJ válido e único",
+      "id": "shape_8086",
+      "x": 442,
+      "y": 40,
+      "width": 140,
+      "height": 45,
+      "number": 45
     },
     {
       "info": "Cadastro, abertura da OS, serviços, peças e orçamento"
