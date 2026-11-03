@@ -157,7 +157,7 @@
       "name": "atualiza",
       "id": "connection_2447",
       "pickedColor": "black",
-      "number": 3,
+      "number": 4,
       "waypoints": [
         {
           "original": {
@@ -270,7 +270,7 @@
       "name": "envia",
       "id": "connection_6550",
       "pickedColor": "black",
-      "number": 4,
+      "number": 5,
       "waypoints": [
         {
           "original": {
@@ -337,7 +337,7 @@
       "name": "atualiza",
       "id": "connection_9945",
       "pickedColor": "black",
-      "number": 5,
+      "number": 6,
       "waypoints": [
         {
           "original": {
@@ -435,7 +435,7 @@
       "name": "atualiza",
       "id": "connection_4981",
       "pickedColor": "black",
-      "number": 6,
+      "number": 7,
       "waypoints": [
         {
           "original": {
@@ -512,7 +512,7 @@
       "name": "atualiza",
       "id": "connection_7018",
       "pickedColor": "black",
-      "number": 7,
+      "number": 8,
       "waypoints": [
         {
           "original": {
@@ -618,7 +618,7 @@
       "name": "envia",
       "id": "connection_1522",
       "pickedColor": "black",
-      "number": 8,
+      "number": 9,
       "waypoints": [
         {
           "original": {
@@ -696,7 +696,7 @@
       "name": "atualiza",
       "id": "connection_5138",
       "pickedColor": "black",
-      "number": 9,
+      "number": 10,
       "waypoints": [
         {
           "original": {
@@ -810,16 +810,16 @@
             "x": 529,
             "y": 438
           },
-          "x": 566,
+          "x": 567,
           "y": 413
         },
         {
           "original": {
             "x": 661,
-            "y": 353
+            "y": 352
           },
-          "x": 624,
-          "y": 377
+          "x": 626,
+          "y": 374
         }
       ],
       "source": "shape_5510",
@@ -845,16 +845,16 @@
             "x": 705,
             "y": 438
           },
-          "x": 742,
+          "x": 743,
           "y": 413
         },
         {
           "original": {
             "x": 837,
-            "y": 353
+            "y": 352
           },
-          "x": 800,
-          "y": 377
+          "x": 802,
+          "y": 374
         }
       ],
       "source": "shape_4986",
@@ -880,16 +880,16 @@
             "x": 881,
             "y": 438
           },
-          "x": 918,
+          "x": 919,
           "y": 413
         },
         {
           "original": {
             "x": 1013,
-            "y": 353
+            "y": 352
           },
-          "x": 976,
-          "y": 377
+          "x": 978,
+          "y": 374
         }
       ],
       "source": "shape_5729",
@@ -898,7 +898,7 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Finalizada",
+      "text": "Finalizada, sem reparo pendente e com o tempo de execução registrado",
       "id": "shape_3232",
       "x": 1119,
       "y": 330,
@@ -915,16 +915,16 @@
             "x": 1057,
             "y": 438
           },
-          "x": 1094,
+          "x": 1095,
           "y": 413
         },
         {
           "original": {
             "x": 1189,
-            "y": 353
+            "y": 352
           },
-          "x": 1152,
-          "y": 377
+          "x": 1154,
+          "y": 374
         }
       ],
       "source": "shape_3614",
@@ -933,7 +933,7 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Entregue (veículo devolvido ao cliente)",
+      "text": "Entregue (veículo entregue ao cliente)",
       "id": "shape_8279",
       "x": 1295,
       "y": 330,
@@ -950,16 +950,16 @@
             "x": 1233,
             "y": 438
           },
-          "x": 1270,
+          "x": 1271,
           "y": 413
         },
         {
           "original": {
             "x": 1365,
-            "y": 353
+            "y": 352
           },
-          "x": 1328,
-          "y": 377
+          "x": 1330,
+          "y": 374
         }
       ],
       "source": "shape_9075",
@@ -985,16 +985,16 @@
             "x": 1233,
             "y": 852
           },
-          "x": 1270,
+          "x": 1271,
           "y": 827
         },
         {
           "original": {
             "x": 1365,
-            "y": 767
+            "y": 766
           },
-          "x": 1328,
-          "y": 791
+          "x": 1330,
+          "y": 788
         }
       ],
       "source": "shape_7874",
@@ -1020,16 +1020,16 @@
             "x": 881,
             "y": 852
           },
-          "x": 918,
-          "y": 888
+          "x": 919,
+          "y": 889
         },
         {
           "original": {
             "x": 1030,
-            "y": 998
+            "y": 997
           },
-          "x": 993,
-          "y": 961
+          "x": 1007,
+          "y": 974
         }
       ],
       "source": "shape_4429",
@@ -1103,8 +1103,8 @@
       "name": "",
       "text": "Com o diagnóstico. Precisa de 1 item",
       "id": "shape_9017",
-      "x": 415,
-      "y": 130,
+      "x": 300,
+      "y": 95,
       "width": 140,
       "height": 45
     },
@@ -1118,16 +1118,16 @@
             "x": 353,
             "y": 238
           },
-          "x": 390,
-          "y": 213
+          "x": 358,
+          "y": 200
         },
         {
           "original": {
-            "x": 485,
-            "y": 153
+            "x": 370,
+            "y": 117
           },
-          "x": 448,
-          "y": 177
+          "x": 367,
+          "y": 140
         }
       ],
       "source": "shape_5152",
@@ -1153,16 +1153,16 @@
             "x": 353,
             "y": 438
           },
-          "x": 390,
+          "x": 391,
           "y": 413
         },
         {
           "original": {
             "x": 485,
-            "y": 353
+            "y": 352
           },
-          "x": 448,
-          "y": 377
+          "x": 450,
+          "y": 374
         }
       ],
       "source": "shape_2699",
@@ -1171,7 +1171,7 @@
     {
       "type": "domainStory:textAnnotation",
       "name": "",
-      "text": "Por e-mail, com o link de acompanhamento",
+      "text": "Por e-mail",
       "id": "shape_5853",
       "x": 239,
       "y": 606,
@@ -1188,20 +1188,126 @@
             "x": 177,
             "y": 714
           },
-          "x": 214,
+          "x": 215,
           "y": 689
         },
         {
           "original": {
             "x": 309,
-            "y": 629
+            "y": 628
           },
-          "x": 272,
-          "y": 653
+          "x": 274,
+          "y": 650
         }
       ],
       "source": "shape_8414",
       "target": "shape_5853"
+    },
+    {
+      "type": "domainStory:workObjectConversation",
+      "name": "Notificação",
+      "id": "shape_7664",
+      "x": 139,
+      "y": 200
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "envia",
+      "id": "connection_7314",
+      "pickedColor": "black",
+      "number": 3,
+      "waypoints": [
+        {
+          "original": {
+            "x": 793,
+            "y": 157
+          },
+          "x": 793,
+          "y": 119
+        },
+        {
+          "x": 793,
+          "y": 60
+        },
+        {
+          "x": 177,
+          "y": 60
+        },
+        {
+          "original": {
+            "x": 177,
+            "y": 238
+          },
+          "x": 177,
+          "y": 200
+        }
+      ],
+      "source": "shape_8796",
+      "target": "shape_7664",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:activity",
+      "name": "para",
+      "id": "connection_4342",
+      "pickedColor": "black",
+      "number": null,
+      "waypoints": [
+        {
+          "original": {
+            "x": 177,
+            "y": 238
+          },
+          "x": 177,
+          "y": 275
+        },
+        {
+          "original": {
+            "x": 177,
+            "y": 438
+          },
+          "x": 177,
+          "y": 400
+        }
+      ],
+      "source": "shape_7664",
+      "target": "shape_4405",
+      "multipleNumberAllowed": false
+    },
+    {
+      "type": "domainStory:textAnnotation",
+      "name": "",
+      "text": "Por e-mail, com o link de acompanhamento",
+      "id": "shape_9929",
+      "x": 10,
+      "y": 110,
+      "width": 140,
+      "height": 45
+    },
+    {
+      "type": "domainStory:connection",
+      "name": "",
+      "id": "connection_1837",
+      "source": "shape_7664",
+      "target": "shape_9929",
+      "waypoints": [
+        {
+          "original": {
+            "x": 177,
+            "y": 238
+          },
+          "x": 142,
+          "y": 200
+        },
+        {
+          "original": {
+            "x": 80,
+            "y": 132
+          },
+          "x": 101,
+          "y": 154
+        }
+      ]
     },
     {
       "info": "Status: Em diagnóstico, Aguardando aprovação, Em execução, Finalizada e Entregue"
