@@ -119,37 +119,29 @@ func TestDecisaoReparoAdicionalAPI(t *testing.T) {
 		{
 			name: "AutorizarOK", method: http.MethodPost, path: path("autorizar"), body: titular,
 			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), db.GetReparoAdicionalForUpdateParams{Uuid: reparo.Uuid, OrdemServicoID: emExecucao.ID}).Return(reparo, nil)
 				store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), db.UpdateReparoAdicionalStatusParams{ID: reparo.ID, Status: "AUTORIZADO"}).Return(autorizado, nil)
 				store.EXPECT().BaixarEstoquePeca(gomock.Any(), db.BaixarEstoquePecaParams{ID: peca.ID, Quantidade: 1}).Return(peca, nil)
 				store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, nil)
-				stubOS(store, emExecucao, []db.ListItensPecaByOrdemServicoRow{itemPeca(peca, 1, &reparo)}, nil)
+				stubOS(store, emExecucao, []db.ListItensPecaByOrdemServicoRow{itemPeca(peca, 1, &reparo)}, []db.ReparoAdicional{reparo})
 			},
 			status: http.StatusOK,
 		},
 		{
 			name: "RecusarOK", method: http.MethodPost, path: path("recusar"), body: titular,
 			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).Return(reparo, nil)
 				store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), db.UpdateReparoAdicionalStatusParams{ID: reparo.ID, Status: "RECUSADO"}).Return(reparo, nil)
-				stubOS(store, emExecucao, nil, nil)
+				stubOS(store, emExecucao, nil, []db.ReparoAdicional{reparo})
 			},
 			status: http.StatusOK,
 		},
 		{
 			name: "AutorizarNaoEncontrado", method: http.MethodPost, path: path("autorizar"), body: titular,
-			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).Return(db.ReparoAdicional{}, sql.ErrNoRows)
-				stubOS(store, emExecucao, nil, nil)
-			},
+			stubs:  func(store *mockdb.MockStore) { stubOS(store, emExecucao, nil, nil) },
 			status: http.StatusNotFound, check: requireErrorCode("REPARO_NAO_ENCONTRADO"),
 		},
 		{
 			name: "RecusarJaDecidido", method: http.MethodPost, path: path("recusar"), body: titular,
-			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).Return(autorizado, nil)
-				stubOS(store, emExecucao, nil, nil)
-			},
+			stubs:  func(store *mockdb.MockStore) { stubOS(store, emExecucao, nil, []db.ReparoAdicional{autorizado}) },
 			status: http.StatusConflict, check: requireErrorCode("REPARO_JA_DECIDIDO"),
 		},
 		{

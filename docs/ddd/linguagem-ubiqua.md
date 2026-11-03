@@ -153,7 +153,7 @@ Relações entre contextos: a OS referencia Cliente, Veículo, Serviço e Peça 
 |---|---|---|---|
 | **Cliente** | - | `cliente.Documento` (CPF/CNPJ); conceituais: nome, contato | CPF/CNPJ válido e único; e-mail obrigatório |
 | **Veículo** | - | `veiculo.Placa`; conceituais: modelo, ano (`ValidarAno`) | Placa válida e única; sempre tem um dono |
-| **OrdemServiço** | `ItemServico`, `ItemPeca`, `ReparoAdicional`, `HistoricoStatusOS` | `Status`, `StatusOrcamento`, `StatusReparo`, `Orcamento`; conceitual: dinheiro (centavos) | Status só avança na ordem; orçamento = serviços + peças; peça só entra com estoque; só executa depois de aprovada; não finaliza com reparo pendente |
+| **OrdemServiço** (`ordemservico.OrdemServico`: identidade, cliente, veículo, status, datas, itens e reparos) | `ordemservico.Item` (serviço ou peça, com `Tipo`, referência ao catálogo, quantidade, valor unitário congelado e `ReparoUUID` opcional), `ordemservico.ReparoAdicional` (descrição, status, itens ligados pelo UUID); o histórico de status é gravado pelo serviço (`historico_status_os`) e não muda depois | `Status`, `StatusOrcamento`, `StatusReparo`, `Orcamento`; conceitual: dinheiro (centavos) | Todas aplicadas por métodos da raiz: status só avança na ordem; orçamento = serviços + peças (recalculado pela raiz a cada item); itens só mudam antes do envio do orçamento (`PodeAlterarItens`); peça só entra com saldo, contando o que a OS ainda vai baixar (`AdicionarPeca`); só executa depois de aprovada; reparo só em execução (`RegistrarReparo`); não finaliza com reparo pendente (`Finalizar`) |
 | **Peça** (peça ou insumo) | `MovimentoEstoque` (tabela `movimentos_estoque`) | `estoque.Tipo` (`PECA`, `INSUMO`), `estoque.TipoMovimento` (`ENTRADA`, `SAIDA`, `AJUSTE`); conceituais: código, quantidade, estoque mínimo, dinheiro | Código único; saldo nunca negativo; reposição maior que zero |
 | **Serviço** | - | conceituais: dinheiro, descrição | Só serviço ativo entra em OS nova |
 
@@ -201,16 +201,20 @@ Diferença usada aqui: **entidade** tem identidade e histórico (muda ao longo d
 | CPF/CNPJ | Objeto de valor | `internal/domain/cliente/documento.go` (`NovoDocumento`) |
 | Veículo | Agregado | `db/migration/000002_*`, `internal/service/veiculo_service.go` |
 | Placa | Objeto de valor | `internal/domain/veiculo/placa.go` (`NovaPlaca`, `ValidarAno`) |
-| Ordem de Serviço | Agregado (raiz) | `internal/domain/ordemservico/ordem_servico.go` |
+| Ordem de Serviço | Agregado (raiz) | `internal/domain/ordemservico/ordem_servico.go` (`OrdemServico`: `AdicionarServico`, `AdicionarPeca`, `RemoverItem`, `IniciarDiagnostico`, `EnviarOrcamento`, `AprovarOrcamento`, `RejeitarOrcamento`, `IniciarExecucao`, `RegistrarReparo`, `AutorizarReparo`, `RecusarReparo`, `Finalizar`, `Entregar`) |
 | Status da OS e transições | Objeto de valor | `internal/domain/ordemservico/status.go` |
-| Orçamento | Objeto de valor | `internal/domain/ordemservico/orcamento.go` |
-| Item de serviço, item de peça, reparo adicional, histórico | Entidades | `db/migration/000004_create_ordens_servico.up.sql` |
+| Orçamento | Objeto de valor | `internal/domain/ordemservico/orcamento.go` (`CalcularOrcamento`, `OrdemServico.Orcamento()`) |
+| Item de serviço, item de peça, reparo adicional | Entidades internas do agregado | `internal/domain/ordemservico/item.go` (`Item`, `ReparoAdicional`); tabelas em `db/migration/000004_create_ordens_servico.up.sql` |
+| Serviço e peça vistos pela OS | Objetos de valor (cópia do catálogo no momento da inclusão) | `internal/domain/ordemservico/item.go` (`CatalogoServico`, `CatalogoPeca`, `PedidoServico`, `PedidoPeca`) |
+| Histórico de status | Entidade (registro imutável) | tabela `historico_status_os`, gravada por `internal/service/ordem_servico_repositorio.go` |
 | Peça e insumo | Agregado | `db/migration/000003_*`, `internal/domain/estoque/estoque.go`, `internal/service/peca_service.go` |
 | Movimento de estoque | Entidade | tabela `movimentos_estoque` |
 | Tipo da peça e tipo de movimento | Objetos de valor | `internal/domain/estoque/estoque.go` (`Tipo`, `TipoMovimento`) |
 | Serviço (catálogo) | Agregado | `internal/service/servico_service.go` |
-| Comandos | Casos de uso | um método por comando em `internal/service/*_service.go` |
-| Políticas automáticas | Casos de uso | `internal/service/ordem_servico_service.go` (orçamento recalculado, início da execução após aprovação, baixa de estoque, pedido de reposição, notificações) |
+| Comandos | Casos de uso | um método por comando: OS em `internal/service/ordem_servico_comandos.go` (carrega o agregado, chama a raiz, persiste); demais em `internal/service/*_service.go` |
+| Consultas da OS | Casos de uso (leitura) | `internal/service/ordem_servico_consultas.go` (detalhe, andamento público, listagem, tempo médio) |
+| Carga e persistência do agregado | Infraestrutura (ponte agregado ↔ tabelas) | `internal/service/ordem_servico_repositorio.go` (`carregarOS`, `salvarOS`, `baixarEstoque`) |
+| Políticas automáticas | Casos de uso | `internal/service/ordem_servico_comandos.go` (início da execução após aprovação, baixa de estoque, pedido de reposição, notificações); orçamento recalculado pela própria raiz |
 | Notificação | Porta e adaptador | `notification/sender.go`, `notification/log_sender.go` |
 | Autenticação (JWT, padrão, ou PASETO) e papéis | Infraestrutura | `token/`, `internal/middleware/auth.go` |
 | Transações | Infraestrutura | `db/sqlc/store.go` (`ExecTx`) |

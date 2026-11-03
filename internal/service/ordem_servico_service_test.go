@@ -74,7 +74,7 @@ func TestAbrirOrdemServicoComItens(t *testing.T) {
 	itemPeca := fxItemPeca(c.os.ID, peca, 2)
 	c.leitura([]db.ListItensServicoByOrdemServicoRow{itemServico}, []db.ListItensPecaByOrdemServicoRow{itemPeca}, nil)
 	historico := fxCapturaHistorico(c.store)
-	totais := fxCapturaValorTotal(c.store)
+	estados := fxCapturaEstado(c.store)
 
 	c.store.EXPECT().GetClienteByDocumento(gomock.Any(), c.cliente.Documento).Return(c.cliente, nil)
 	c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), c.veiculo.Placa).Return(c.veiculo, nil)
@@ -111,7 +111,8 @@ func TestAbrirOrdemServicoComItens(t *testing.T) {
 	require.Equal(t, string(ordemservico.StatusRecebida), rsp.Status)
 	require.Len(t, rsp.Servicos, 1)
 	require.Len(t, rsp.Pecas, 1)
-	require.Equal(t, int64(10000+2*2500), (*totais)[0])
+	require.Len(t, *estados, 1)
+	require.Equal(t, int64(10000+2*2500), (*estados)[0].ValorTotalCentavos)
 	require.Len(t, *historico, 1)
 	require.Equal(t, "", (*historico)[0].StatusAnterior)
 	require.Equal(t, int64(7), (*historico)[0].UsuarioID.Int64)
@@ -267,24 +268,28 @@ func TestAdicionarServico(t *testing.T) {
 	fxExecTx(c.store)
 	servico := fxServico(true)
 	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, servico, 2)}, nil, nil)
-	totais := fxCapturaValorTotal(c.store)
+	estados := fxCapturaEstado(c.store)
 	c.travaOS()
 	c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
 	c.store.EXPECT().CreateItemServico(gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, arg db.CreateItemServicoParams) (db.ItemServico, error) {
 			require.Equal(t, int32(2), arg.Quantidade)
+			require.Equal(t, servico.ID, arg.ServicoID)
 			return db.ItemServico{}, nil
 		})
 
 	rsp, err := c.svc.AdicionarServico(context.Background(), c.os.Uuid, dto.ItemServicoRequest{ServicoUuid: servico.Uuid, Quantidade: 2})
 	require.NoError(t, err)
 	require.NotNil(t, rsp)
-	require.Equal(t, []int64{20000}, *totais)
+	// 2 já na OS + 2 novos, a 10000 cada: o orçamento é recalculado pela raiz.
+	require.Len(t, *estados, 1)
+	require.Equal(t, int64(40000), (*estados)[0].ValorTotalCentavos)
 }
 
 func TestAdicionarServicoStatusNaoEditavel(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
 	fxExecTx(c.store)
+	c.leitura(nil, nil, nil)
 	c.travaOS()
 
 	_, err := c.svc.AdicionarServico(context.Background(), c.os.Uuid, dto.ItemServicoRequest{ServicoUuid: uuid.New()})
@@ -303,22 +308,25 @@ func TestAdicionarServicoOSNaoEncontrada(t *testing.T) {
 func TestRemoverServico(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
 	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	totais := fxCapturaValorTotal(c.store)
-	itemUUID := uuid.New()
+	item := fxItemServico(c.os.ID, fxServico(true), 1)
+	c.leitura([]db.ListItensServicoByOrdemServicoRow{item}, nil, nil)
+	estados := fxCapturaEstado(c.store)
 	c.travaOS()
-	c.store.EXPECT().DeleteItemServico(gomock.Any(), db.DeleteItemServicoParams{Uuid: itemUUID, OrdemServicoID: c.os.ID}).Return(int64(1), nil)
+	c.store.EXPECT().DeleteItemServico(gomock.Any(), db.DeleteItemServicoParams{Uuid: item.Uuid, OrdemServicoID: c.os.ID}).Return(int64(1), nil)
 
-	_, err := c.svc.RemoverServico(context.Background(), c.os.Uuid, itemUUID)
+	_, err := c.svc.RemoverServico(context.Background(), c.os.Uuid, item.Uuid)
 	require.NoError(t, err)
-	require.Equal(t, []int64{0}, *totais)
+	require.Len(t, *estados, 1)
+	require.Equal(t, int64(0), (*estados)[0].ValorTotalCentavos)
 }
 
+// O item inexistente é recusado pela raiz: nenhum DELETE chega ao banco.
 func TestRemoverServicoItemNaoEncontrado(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
 	fxExecTx(c.store)
+	c.leitura(nil, nil, nil)
 	c.travaOS()
-	c.store.EXPECT().DeleteItemServico(gomock.Any(), gomock.Any()).Return(int64(0), sql.ErrNoRows)
+	c.store.EXPECT().DeleteItemServico(gomock.Any(), gomock.Any()).Times(0)
 
 	_, err := c.svc.RemoverServico(context.Background(), c.os.Uuid, uuid.New())
 	require.True(t, errors.Is(err, service.ErrItemNaoEncontrado))
@@ -344,14 +352,15 @@ func TestAdicionarPecaOK(t *testing.T) {
 	fxExecTx(c.store)
 	peca := fxPeca(5, 1)
 	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 1)}, nil)
-	totais := fxCapturaValorTotal(c.store)
+	estados := fxCapturaEstado(c.store)
 	c.travaOS()
 	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
 	c.store.EXPECT().CreateItemPeca(gomock.Any(), gomock.Any()).Return(db.ItemPeca{}, nil)
 
 	_, err := c.svc.AdicionarPeca(context.Background(), c.os.Uuid, dto.ItemPecaRequest{PecaUuid: peca.Uuid, Quantidade: 2})
 	require.NoError(t, err)
-	require.Equal(t, []int64{2500}, *totais)
+	// 1 já na OS + 2 novas, a 2500 cada.
+	require.Equal(t, int64(7500), (*estados)[0].ValorTotalCentavos)
 }
 
 func TestAdicionarPecaInativa(t *testing.T) {
@@ -370,20 +379,22 @@ func TestAdicionarPecaInativa(t *testing.T) {
 func TestRemoverPeca(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
 	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	fxCapturaValorTotal(c.store)
+	item := fxItemPeca(c.os.ID, fxPeca(5, 1), 2)
+	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{item}, nil)
+	fxCapturaEstado(c.store)
 	c.travaOS()
-	c.store.EXPECT().DeleteItemPeca(gomock.Any(), gomock.Any()).Return(int64(1), nil)
+	c.store.EXPECT().DeleteItemPeca(gomock.Any(), db.DeleteItemPecaParams{Uuid: item.Uuid, OrdemServicoID: c.os.ID}).Return(int64(1), nil)
 
-	_, err := c.svc.RemoverPeca(context.Background(), c.os.Uuid, uuid.New())
+	_, err := c.svc.RemoverPeca(context.Background(), c.os.Uuid, item.Uuid)
 	require.NoError(t, err)
 }
 
 func TestRemoverPecaItemNaoEncontrado(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
 	fxExecTx(c.store)
+	c.leitura(nil, nil, nil)
 	c.travaOS()
-	c.store.EXPECT().DeleteItemPeca(gomock.Any(), gomock.Any()).Return(int64(0), sql.ErrNoRows)
+	c.store.EXPECT().DeleteItemPeca(gomock.Any(), gomock.Any()).Times(0)
 
 	_, err := c.svc.RemoverPeca(context.Background(), c.os.Uuid, uuid.New())
 	require.True(t, errors.Is(err, service.ErrItemNaoEncontrado))
@@ -413,6 +424,7 @@ func TestIniciarDiagnostico(t *testing.T) {
 func TestIniciarDiagnosticoTransicaoInvalida(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
 	fxExecTx(c.store)
+	c.leitura(nil, nil, nil)
 	c.travaOS()
 	c.store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).Times(0)
 
@@ -712,6 +724,7 @@ func TestIniciarExecucaoErros(t *testing.T) {
 	t.Run("OrcamentoNaoAprovado", func(t *testing.T) {
 		c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
 		fxExecTx(c.store)
+		c.leitura(nil, nil, nil)
 		c.travaOS()
 		_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
 		require.True(t, errors.Is(err, ordemservico.ErrOrcamentoNaoAprovado))
@@ -864,6 +877,7 @@ func TestRegistrarReparoAdicionalSemItens(t *testing.T) {
 func TestRegistrarReparoAdicionalForaDeExecucao(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
 	fxExecTx(c.store)
+	c.leitura(nil, nil, nil)
 	c.travaOS()
 	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Times(0)
 
@@ -895,6 +909,7 @@ func TestRegistrarReparoAdicional(t *testing.T) {
 	// Item base já baixado (OS em execução) não conta; outro reparo pendente conta.
 	outroPendente := fxDoReparo(fxItemPeca(c.os.ID, peca, 2), fxReparo(c.os.ID, ordemservico.ReparoPendente))
 	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 3), outroPendente}, nil)
+	estados := fxCapturaEstado(c.store)
 	c.travaOS()
 	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), db.CreateReparoAdicionalParams{
 		OrdemServicoID: c.os.ID,
@@ -921,6 +936,8 @@ func TestRegistrarReparoAdicional(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, c.sender.msgs, 1)
 	require.Contains(t, c.sender.msgs[0].Body, "Disco empenado")
+	// Reparo pendente fica fora do orçamento: só a peça base (3 x 2500) conta.
+	require.Equal(t, int64(7500), (*estados)[0].ValorTotalCentavos)
 }
 
 // Cliente antigo sem e-mail: o reparo é registrado e o aviso não sai.
@@ -930,6 +947,7 @@ func TestRegistrarReparoAdicionalClienteSemEmailNaoNotifica(t *testing.T) {
 	fxExecTx(c.store)
 	servico := fxServico(true)
 	c.leitura(nil, nil, nil)
+	fxCapturaEstado(c.store)
 	c.travaOS()
 	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Return(fxReparo(c.os.ID, ordemservico.ReparoPendente), nil)
 	c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
@@ -950,7 +968,8 @@ func TestRegistrarReparoAdicionalPecaSemEstoque(t *testing.T) {
 	outroPendente := fxDoReparo(fxItemPeca(c.os.ID, peca, 3), fxReparo(c.os.ID, ordemservico.ReparoPendente))
 	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{outroPendente}, nil)
 	c.travaOS()
-	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Return(fxReparo(c.os.ID, ordemservico.ReparoPendente), nil)
+	// A raiz recusa antes de qualquer gravação.
+	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Times(0)
 	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
 
 	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{
@@ -969,15 +988,11 @@ func TestAutorizarReparoAdicional(t *testing.T) {
 	autorizado := reparo
 	autorizado.Status = string(ordemservico.ReparoAutorizado)
 	itemBase := fxItemPeca(c.os.ID, peca, 1)
-	itemReparo := fxDoReparo(fxItemPeca(c.os.ID, peca, 2), autorizado)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{itemBase, itemReparo}, nil)
-	totais := fxCapturaValorTotal(c.store)
+	itemReparo := fxDoReparo(fxItemPeca(c.os.ID, peca, 2), reparo)
+	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{itemBase, itemReparo}, []db.ReparoAdicional{reparo})
+	estados := fxCapturaEstado(c.store)
 	historico := fxCapturaHistorico(c.store)
 	c.travaOS()
-	c.store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), db.GetReparoAdicionalForUpdateParams{
-		Uuid:           reparo.Uuid,
-		OrdemServicoID: c.os.ID,
-	}).Return(reparo, nil)
 	c.store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), db.UpdateReparoAdicionalStatusParams{
 		ID:     reparo.ID,
 		Status: string(ordemservico.ReparoAutorizado),
@@ -989,8 +1004,9 @@ func TestAutorizarReparoAdicional(t *testing.T) {
 
 	_, err := c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
 	require.NoError(t, err)
-	require.Equal(t, []int64{3 * 2500}, *totais)
+	require.Equal(t, int64(3*2500), (*estados)[0].ValorTotalCentavos)
 	require.Contains(t, (*historico)[0].Observacao, "autorizado")
+	require.Equal(t, (*historico)[0].StatusAnterior, (*historico)[0].StatusNovo)
 	require.Empty(t, c.sender.msgs)
 }
 
@@ -999,10 +1015,8 @@ func TestAutorizarReparoAdicionalSemEstoque(t *testing.T) {
 	fxExecTx(c.store)
 	peca := fxPeca(0, 0)
 	reparo := fxReparo(c.os.ID, ordemservico.ReparoPendente)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxDoReparo(fxItemPeca(c.os.ID, peca, 2), reparo)}, nil)
+	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxDoReparo(fxItemPeca(c.os.ID, peca, 2), reparo)}, []db.ReparoAdicional{reparo})
 	c.travaOS()
-	c.store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).Return(reparo, nil)
-	c.store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), gomock.Any()).Return(reparo, nil)
 	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
 
 	_, err := c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
@@ -1031,38 +1045,37 @@ func TestRecusarReparoAdicional(t *testing.T) {
 	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
 	fxExecTx(c.store)
 	reparo := fxReparo(c.os.ID, ordemservico.ReparoPendente)
-	c.leitura(nil, nil, nil)
+	c.leitura(nil, nil, []db.ReparoAdicional{reparo})
+	estados := fxCapturaEstado(c.store)
 	historico := fxCapturaHistorico(c.store)
 	c.travaOS()
-	c.store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).Return(reparo, nil)
 	c.store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), db.UpdateReparoAdicionalStatusParams{
 		ID:     reparo.ID,
 		Status: string(ordemservico.ReparoRecusado),
 	}).Return(reparo, nil)
 	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Times(0)
-	c.store.EXPECT().UpdateOrdemServicoValorTotal(gomock.Any(), gomock.Any()).Times(0)
 
 	_, err := c.svc.RecusarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
 	require.NoError(t, err)
 	require.Contains(t, (*historico)[0].Observacao, "recusado")
+	require.Equal(t, string(ordemservico.StatusEmExecucao), (*estados)[0].Status)
 }
 
 func TestDecidirReparoAdicionalErros(t *testing.T) {
 	testCases := []struct {
-		name       string
-		status     ordemservico.Status
-		documento  func(c *fxCenario) string
-		buildStubs func(c *fxCenario)
-		wantErr    error
+		name      string
+		status    ordemservico.Status
+		documento func(c *fxCenario) string
+		reparo    func(c *fxCenario) []db.ReparoAdicional
+		osSumiu   bool
+		wantErr   error
 	}{
 		{
 			name:      "JaDecidido",
 			status:    ordemservico.StatusEmExecucao,
 			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			buildStubs: func(c *fxCenario) {
-				c.travaOS()
-				c.store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).
-					Return(fxReparo(c.os.ID, ordemservico.ReparoAutorizado), nil)
+			reparo: func(c *fxCenario) []db.ReparoAdicional {
+				return []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoAutorizado)}
 			},
 			wantErr: ordemservico.ErrReparoJaDecidido,
 		},
@@ -1070,10 +1083,8 @@ func TestDecidirReparoAdicionalErros(t *testing.T) {
 			name:      "OSForaDeExecucao",
 			status:    ordemservico.StatusFinalizada,
 			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			buildStubs: func(c *fxCenario) {
-				c.travaOS()
-				c.store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).
-					Return(fxReparo(c.os.ID, ordemservico.ReparoPendente), nil)
+			reparo: func(c *fxCenario) []db.ReparoAdicional {
+				return []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoPendente)}
 			},
 			wantErr: ordemservico.ErrReparoForaDeExecucao,
 		},
@@ -1081,19 +1092,15 @@ func TestDecidirReparoAdicionalErros(t *testing.T) {
 			name:      "ReparoNaoEncontrado",
 			status:    ordemservico.StatusEmExecucao,
 			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			buildStubs: func(c *fxCenario) {
-				c.travaOS()
-				c.store.EXPECT().GetReparoAdicionalForUpdate(gomock.Any(), gomock.Any()).
-					Return(db.ReparoAdicional{}, sql.ErrNoRows)
-			},
-			wantErr: service.ErrReparoNaoEncontrado,
+			reparo:    func(c *fxCenario) []db.ReparoAdicional { return nil },
+			wantErr:   service.ErrReparoNaoEncontrado,
 		},
 		{
 			name:      "DocumentoErrado",
 			status:    ordemservico.StatusEmExecucao,
 			documento: func(c *fxCenario) string { return util.RandomCPF() },
-			buildStubs: func(c *fxCenario) {
-				c.travaOS()
+			reparo: func(c *fxCenario) []db.ReparoAdicional {
+				return []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoPendente)}
 			},
 			wantErr: service.ErrOSNaoEncontrada,
 		},
@@ -1101,10 +1108,9 @@ func TestDecidirReparoAdicionalErros(t *testing.T) {
 			name:      "OSNaoEncontrada",
 			status:    ordemservico.StatusEmExecucao,
 			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			buildStubs: func(c *fxCenario) {
-				c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-			},
-			wantErr: service.ErrOSNaoEncontrada,
+			reparo:    func(c *fxCenario) []db.ReparoAdicional { return nil },
+			osSumiu:   true,
+			wantErr:   service.ErrOSNaoEncontrada,
 		},
 	}
 
@@ -1114,15 +1120,25 @@ func TestDecidirReparoAdicionalErros(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				c := novoCenario(t, tc.status, ordemservico.OrcamentoAprovado)
 				fxExecTx(c.store)
-				c.leitura(nil, nil, nil)
-				tc.buildStubs(c)
+				reparos := tc.reparo(c)
+				c.leitura(nil, nil, reparos)
+				if tc.osSumiu {
+					c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
+				} else {
+					c.travaOS()
+				}
 				c.store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), gomock.Any()).Times(0)
+				c.store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).Times(0)
 
+				reparoUUID := uuid.New()
+				if len(reparos) > 0 {
+					reparoUUID = reparos[0].Uuid
+				}
 				var err error
 				if autorizar {
-					_, err = c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, uuid.New(), tc.documento(c))
+					_, err = c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparoUUID, tc.documento(c))
 				} else {
-					_, err = c.svc.RecusarReparoAdicional(context.Background(), c.os.Uuid, uuid.New(), tc.documento(c))
+					_, err = c.svc.RecusarReparoAdicional(context.Background(), c.os.Uuid, reparoUUID, tc.documento(c))
 				}
 				require.True(t, errors.Is(err, tc.wantErr), "got %v", err)
 			})
