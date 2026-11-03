@@ -19,7 +19,7 @@ import (
 func TestAuthMiddleware(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	tokenMaker, err := token.NewPasetoMaker(util.RandomString(32))
+	tokenMaker, err := token.NewJWTMaker(util.RandomString(32))
 	require.NoError(t, err)
 
 	testCases := []struct {

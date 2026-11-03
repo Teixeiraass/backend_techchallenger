@@ -15,14 +15,12 @@ func TestLoadConfigFromEnv(t *testing.T) {
 	t.Setenv("DB_SOURCE", "postgresql://user:pass@localhost:5432/oficina?sslmode=disable")
 	t.Setenv("TOKEN_SYMMETRIC_KEY", "12345678901234567890123456789012")
 	t.Setenv("ACCESS_TOKEN_DURATION", "30m")
-	t.Setenv("TOKEN_TYPE", "jwt")
 
 	config, err := LoadConfig(t.TempDir())
 	require.NoError(t, err)
 	require.Equal(t, "postgresql://user:pass@localhost:5432/oficina?sslmode=disable", config.DBSource)
 	require.Equal(t, "12345678901234567890123456789012", config.TokenSymmetricKey)
 	require.Equal(t, 30*time.Minute, config.AccessTokenDuration)
-	require.Equal(t, "jwt", config.TokenType)
 
 	// defaults
 	require.Equal(t, "postgres", config.DBDriver)
@@ -37,7 +35,6 @@ func TestLoadConfigFromFile(t *testing.T) {
 	// define DB_SOURCE, então este teste esvazia as duas chaves que confere.
 	t.Setenv("DB_SOURCE", "")
 	t.Setenv("SERVER_ADDRESS", "")
-	t.Setenv("TOKEN_TYPE", "")
 	dir := t.TempDir()
 	content := "DB_SOURCE=postgresql://file@localhost/oficina\nSERVER_ADDRESS=127.0.0.1:9090\n"
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "app.env"), []byte(content), 0o600))
@@ -46,8 +43,6 @@ func TestLoadConfigFromFile(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "postgresql://file@localhost/oficina", config.DBSource)
 	require.Equal(t, "127.0.0.1:9090", config.ServerAddress)
-	// JWT é o padrão (decisão DC6); PASETO fica como opção.
-	require.Equal(t, "jwt", config.TokenType)
 }
 
 func TestLoadConfigInvalidFile(t *testing.T) {

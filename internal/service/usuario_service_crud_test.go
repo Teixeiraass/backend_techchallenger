@@ -101,7 +101,7 @@ func TestBuscarListarAtualizarUsuario(t *testing.T) {
 
 func TestLogin(t *testing.T) {
 	config := crudConfig()
-	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	maker, err := token.NewJWTMaker(config.TokenSymmetricKey)
 	require.NoError(t, err)
 	ctx := context.Background()
 	usuario := crudUsuario(t, "secret1", true)
@@ -197,7 +197,7 @@ func (m crudSecondCallFailingMaker) CreateToken(u string, id int64, uid uuid.UUI
 
 func TestLoginRefreshTokenError(t *testing.T) {
 	config := crudConfig()
-	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	maker, err := token.NewJWTMaker(config.TokenSymmetricKey)
 	require.NoError(t, err)
 	usuario := crudUsuario(t, "secret1", true)
 	calls := 0
@@ -211,7 +211,7 @@ func TestLoginRefreshTokenError(t *testing.T) {
 
 func TestRenewAccessToken(t *testing.T) {
 	config := crudConfig()
-	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	maker, err := token.NewJWTMaker(config.TokenSymmetricKey)
 	require.NoError(t, err)
 	ctx := context.Background()
 	userID := int64(7)
@@ -272,7 +272,7 @@ func TestRenewAccessToken(t *testing.T) {
 
 func TestRenewAccessTokenCreateError(t *testing.T) {
 	config := crudConfig()
-	maker, err := token.NewPasetoMaker(config.TokenSymmetricKey)
+	maker, err := token.NewJWTMaker(config.TokenSymmetricKey)
 	require.NoError(t, err)
 	refresh, payload, err := maker.CreateToken("a@b.com", 1, uuid.New(), "MECANICO", time.Hour)
 	require.NoError(t, err)

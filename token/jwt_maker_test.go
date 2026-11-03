@@ -116,32 +116,3 @@ func TestJWTInvalidKeySize(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, maker)
 }
-
-func TestNewMaker(t *testing.T) {
-	key := util.RandomString(32)
-
-	testCases := []struct {
-		name      string
-		tokenType string
-		wantType  interface{}
-		wantErr   bool
-	}{
-		{"Default", "", &JWTMaker{}, false},
-		{"Paseto", "paseto", &PasetoMaker{}, false},
-		{"JWT", "jwt", &JWTMaker{}, false},
-		{"Unsupported", "saml", nil, true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			maker, err := NewMaker(tc.tokenType, key)
-			if tc.wantErr {
-				require.Error(t, err)
-				require.Nil(t, maker)
-				return
-			}
-			require.NoError(t, err)
-			require.IsType(t, tc.wantType, maker)
-		})
-	}
-}

@@ -211,12 +211,12 @@ Diferença usada aqui: **entidade** tem identidade e histórico (muda ao longo d
 | Comandos | Casos de uso | um método por comando em `internal/service/*_service.go` |
 | Políticas automáticas | Casos de uso | `internal/service/ordem_servico_service.go` (orçamento recalculado, início da execução após aprovação, baixa de estoque, pedido de reposição, notificações) |
 | Notificação | Porta e adaptador | `notification/sender.go`, `notification/log_sender.go` |
-| Autenticação (JWT, padrão, ou PASETO) e papéis | Infraestrutura | `token/`, `internal/middleware/auth.go` |
+| Autenticação (JWT) e papéis | Infraestrutura | `token/`, `internal/middleware/auth.go` |
 | Transações | Infraestrutura | `db/sqlc/store.go` (`ExecTx`) |
 
 ### 5.2 Comandos e consultas → rotas da API
 
-Prefixo: `/api/v1`. "Token" = Bearer (JWT por padrão; PASETO com `TOKEN_TYPE=paseto`). Entre parênteses, os papéis aceitos; o administrador passa em todas.
+Prefixo: `/api/v1`. "Token" = Bearer JWT. Entre parênteses, os papéis aceitos; o administrador passa em todas.
 
 | Comando ou consulta | Rota | Acesso |
 |---|---|---|

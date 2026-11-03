@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -64,6 +65,7 @@ func login(t *testing.T, email, senha string) string {
 		AccessToken string `json:"access_token"`
 	}
 	rsp.decode(t, &body)
-	require.NotEmpty(t, body.AccessToken)
+	// JWT: cabeçalho.payload.assinatura.
+	require.Len(t, strings.Split(body.AccessToken, "."), 3)
 	return body.AccessToken
 }

@@ -13,7 +13,6 @@ type Config struct {
 	DBDriver             string        `mapstructure:"DB_DRIVER"`
 	DBSource             string        `mapstructure:"DB_SOURCE"`
 	ServerAddress        string        `mapstructure:"SERVER_ADDRESS"`
-	TokenType            string        `mapstructure:"TOKEN_TYPE"`
 	TokenSymmetricKey    string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
@@ -30,7 +29,6 @@ func LoadConfig(path string) (config Config, err error) {
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("DB_DRIVER", "postgres")
 	viper.SetDefault("SERVER_ADDRESS", "0.0.0.0:8080")
-	viper.SetDefault("TOKEN_TYPE", "jwt")
 	viper.SetDefault("ACCESS_TOKEN_DURATION", "15m")
 	viper.SetDefault("REFRESH_TOKEN_DURATION", "24h")
 	viper.SetDefault("ADMIN_NOTIFICATION_TO", "admin@oficina.com")
@@ -40,7 +38,6 @@ func LoadConfig(path string) (config Config, err error) {
 		"DB_DRIVER",
 		"DB_SOURCE",
 		"SERVER_ADDRESS",
-		"TOKEN_TYPE",
 		"TOKEN_SYMMETRIC_KEY",
 		"ACCESS_TOKEN_DURATION",
 		"REFRESH_TOKEN_DURATION",

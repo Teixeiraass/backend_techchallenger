@@ -24,11 +24,11 @@ Data da análise: 03/11/2026. Os relatórios brutos estão nesta pasta e são ge
 
 | Achado | Motivo |
 |---|---|
-| `golang.org/x/crypto` GO-2026-5932: o pacote `openpgp` está descontinuado | Não existe versão publicada com a correção (só um commit sem tag, `v0.58.1-0.20261009181718-2f1f834330b2`). A API não importa `openpgp`, e o govulncheck confirma que o código não chama o pacote afetado. Usamos só `bcrypt` e `chacha20poly1305` do mesmo módulo. |
+| `golang.org/x/crypto` GO-2026-5932: o pacote `openpgp` está descontinuado | Não existe versão publicada com a correção (só um commit sem tag, `v0.58.1-0.20261009181718-2f1f834330b2`). A API não importa `openpgp`, e o govulncheck confirma que o código não chama o pacote afetado. Usamos só `bcrypt` do mesmo módulo. |
 
 ## Controles de segurança da aplicação
 
-- **Autenticação**: JWT HS256 por padrão (`TOKEN_TYPE=jwt`), com opção de PASETO v2 (`TOKEN_TYPE=paseto`). O algoritmo é fixado na verificação, então `alg=none` e outros algoritmos são recusados. O access token expira em 15 min. O refresh token fica salvo em sessão e pode ser revogado no logout. O JWT é assinado, mas não é cifrado: quem tiver o token consegue ler o payload (e-mail, papel e IDs do usuário). Por isso o token não leva senha nem dado do cliente e dura pouco. Quem precisar do payload cifrado usa `TOKEN_TYPE=paseto`. Trocar o `TOKEN_TYPE` invalida os tokens já emitidos: os usuários precisam fazer login de novo.
+- **Autenticação**: JWT HS256, a única forma de autenticação. O algoritmo é fixado na verificação, então `alg=none` e outros algoritmos são recusados. O access token expira em 15 min. O refresh token fica salvo em sessão e pode ser revogado no logout. O JWT é assinado, mas não é cifrado: quem tiver o token consegue ler o payload (e-mail, papel e IDs do usuário). Por isso o token não leva senha nem dado do cliente e dura pouco.
 - **Autorização por papel**: ADMINISTRADOR, ATENDENTE e MECANICO, aplicada por middleware em cada rota administrativa.
 - **Usuário desativado** perde o acesso na hora: o middleware consulta o usuário a cada requisição.
 - **Senhas** guardadas com bcrypt. O login responde com a mesma mensagem para e-mail inexistente e para senha errada.

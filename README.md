@@ -37,7 +37,7 @@ Status: `RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO �
 
 ```
 HTTP (Gin)                    internal/routes + internal/handler   rotas, binding, mapeamento erro → status
-   │                          internal/middleware                  autenticação (JWT/PASETO) e papéis
+   │                          internal/middleware                  autenticação (JWT) e papéis
    ▼
 Aplicação (casos de uso)      internal/service                     um método por comando; abre a transação,
    │                                                               carrega dados, aplica o domínio, persiste
@@ -48,7 +48,7 @@ Domínio (DDD)                 internal/domain/...                  agregados, o
 Infraestrutura                db/sqlc (sqlc + Store.ExecTx)        acesso ao PostgreSQL e transações
                               db/migration (golang-migrate)        schema versionado + dados de demonstração
                               notification/                        porta de notificação (adaptador de log)
-                              token/                               JWT HS256 (padrão) e PASETO v2
+                              token/                               JWT HS256
 ```
 
 Elementos de DDD no código:
@@ -73,7 +73,7 @@ Tipos de subdomínio e padrões de integração entre os contextos: [mapa de con
 | Banco de dados | PostgreSQL 16 |
 | Acesso a dados | [sqlc](https://sqlc.dev/) (SQL tipado, sem ORM) |
 | Migrations | [golang-migrate](https://github.com/golang-migrate/migrate) |
-| Autenticação | JWT HS256 (padrão) ou PASETO v2 (`TOKEN_TYPE`), senhas com bcrypt |
+| Autenticação | JWT HS256, senhas com bcrypt |
 | Configuração | [Viper](https://github.com/spf13/viper) |
 | Documentação da API | [Swaggo](https://github.com/swaggo/swag) (Swagger/OpenAPI 2.0) |
 | Testes | `testing`, testify, gomock |
@@ -146,7 +146,7 @@ Ela também cria 5 serviços, 4 peças/insumos (um deles já abaixo do estoque m
 **Como funciona a autenticação:**
 - **Rotas administrativas** exigem `Authorization: Bearer <access_token>`.
 - **Tokens:** o access token vale 15 min. O refresh token (`POST /tokens/refresh`) vale 24 h e é revogado em `POST /usuarios/logout`.
-- **Formato:** o padrão é **JWT** (HS256), como pede o enunciado. O algoritmo é fixado na verificação. Como opção, `TOKEN_TYPE=paseto` emite **PASETO v2**, que tem o mesmo papel de um JWT, mas é cifrado e não tem negociação de algoritmo. Trocar o `TOKEN_TYPE` invalida os tokens já emitidos, e os usuários precisam fazer login de novo.
+- **Formato:** **JWT** (HS256), como pede o enunciado. É a única forma de autenticação e não precisa de configuração além da chave `TOKEN_SYMMETRIC_KEY` (mínimo 32 caracteres; o `docker-compose.yaml` e o `app.env.example` já trazem uma chave de desenvolvimento). O algoritmo é fixado na verificação.
 - **Rotas do cliente** são públicas e exigem o UUID da OS + o CPF/CNPJ do dono: `GET /ordens-servico/{uuid}/andamento`, aprovar/rejeitar orçamento e autorizar/recusar reparo.
 
 ### Roteiro rápido do fluxo (curl)
@@ -243,7 +243,7 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 │   ├── dto/               # requests e responses da API
 │   └── integration/       # testes ponta a ponta dos fluxos principais
 ├── notification/          # porta de notificação (adaptador de log)
-├── token/                 # JWT (padrão) e PASETO
+├── token/                 # JWT
 ├── util/                  # config, senha, conversores, geradores de dados de teste
 ├── .github/workflows/     # CI: testes, cobertura mínima e análise de segurança
 ├── Dockerfile
