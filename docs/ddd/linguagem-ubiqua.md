@@ -143,8 +143,9 @@ Consultas não mudam nada; só leem. O acesso de cada rota está na seção 5.2.
 | **Cadastro** | Quem é o cliente e qual é o veículo | Cliente, Veículo |
 | **Ordem de Serviço** | Ciclo de vida da OS, orçamento, status e tempos | OrdemServiço |
 | **Catálogo e estoque** | Serviços oferecidos, peças, insumos e saldo | Peça, Serviço |
+| **Identidade e acesso** | Login, sessão e papéis de quem usa o sistema | Usuário |
 
-Relações entre contextos: a OS referencia Cliente, Veículo, Serviço e Peça **só pelo identificador**. A baixa de estoque é pedida pela OS (evento Execução iniciada) e executada pelo contexto de estoque.
+Relações entre contextos: a OS referencia Cliente, Veículo, Serviço e Peça **só pelo identificador**. A baixa de estoque é pedida pela OS (evento Execução iniciada) e executada pelo contexto de estoque. Tipos de subdomínio e padrões de integração: [mapa de contexto](mapa-de-contexto.md).
 
 ### 3.2 Agregados, entidades e objetos de valor
 
