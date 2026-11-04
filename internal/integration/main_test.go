@@ -18,7 +18,11 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var testRouter *gin.Engine
+var (
+	testRouter *gin.Engine
+	// testRouterLimitado tem limite de tentativas baixo, para o teste do 429.
+	testRouterLimitado *gin.Engine
+)
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -36,6 +40,10 @@ func TestMain(m *testing.M) {
 	if config.TokenSymmetricKey == "" {
 		config.TokenSymmetricKey = util.RandomString(32)
 	}
+	// Os testes disparam dezenas de logins do mesmo IP: o limite fica alto
+	// aqui e é provado à parte em TestLimiteDeTentativas.
+	config.RateLimitRPS = 10000
+	config.RateLimitBurst = 10000
 
 	conn, err := sql.Open(config.DBDriver, config.DBSource)
 	if err != nil {
@@ -51,6 +59,15 @@ func TestMain(m *testing.M) {
 		log.Fatal("cannot create server:", err)
 	}
 	testRouter = server.Router()
+
+	configLimitada := config
+	configLimitada.RateLimitRPS = 0.001
+	configLimitada.RateLimitBurst = 3
+	limitado, err := handler.NewServer(configLimitada, db.NewStore(conn), notification.NewNoopSender())
+	if err != nil {
+		log.Fatal("cannot create server:", err)
+	}
+	testRouterLimitado = limitado.Router()
 
 	os.Exit(m.Run())
 }

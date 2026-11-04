@@ -22,14 +22,15 @@ const cpfTeste = "52998224725"
 
 // apiCase is one HTTP scenario: request, auth role, store stubs and expected status.
 type apiCase struct {
-	name   string
-	method string
-	path   string
-	body   any
-	papel  string
-	stubs  func(store *mockdb.MockStore)
-	status int
-	check  func(t *testing.T, recorder *httptest.ResponseRecorder)
+	name    string
+	method  string
+	path    string
+	body    any
+	headers map[string]string
+	papel   string
+	stubs   func(store *mockdb.MockStore)
+	status  int
+	check   func(t *testing.T, recorder *httptest.ResponseRecorder)
 }
 
 func runCases(t *testing.T, cases []apiCase) {
@@ -47,6 +48,9 @@ func runCases(t *testing.T, cases []apiCase) {
 			require.NoError(t, err)
 			if tc.body != nil {
 				request.Header.Set("Content-Type", "application/json")
+			}
+			for k, v := range tc.headers {
+				request.Header.Set(k, v)
 			}
 
 			if tc.papel != "" {

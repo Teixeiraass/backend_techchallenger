@@ -26,12 +26,20 @@ migratedown1:
 new_migration:
 	migrate create -ext sql -dir db/migration -seq $(name)
 
+# Dados de demonstração (fora das migrations de schema), controlados na tabela seed_migrations.
+seed:
+	migrate -path db/seed -database "$(DB_URL)&x-migrations-table=seed_migrations" -verbose up
+
+seeddown:
+	migrate -path db/seed -database "$(DB_URL)&x-migrations-table=seed_migrations" -verbose down -all
+
 sqlc:
 	sqlc generate
 
 # Testes completos: unitários + integração com o banco oficina_test.
 test:
 	migrate -path db/migration -database "$(TEST_DB_URL)" up
+	migrate -path db/seed -database "$(TEST_DB_URL)&x-migrations-table=seed_migrations" up
 	DB_SOURCE="$(TEST_DB_URL)" go test -count=1 -cover ./...
 
 test-unit:
@@ -71,4 +79,4 @@ up:
 down:
 	docker compose down
 
-.PHONY: postgres createdb dropdb migrateup migrateup1 migratedown migratedown1 new_migration sqlc test test-unit coverage coverage-all server mock swag vulncheck gosec trivy up down
+.PHONY: postgres createdb dropdb migrateup migrateup1 migratedown migratedown1 new_migration seed seeddown sqlc test test-unit coverage coverage-all server mock swag vulncheck gosec trivy up down

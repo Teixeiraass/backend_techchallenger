@@ -7,6 +7,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// HeaderDocumento leva o CPF/CNPJ nas consultas que identificam o cliente,
+// em vez da URL, para o documento não ir para o log de acesso.
+const HeaderDocumento = "X-Documento"
+
 // Rotas públicas usadas pelo cliente (link de acompanhamento).
 // Não exigem token: o UUID da OS + o CPF/CNPJ do dono funcionam como
 // credencial. Documento errado devolve 404, igual a OS inexistente.
@@ -16,8 +20,9 @@ import (
 // @Description  Rota pública. O cliente informa o CPF/CNPJ do dono da OS para acompanhar status, orçamento, reparos adicionais e histórico.
 // @Tags         acompanhamento
 // @Produce      json
-// @Param        uuid      path  string true "UUID da OS"
-// @Param        documento query string true "CPF ou CNPJ do cliente"
+// @Param        uuid        path   string true  "UUID da OS"
+// @Param        X-Documento header string false "CPF ou CNPJ do cliente (caminho recomendado)"
+// @Param        documento   query  string false "CPF ou CNPJ do cliente. Obsoleto: use o header X-Documento, a query string pode parar em logs"
 // @Success      200 {object} dto.OrdemServicoResponse
 // @Failure      400 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
@@ -28,13 +33,12 @@ func (server *Server) ConsultarAndamento(ctx *gin.Context) {
 		return
 	}
 
-	var query dto.AndamentoQuery
-	if err := ctx.ShouldBindQuery(&query); err != nil {
-		bindError(ctx, err)
+	documento, ok := documentoDaRequisicao(ctx)
+	if !ok {
 		return
 	}
 
-	os, err := server.OrdemServicoService.ConsultarAndamento(ctx, osUUID, query.Documento)
+	os, err := server.OrdemServicoService.ConsultarAndamento(ctx, osUUID, documento)
 	if err != nil {
 		handleError(ctx, err)
 		return
@@ -174,4 +178,24 @@ func (server *Server) decidirReparoAdicional(ctx *gin.Context, autorizar bool) {
 		return
 	}
 	ctx.JSON(http.StatusOK, os)
+}
+
+// documentoDaRequisicao lê o CPF/CNPJ do header X-Documento. O parâmetro de
+// query "documento" ainda é aceito por compatibilidade (obsoleto): ele
+// aparece em URLs e, por isso, pode parar em logs e históricos de navegador.
+func documentoDaRequisicao(ctx *gin.Context) (string, bool) {
+	documento := ctx.GetHeader(HeaderDocumento)
+	if documento == "" {
+		var query dto.AndamentoQuery
+		if err := ctx.ShouldBindQuery(&query); err != nil {
+			bindError(ctx, err)
+			return "", false
+		}
+		documento = query.Documento
+	}
+	if documento == "" {
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: "informe o CPF/CNPJ no header " + HeaderDocumento, Code: "DOCUMENTO_AUSENTE"})
+		return "", false
+	}
+	return documento, true
 }

@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	_ "github.com/Teixeiraass/backend_techchallenger/docs"
@@ -47,8 +51,11 @@ func main() {
 		log.Fatal("cannot create server: ", err)
 	}
 
-	err = server.Start(config.ServerAddress)
-	if err != nil {
+	// SIGINT/SIGTERM (docker stop) encerram o servidor de forma graciosa.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := server.Start(ctx, config.ServerAddress); err != nil {
 		log.Fatal("cannot start server:", err)
 	}
 }

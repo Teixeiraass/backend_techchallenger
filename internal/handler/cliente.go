@@ -92,16 +92,24 @@ func (server *Server) BuscarCliente(ctx *gin.Context) {
 
 // BuscarClientePorDocumento godoc
 // @Summary      Identificar cliente por CPF/CNPJ
+// @Description  O documento vai no header X-Documento, e não na URL, para não aparecer em logs de acesso.
 // @Tags         clientes
 // @Produce      json
 // @Security     BearerAuth
-// @Param        documento path string true "CPF ou CNPJ (somente números)"
+// @Param        X-Documento header string true "CPF ou CNPJ (com ou sem pontuação)"
 // @Success      200 {object} dto.ClienteResponse
 // @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
-// @Router       /clientes/documento/{documento} [get]
+// @Router       /clientes/por-documento [get]
 func (server *Server) BuscarClientePorDocumento(ctx *gin.Context) {
-	cliente, err := server.ClienteService.BuscarClientePorDocumento(ctx, ctx.Param("documento"))
+	documento := ctx.GetHeader(HeaderDocumento)
+	if documento == "" {
+		ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: "informe o CPF/CNPJ no header " + HeaderDocumento, Code: "DOCUMENTO_AUSENTE"})
+		return
+	}
+
+	cliente, err := server.ClienteService.BuscarClientePorDocumento(ctx, documento)
 	if err != nil {
 		handleError(ctx, err)
 		return

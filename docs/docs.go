@@ -128,13 +128,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/clientes/documento/{documento}": {
+        "/clientes/por-documento": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
+                "description": "O documento vai no header X-Documento, e não na URL, para não aparecer em logs de acesso.",
                 "produces": [
                     "application/json"
                 ],
@@ -145,9 +146,9 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "CPF ou CNPJ (somente números)",
-                        "name": "documento",
-                        "in": "path",
+                        "description": "CPF ou CNPJ (com ou sem pontuação)",
+                        "name": "X-Documento",
+                        "in": "header",
                         "required": true
                     }
                 ],
@@ -160,6 +161,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
                         "schema": {
                             "$ref": "#/definitions/handler.ErrorResponse"
                         }
@@ -566,10 +573,15 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "CPF ou CNPJ do cliente",
+                        "description": "CPF ou CNPJ do cliente (caminho recomendado)",
+                        "name": "X-Documento",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "CPF ou CNPJ do cliente. Obsoleto: use o header X-Documento, a query string pode parar em logs",
                         "name": "documento",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -3099,7 +3111,7 @@ const docTemplate = `{
                 },
                 "senha": {
                     "type": "string",
-                    "minLength": 6
+                    "minLength": 8
                 }
             }
         },
@@ -3281,7 +3293,7 @@ const docTemplate = `{
                 },
                 "senha": {
                     "type": "string",
-                    "minLength": 6
+                    "minLength": 8
                 }
             }
         },
@@ -3764,9 +3776,26 @@ const docTemplate = `{
                 }
             }
         },
+        "handler.CampoErrado": {
+            "type": "object",
+            "properties": {
+                "campo": {
+                    "type": "string"
+                },
+                "regra": {
+                    "type": "string"
+                }
+            }
+        },
         "handler.ErrorResponse": {
             "type": "object",
             "properties": {
+                "campos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handler.CampoErrado"
+                    }
+                },
                 "code": {
                     "type": "string"
                 },

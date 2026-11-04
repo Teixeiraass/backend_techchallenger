@@ -10,7 +10,7 @@ import (
 type CriarUsuarioRequest struct {
 	Nome  string `json:"nome" binding:"required,max=150"`
 	Email string `json:"email" binding:"required,email,max=150"`
-	Senha string `json:"senha" binding:"required,min=6"`
+	Senha string `json:"senha" binding:"required,min=8"`
 	Papel string `json:"papel" binding:"required,oneof=ADMINISTRADOR ATENDENTE MECANICO"`
 }
 
@@ -40,7 +40,7 @@ func NewUsuarioResponse(usuario db.Usuario) UsuarioResponse {
 
 type LoginRequest struct {
 	Email string `json:"email" binding:"required,email"`
-	Senha string `json:"senha" binding:"required,min=6"`
+	Senha string `json:"senha" binding:"required,min=8"`
 }
 
 type LoginResponse struct {

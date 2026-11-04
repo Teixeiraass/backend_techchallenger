@@ -16,6 +16,8 @@ func newTestServer(t *testing.T, store db.Store) *Server {
 	config := util.Config{
 		TokenSymmetricKey:   util.RandomString(32),
 		AccessTokenDuration: time.Minute,
+		RateLimitRPS:        1000,
+		RateLimitBurst:      1000,
 	}
 
 	server, err := NewServer(config, store, notification.NewNoopSender())

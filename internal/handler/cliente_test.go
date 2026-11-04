@@ -109,13 +109,14 @@ func TestClienteAPI(t *testing.T) {
 			status: http.StatusNotFound, check: requireErrorCode("CLIENTE_NAO_ENCONTRADO"),
 		},
 		{
-			name: "BuscarPorDocumentoOK", method: http.MethodGet, path: basePath + "/documento/" + cpfTeste, papel: papelAtendente,
+			name: "BuscarPorDocumentoOK", method: http.MethodGet, path: basePath + "/por-documento", headers: map[string]string{HeaderDocumento: cpfTeste}, papel: papelAtendente,
 			stubs: func(store *mockdb.MockStore) {
 				store.EXPECT().GetClienteByDocumento(gomock.Any(), cpfTeste).Return(cliente, nil)
 			},
 			status: http.StatusOK,
 		},
-		{name: "BuscarPorDocumentoInvalido", method: http.MethodGet, path: basePath + "/documento/123", papel: papelAtendente, status: http.StatusBadRequest},
+		{name: "BuscarPorDocumentoInvalido", method: http.MethodGet, path: basePath + "/por-documento", headers: map[string]string{HeaderDocumento: "123"}, papel: papelAtendente, status: http.StatusBadRequest},
+		{name: "BuscarPorDocumentoSemHeader", method: http.MethodGet, path: basePath + "/por-documento", papel: papelAtendente, status: http.StatusBadRequest, check: requireErrorCode("DOCUMENTO_AUSENTE")},
 		{
 			name: "AtualizarOK", method: http.MethodPut, path: itemPath, body: atualizar, papel: papelAtendente,
 			stubs: func(store *mockdb.MockStore) {

@@ -1,4 +1,20 @@
 
+Report Summary
+
+┌──────────────────────────────────┬──────────┬─────────────────┐
+│              Target              │   Type   │ Vulnerabilities │
+├──────────────────────────────────┼──────────┼─────────────────┤
+│ oficina-api:scan (alpine 3.23.7) │  alpine  │        0        │
+├──────────────────────────────────┼──────────┼─────────────────┤
+│ app/main                         │ gobinary │        1        │
+├──────────────────────────────────┼──────────┼─────────────────┤
+│ app/migrate                      │ gobinary │        0        │
+└──────────────────────────────────┴──────────┴─────────────────┘
+Legend:
+- '-': Not scanned
+- '0': Clean (no security findings detected)
+
+
 app/main (gobinary)
 ===================
 Total: 1 (UNKNOWN: 1, LOW: 0, MEDIUM: 0, HIGH: 0, CRITICAL: 0)

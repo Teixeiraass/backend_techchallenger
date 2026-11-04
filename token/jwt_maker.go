@@ -29,8 +29,8 @@ func NewJWTMaker(secretKey string) (Maker, error) {
 	return &JWTMaker{secretKey: secretKey}, nil
 }
 
-func (maker *JWTMaker) CreateToken(username string, userID int64, userUUID uuid.UUID, role string, duration time.Duration) (string, *Payload, error) {
-	payload, err := NewPayload(username, userID, userUUID, role, duration)
+func (maker *JWTMaker) CreateToken(tipo string, username string, userID int64, userUUID uuid.UUID, role string, duration time.Duration) (string, *Payload, error) {
+	payload, err := NewPayload(tipo, username, userID, userUUID, role, duration)
 	if err != nil {
 		return "", payload, err
 	}
@@ -65,6 +65,10 @@ func (maker *JWTMaker) VerifyToken(token string) (*Payload, error) {
 			return nil, ErrExpiredToken
 		}
 		return nil, ErrInvalidToken
+	}
+
+	if claims.Tipo != TipoAccess && claims.Tipo != TipoRefresh {
+		return nil, ErrTipoInvalido
 	}
 
 	return &claims.Payload, nil

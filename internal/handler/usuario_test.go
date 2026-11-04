@@ -11,7 +11,9 @@ import (
 	mockdb "github.com/Teixeiraass/backend_techchallenger/db/mock"
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/service"
 	"github.com/Teixeiraass/backend_techchallenger/notification"
+	"github.com/Teixeiraass/backend_techchallenger/token"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
@@ -78,6 +80,8 @@ func TestRenewAccessTokenAPI(t *testing.T) {
 		TokenSymmetricKey:    util.RandomString(32),
 		AccessTokenDuration:  time.Minute,
 		RefreshTokenDuration: time.Hour,
+		RateLimitRPS:         1000,
+		RateLimitBurst:       1000,
 	}
 
 	testCases := []struct {
@@ -91,7 +95,7 @@ func TestRenewAccessTokenAPI(t *testing.T) {
 			body: func(token string) any { return gin_h{"refresh_token": token} },
 			stubs: func(store *mockdb.MockStore, token string, sessionID uuid.UUID) {
 				store.EXPECT().GetSessao(gomock.Any(), sessionID).Return(db.Sessao{
-					ID: sessionID, UsuarioID: 1, RefreshToken: token, ExpiresAt: time.Now().Add(time.Hour),
+					ID: sessionID, UsuarioID: 1, RefreshToken: service.HashRefreshToken(token), ExpiresAt: time.Now().Add(time.Hour),
 				}, nil)
 			},
 			status: http.StatusOK,
@@ -113,7 +117,7 @@ func TestRenewAccessTokenAPI(t *testing.T) {
 			body: func(token string) any { return gin_h{"refresh_token": token} },
 			stubs: func(store *mockdb.MockStore, token string, sessionID uuid.UUID) {
 				store.EXPECT().GetSessao(gomock.Any(), sessionID).Return(db.Sessao{
-					ID: sessionID, UsuarioID: 1, RefreshToken: token, IsBlocked: true, ExpiresAt: time.Now().Add(time.Hour),
+					ID: sessionID, UsuarioID: 1, RefreshToken: service.HashRefreshToken(token), IsBlocked: true, ExpiresAt: time.Now().Add(time.Hour),
 				}, nil)
 			},
 			status: http.StatusUnauthorized,
@@ -129,7 +133,7 @@ func TestRenewAccessTokenAPI(t *testing.T) {
 			server, err := NewServer(config, store, notification.NewNoopSender())
 			require.NoError(t, err)
 
-			refreshToken, payload, err := server.tokenMaker.CreateToken("admin@oficina.com", 1, uuid.New(), papelAdmin, time.Hour)
+			refreshToken, payload, err := server.tokenMaker.CreateToken(token.TipoRefresh, "admin@oficina.com", 1, uuid.New(), papelAdmin, time.Hour)
 			require.NoError(t, err)
 			tc.stubs(store, refreshToken, payload.ID)
 

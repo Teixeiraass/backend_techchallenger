@@ -51,8 +51,10 @@ type ListOrdensServicoQuery struct {
 	ClienteUuid string `form:"cliente_uuid"`
 }
 
+// AndamentoQuery mantém o parâmetro de query "documento" por compatibilidade.
+// O caminho recomendado é o header X-Documento, que não vai para o log de acesso.
 type AndamentoQuery struct {
-	Documento string `form:"documento" binding:"required"`
+	Documento string `form:"documento"`
 }
 
 type TempoMedioQuery struct {

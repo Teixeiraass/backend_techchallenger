@@ -25,6 +25,12 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
     environment:
+      # Ambiente local: libera a chave de exemplo e o seed de demonstração.
+      - ENVIRONMENT=development
+      # Seed de demonstração (admin@oficina.com etc.). Só faz sentido em ambiente
+      # local; fora dele deixe SEED_DEMO=false.
+      - SEED_DEMO=${SEED_DEMO:-true}
+      - TZ=America/Sao_Paulo
       - DB_DRIVER=postgres
       - DB_SOURCE=postgresql://root:secret@postgres:5432/oficina?sslmode=disable
       - SERVER_ADDRESS=0.0.0.0:8080
@@ -33,6 +39,8 @@ services:
       - ACCESS_TOKEN_DURATION=15m
       - REFRESH_TOKEN_DURATION=24h
       - ADMIN_NOTIFICATION_TO=admin@oficina.com
+      - RATE_LIMIT_RPS=${RATE_LIMIT_RPS:-1}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-10}
       - GIN_MODE=release
     depends_on:
       postgres:
