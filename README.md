@@ -33,6 +33,13 @@ Status: `RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO �
 
 ## Arquitetura
 
+Documentação de arquitetura em [docs/arquitetura/](docs/arquitetura/) e [docs/adr/](docs/adr/):
+
+- **C4:** [contexto (nível 1)](docs/arquitetura/c4-contexto.md) e [contêineres (nível 2)](docs/arquitetura/c4-conteineres.md), em Mermaid.
+- **ADRs:** [PostgreSQL](docs/adr/0001-postgresql.md), [JWT com opção PASETO](docs/adr/0002-jwt-com-opcao-paseto.md), [estoque sem reserva](docs/adr/0003-estoque-sem-reserva.md), [rejeição volta para diagnóstico](docs/adr/0004-rejeicao-volta-para-diagnostico.md), [acompanhamento sem login](docs/adr/0005-acompanhamento-sem-login.md), [eventos de domínio em processo](docs/adr/0006-eventos-de-dominio-em-processo.md). Índice e template em [docs/adr/README.md](docs/adr/README.md).
+- **Requisitos não funcionais:** [requisitos-nao-funcionais.md](docs/arquitetura/requisitos-nao-funcionais.md).
+- **Débito técnico:** [debito-tecnico.md](docs/arquitetura/debito-tecnico.md).
+
 **Monólito em camadas**, com o domínio isolado de banco e HTTP:
 
 ```
