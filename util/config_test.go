@@ -84,6 +84,9 @@ func TestLoadConfigAceitaChaveDeExemploEmDesenvolvimento(t *testing.T) {
 	viper.Reset()
 	t.Setenv("ENVIRONMENT", "development")
 	t.Setenv("TOKEN_SYMMETRIC_KEY", ChaveExemplo)
+	// O CI define RATE_LIMIT_* no ambiente; aqui fixamos os valores padrão.
+	t.Setenv("RATE_LIMIT_RPS", "1")
+	t.Setenv("RATE_LIMIT_BURST", "10")
 
 	config, err := LoadConfig(t.TempDir())
 	require.NoError(t, err)
