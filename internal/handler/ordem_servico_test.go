@@ -368,6 +368,7 @@ func TestTransicoesOrdemServicoAPI(t *testing.T) {
 			stubs: func(store *mockdb.MockStore) {
 				baixada := peca
 				baixada.QuantidadeEstoque = 1 // fica no estoque mínimo: pedido de reposição
+				store.EXPECT().GetPecaByID(gomock.Any(), peca.ID).Return(peca, nil)
 				store.EXPECT().BaixarEstoquePeca(gomock.Any(), db.BaixarEstoquePecaParams{ID: peca.ID, Quantidade: 2}).Return(baixada, nil)
 				store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, nil)
 				stubOS(store, aprovada, []db.ListItensPecaByOrdemServicoRow{itemPeca(peca, 2, nil)}, nil)
@@ -378,6 +379,8 @@ func TestTransicoesOrdemServicoAPI(t *testing.T) {
 		{
 			name: "IniciarExecucaoSemEstoque", method: http.MethodPost, path: path(aprovada, "execucao"), papel: papelAtendente,
 			stubs: func(store *mockdb.MockStore) {
+				// Saldo acabou entre a leitura e a gravação: o UPDATE condicional não afeta linha.
+				store.EXPECT().GetPecaByID(gomock.Any(), peca.ID).Return(peca, nil)
 				store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
 				stubOS(store, aprovada, []db.ListItensPecaByOrdemServicoRow{itemPeca(peca, 2, nil)}, nil)
 			},

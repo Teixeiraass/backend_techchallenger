@@ -1,14 +1,17 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	mockdb "github.com/Teixeiraass/backend_techchallenger/db/mock"
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/golang/mock/gomock"
 	"github.com/lib/pq"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPecaAPI(t *testing.T) {
@@ -90,6 +93,8 @@ func TestPecaAPI(t *testing.T) {
 		{
 			name: "AtualizarOK", method: http.MethodPut, path: itemPath, body: atualizar, papel: papelAdmin,
 			stubs: func(store *mockdb.MockStore) {
+				expectTx(store)
+				store.EXPECT().GetPecaForUpdate(gomock.Any(), peca.Uuid).Return(peca, nil)
 				store.EXPECT().UpdatePeca(gomock.Any(), gomock.Any()).Return(peca, nil)
 			},
 			status: http.StatusOK,
@@ -99,14 +104,26 @@ func TestPecaAPI(t *testing.T) {
 		{
 			name: "AtualizarNaoEncontrado", method: http.MethodPut, path: itemPath, body: atualizar, papel: papelAdmin,
 			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().UpdatePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
+				expectTx(store)
+				store.EXPECT().GetPecaForUpdate(gomock.Any(), peca.Uuid).Return(db.Peca{}, sql.ErrNoRows)
 			},
 			status: http.StatusNotFound,
 		},
 		{
 			name: "InativarOK", method: http.MethodDelete, path: itemPath, papel: papelAdmin,
 			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().InativarPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
+				expectTx(store)
+				store.EXPECT().GetPecaForUpdate(gomock.Any(), peca.Uuid).Return(peca, nil)
+				inativa := peca
+				inativa.Ativo = false
+				store.EXPECT().UpdatePeca(gomock.Any(), gomock.Any()).
+					DoAndReturn(func(_ context.Context, arg db.UpdatePecaParams) (db.Peca, error) {
+						require.False(t, arg.Ativo)
+						return inativa, nil
+					})
+			},
+			check: func(t *testing.T, recorder *httptest.ResponseRecorder) {
+				require.Contains(t, recorder.Body.String(), `"ativo":false`)
 			},
 			status: http.StatusOK,
 		},
@@ -114,7 +131,8 @@ func TestPecaAPI(t *testing.T) {
 		{
 			name: "InativarNaoEncontrado", method: http.MethodDelete, path: itemPath, papel: papelAdmin,
 			stubs: func(store *mockdb.MockStore) {
-				store.EXPECT().InativarPeca(gomock.Any(), peca.Uuid).Return(db.Peca{}, sql.ErrNoRows)
+				expectTx(store)
+				store.EXPECT().GetPecaForUpdate(gomock.Any(), peca.Uuid).Return(db.Peca{}, sql.ErrNoRows)
 			},
 			status: http.StatusNotFound,
 		},

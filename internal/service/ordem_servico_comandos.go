@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/cliente"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
@@ -14,9 +13,9 @@ import (
 	"github.com/google/uuid"
 )
 
-// Comandos da OS. Padrão de cada um: abre a transação, carrega o agregado com
-// a linha travada, chama o método da raiz e persiste com salvarOS. O estado
-// final é lido de novo fora da transação para a resposta.
+// Comandos da OS. Padrão de cada um: abre a unidade de trabalho, carrega o
+// agregado com a linha travada, chama o método da raiz, anota o histórico e
+// salva pelo repositório. O estado final é lido de novo para a resposta.
 
 // ---------------------------------------------------------------------------
 // Abertura e itens
@@ -33,30 +32,23 @@ func (s *ordemServicoService) AbrirOrdemServico(ctx context.Context, req dto.Abr
 	}
 
 	var osUUID uuid.UUID
-	err = s.store.ExecTx(ctx, func(q db.Querier) error {
-		dono, err := q.GetClienteByDocumento(ctx, documento.Numero())
+	err = s.uow.Executar(ctx, func(r Repositorios) error {
+		dono, err := r.Catalogo().ClientePorDocumento(ctx, documento.Numero())
 		if err != nil {
-			return notFound(err, ErrClienteNaoEncontrado)
+			return err
 		}
-		v, err := q.GetVeiculoByPlaca(ctx, placa.String())
+		v, err := r.Catalogo().VeiculoPorPlaca(ctx, placa.String())
 		if err != nil {
-			return notFound(err, ErrVeiculoNaoEncontrado)
+			return err
 		}
 		if v.ClienteID != dono.ID {
 			return ErrVeiculoDeOutroCliente
 		}
 
 		os := ordemservico.Nova(dono.ID, v.ID, req.DescricaoProblema)
-		if err := criarOS(ctx, q, &os); err != nil {
-			return err
-		}
-		osUUID = os.UUID
-
-		if err := registrarHistorico(ctx, q, os.ID, "", string(os.Status), usuarioID, "OS aberta"); err != nil {
-			return err
-		}
+		os.AnotarHistorico(usuarioID, "OS aberta")
 		for _, item := range req.Servicos {
-			servico, err := servicoDoCatalogo(ctx, q, item.ServicoUuid)
+			servico, err := r.Catalogo().Servico(ctx, item.ServicoUuid)
 			if err != nil {
 				return err
 			}
@@ -65,15 +57,19 @@ func (s *ordemServicoService) AbrirOrdemServico(ctx context.Context, req dto.Abr
 			}
 		}
 		for _, item := range req.Pecas {
-			peca, saldo, err := pecaDoCatalogo(ctx, q, item.PecaUuid)
+			peca, err := r.Pecas().Carregar(ctx, item.PecaUuid)
 			if err != nil {
 				return err
 			}
-			if err := os.AdicionarPeca(peca, item.Quantidade, saldo); err != nil {
+			if err := os.AdicionarPeca(catalogoPeca(peca), item.Quantidade, peca.Saldo); err != nil {
 				return err
 			}
 		}
-		return salvarOS(ctx, q, &os, os.Status, usuarioID, "")
+		if err := r.OrdemServico().Salvar(ctx, &os); err != nil {
+			return err
+		}
+		osUUID = os.UUID
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -83,11 +79,11 @@ func (s *ordemServicoService) AbrirOrdemServico(ctx context.Context, req dto.Abr
 }
 
 func (s *ordemServicoService) AdicionarServico(ctx context.Context, osUUID uuid.UUID, req dto.ItemServicoRequest) (*dto.OrdemServicoResponse, error) {
-	return s.executar(ctx, osUUID, 0, "", func(q db.Querier, os *ordemservico.OrdemServico) error {
+	return s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
 		if err := os.PodeAlterarItens(); err != nil {
 			return err
 		}
-		servico, err := servicoDoCatalogo(ctx, q, req.ServicoUuid)
+		servico, err := r.Catalogo().Servico(ctx, req.ServicoUuid)
 		if err != nil {
 			return err
 		}
@@ -96,28 +92,41 @@ func (s *ordemServicoService) AdicionarServico(ctx context.Context, osUUID uuid.
 }
 
 func (s *ordemServicoService) AdicionarPeca(ctx context.Context, osUUID uuid.UUID, req dto.ItemPecaRequest) (*dto.OrdemServicoResponse, error) {
-	return s.executar(ctx, osUUID, 0, "", func(q db.Querier, os *ordemservico.OrdemServico) error {
+	return s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
 		if err := os.PodeAlterarItens(); err != nil {
 			return err
 		}
-		peca, saldo, err := pecaDoCatalogo(ctx, q, req.PecaUuid)
+		peca, err := r.Pecas().Carregar(ctx, req.PecaUuid)
 		if err != nil {
 			return err
 		}
-		return os.AdicionarPeca(peca, req.Quantidade, saldo)
+		return os.AdicionarPeca(catalogoPeca(peca), req.Quantidade, peca.Saldo)
 	})
 }
 
 func (s *ordemServicoService) RemoverServico(ctx context.Context, osUUID uuid.UUID, itemUUID uuid.UUID) (*dto.OrdemServicoResponse, error) {
-	return s.executar(ctx, osUUID, 0, "", func(_ db.Querier, os *ordemservico.OrdemServico) error {
+	return s.executar(ctx, osUUID, func(_ Repositorios, os *ordemservico.OrdemServico) error {
 		return os.RemoverItem(itemUUID)
 	})
 }
 
 func (s *ordemServicoService) RemoverPeca(ctx context.Context, osUUID uuid.UUID, itemUUID uuid.UUID) (*dto.OrdemServicoResponse, error) {
-	return s.executar(ctx, osUUID, 0, "", func(_ db.Querier, os *ordemservico.OrdemServico) error {
+	return s.executar(ctx, osUUID, func(_ Repositorios, os *ordemservico.OrdemServico) error {
 		return os.RemoverItem(itemUUID)
 	})
+}
+
+// catalogoPeca é a visão que a OS tem de uma peça do estoque.
+func catalogoPeca(p *estoque.Peca) ordemservico.CatalogoPeca {
+	return ordemservico.CatalogoPeca{
+		ID:            p.ID,
+		UUID:          p.UUID,
+		Codigo:        p.Codigo,
+		Nome:          p.Nome,
+		Tipo:          string(p.Tipo),
+		PrecoCentavos: p.PrecoCentavos,
+		Ativa:         p.Ativa,
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -125,24 +134,28 @@ func (s *ordemServicoService) RemoverPeca(ctx context.Context, osUUID uuid.UUID,
 // ---------------------------------------------------------------------------
 
 func (s *ordemServicoService) IniciarDiagnostico(ctx context.Context, osUUID uuid.UUID, usuarioID int64) (*dto.OrdemServicoResponse, error) {
-	return s.executar(ctx, osUUID, usuarioID, "Diagnóstico iniciado", func(_ db.Querier, os *ordemservico.OrdemServico) error {
-		return os.IniciarDiagnostico(s.now())
+	return s.executar(ctx, osUUID, func(_ Repositorios, os *ordemservico.OrdemServico) error {
+		if err := os.IniciarDiagnostico(s.now()); err != nil {
+			return err
+		}
+		os.AnotarHistorico(usuarioID, "Diagnóstico iniciado")
+		return nil
 	})
 }
 
 func (s *ordemServicoService) EnviarOrcamento(ctx context.Context, osUUID uuid.UUID, req dto.EnviarOrcamentoRequest, usuarioID int64) (*dto.OrdemServicoResponse, error) {
 	var os *ordemservico.OrdemServico
-	err := s.store.ExecTx(ctx, func(q db.Querier) error {
+	err := s.uow.Executar(ctx, func(r Repositorios) error {
 		var err error
-		os, err = carregarOS(ctx, q, osUUID, true)
+		os, err = r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
 		if err != nil {
 			return err
 		}
-		anterior := os.Status
 		if err := os.EnviarOrcamento(req.Diagnostico, s.now()); err != nil {
 			return err
 		}
-		return salvarOS(ctx, q, os, anterior, usuarioID, "Orçamento enviado ao cliente")
+		os.AnotarHistorico(usuarioID, "Orçamento enviado ao cliente")
+		return r.OrdemServico().Salvar(ctx, os)
 	})
 	if err != nil {
 		return nil, err
@@ -169,12 +182,12 @@ func (s *ordemServicoService) EnviarOrcamento(ctx context.Context, osUUID uuid.U
 func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
 	var jaAprovada bool
 	var statusAtual ordemservico.Status
-	err := s.store.ExecTx(ctx, func(q db.Querier) error {
-		os, err := carregarOS(ctx, q, osUUID, true)
+	err := s.uow.Executar(ctx, func(r Repositorios) error {
+		os, err := r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
 		if err != nil {
 			return err
 		}
-		if err := validarTitular(ctx, q, os.ClienteID, documento); err != nil {
+		if err := validarTitular(ctx, r.Catalogo(), os.ClienteID, documento); err != nil {
 			return err
 		}
 
@@ -187,7 +200,8 @@ func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.
 			// Nada mudou: não grava estado nem histórico de novo.
 			return nil
 		}
-		return salvarOS(ctx, q, os, statusAtual, 0, "Orçamento aprovado pelo cliente")
+		os.AnotarHistorico(0, "Orçamento aprovado pelo cliente")
+		return r.OrdemServico().Salvar(ctx, os)
 	})
 	if err != nil {
 		return nil, err
@@ -215,25 +229,33 @@ func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.
 }
 
 func (s *ordemServicoService) RejeitarOrcamento(ctx context.Context, osUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
-	return s.executar(ctx, osUUID, 0, "Orçamento rejeitado pelo cliente", func(q db.Querier, os *ordemservico.OrdemServico) error {
-		if err := validarTitular(ctx, q, os.ClienteID, documento); err != nil {
+	return s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
+		if err := validarTitular(ctx, r.Catalogo(), os.ClienteID, documento); err != nil {
 			return err
 		}
-		return os.RejeitarOrcamento(s.now())
+		if err := os.RejeitarOrcamento(s.now()); err != nil {
+			return err
+		}
+		os.AnotarHistorico(0, "Orçamento rejeitado pelo cliente")
+		return nil
 	})
 }
 
 // IniciarExecucao muda a OS para Em execução e baixa o estoque das peças na
 // mesma transação: se uma peça não tiver saldo, nada é gravado.
 func (s *ordemServicoService) IniciarExecucao(ctx context.Context, osUUID uuid.UUID, usuarioID int64) (*dto.OrdemServicoResponse, error) {
-	var pecasEstoqueBaixo []db.Peca
-	response, err := s.executar(ctx, osUUID, usuarioID, "Execução iniciada e estoque baixado", func(q db.Querier, os *ordemservico.OrdemServico) error {
+	var pecasEstoqueBaixo []estoque.Peca
+	response, err := s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
 		if err := os.IniciarExecucao(s.now()); err != nil {
 			return err
 		}
 		var err error
-		pecasEstoqueBaixo, err = baixarEstoque(ctx, q, os.ID, os.PecasParaBaixaNaExecucao(), usuarioID)
-		return err
+		pecasEstoqueBaixo, err = baixarEstoque(ctx, r.Pecas(), os.ID, os.PecasParaBaixaNaExecucao(), usuarioID)
+		if err != nil {
+			return err
+		}
+		os.AnotarHistorico(usuarioID, "Execução iniciada e estoque baixado")
+		return nil
 	})
 	if err != nil {
 		// Política: sem saldo, o administrador recebe o pedido de reposição.
@@ -247,13 +269,12 @@ func (s *ordemServicoService) IniciarExecucao(ctx context.Context, osUUID uuid.U
 
 func (s *ordemServicoService) FinalizarOrdemServico(ctx context.Context, osUUID uuid.UUID, usuarioID int64) (*dto.OrdemServicoResponse, error) {
 	var os *ordemservico.OrdemServico
-	err := s.store.ExecTx(ctx, func(q db.Querier) error {
+	err := s.uow.Executar(ctx, func(r Repositorios) error {
 		var err error
-		os, err = carregarOS(ctx, q, osUUID, true)
+		os, err = r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
 		if err != nil {
 			return err
 		}
-		anterior := os.Status
 		if err := os.Finalizar(s.now()); err != nil {
 			return err
 		}
@@ -262,7 +283,8 @@ func (s *ordemServicoService) FinalizarOrdemServico(ctx context.Context, osUUID 
 		if duracao, ok := os.TempoExecucao(); ok {
 			observacao = fmt.Sprintf("OS finalizada. Tempo de execução: %s", formatarDuracao(int64(duracao.Seconds())))
 		}
-		return salvarOS(ctx, q, os, anterior, usuarioID, observacao)
+		os.AnotarHistorico(usuarioID, observacao)
+		return r.OrdemServico().Salvar(ctx, os)
 	})
 	if err != nil {
 		return nil, err
@@ -276,29 +298,17 @@ func (s *ordemServicoService) FinalizarOrdemServico(ctx context.Context, osUUID 
 }
 
 func (s *ordemServicoService) EntregarVeiculo(ctx context.Context, osUUID uuid.UUID, usuarioID int64) (*dto.OrdemServicoResponse, error) {
-	var os *ordemservico.OrdemServico
-	err := s.store.ExecTx(ctx, func(q db.Querier) error {
-		var err error
-		os, err = carregarOS(ctx, q, osUUID, true)
-		if err != nil {
-			return err
-		}
-		anterior := os.Status
+	return s.executar(ctx, osUUID, func(_ Repositorios, os *ordemservico.OrdemServico) error {
 		if err := os.Entregar(s.now()); err != nil {
 			return err
 		}
-
 		observacao := "Veículo entregue ao cliente"
 		if os.StatusOrcamento == ordemservico.OrcamentoRejeitado {
 			observacao = "Veículo entregue sem execução (orçamento rejeitado)"
 		}
-		return salvarOS(ctx, q, os, anterior, usuarioID, observacao)
+		os.AnotarHistorico(usuarioID, observacao)
+		return nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return s.BuscarOrdemServico(ctx, osUUID)
 }
 
 // ---------------------------------------------------------------------------
@@ -311,9 +321,9 @@ func (s *ordemServicoService) RegistrarReparoAdicional(ctx context.Context, osUU
 	}
 
 	var os *ordemservico.OrdemServico
-	err := s.store.ExecTx(ctx, func(q db.Querier) error {
+	err := s.uow.Executar(ctx, func(r Repositorios) error {
 		var err error
-		os, err = carregarOS(ctx, q, osUUID, true)
+		os, err = r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
 		if err != nil {
 			return err
 		}
@@ -323,7 +333,7 @@ func (s *ordemServicoService) RegistrarReparoAdicional(ctx context.Context, osUU
 
 		servicos := make([]ordemservico.PedidoServico, 0, len(req.Servicos))
 		for _, item := range req.Servicos {
-			servico, err := servicoDoCatalogo(ctx, q, item.ServicoUuid)
+			servico, err := r.Catalogo().Servico(ctx, item.ServicoUuid)
 			if err != nil {
 				return err
 			}
@@ -331,17 +341,17 @@ func (s *ordemServicoService) RegistrarReparoAdicional(ctx context.Context, osUU
 		}
 		pecas := make([]ordemservico.PedidoPeca, 0, len(req.Pecas))
 		for _, item := range req.Pecas {
-			peca, saldo, err := pecaDoCatalogo(ctx, q, item.PecaUuid)
+			peca, err := r.Pecas().Carregar(ctx, item.PecaUuid)
 			if err != nil {
 				return err
 			}
-			pecas = append(pecas, ordemservico.PedidoPeca{Peca: peca, Quantidade: item.Quantidade, SaldoDisponivel: saldo})
+			pecas = append(pecas, ordemservico.PedidoPeca{Peca: catalogoPeca(peca), Quantidade: item.Quantidade, SaldoDisponivel: peca.Saldo})
 		}
 
 		if _, err := os.RegistrarReparo(req.Descricao, servicos, pecas); err != nil {
 			return err
 		}
-		return salvarOS(ctx, q, os, os.Status, 0, "")
+		return r.OrdemServico().Salvar(ctx, os)
 	})
 	if err != nil {
 		return nil, err
@@ -359,25 +369,24 @@ func (s *ordemServicoService) RegistrarReparoAdicional(ctx context.Context, osUU
 // AutorizarReparoAdicional inclui os itens do reparo no orçamento e baixa o
 // estoque das peças dele (a OS já está em execução).
 func (s *ordemServicoService) AutorizarReparoAdicional(ctx context.Context, osUUID uuid.UUID, reparoUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
-	var pecasEstoqueBaixo []db.Peca
-	var descricao string
-	response, err := s.executarComObservacao(ctx, osUUID, 0, func(q db.Querier, os *ordemservico.OrdemServico) (string, error) {
-		if err := validarTitular(ctx, q, os.ClienteID, documento); err != nil {
-			return "", err
+	var pecasEstoqueBaixo []estoque.Peca
+	response, err := s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
+		if err := validarTitular(ctx, r.Catalogo(), os.ClienteID, documento); err != nil {
+			return err
 		}
 		if err := os.AutorizarReparo(reparoUUID, s.now()); err != nil {
-			return "", err
+			return err
 		}
 		reparo, err := os.Reparo(reparoUUID)
 		if err != nil {
-			return "", err
+			return err
 		}
-		descricao = reparo.Descricao
-		pecasEstoqueBaixo, err = baixarEstoque(ctx, q, os.ID, os.PecasDoReparo(reparoUUID), 0)
+		pecasEstoqueBaixo, err = baixarEstoque(ctx, r.Pecas(), os.ID, os.PecasDoReparo(reparoUUID), 0)
 		if err != nil {
-			return "", err
+			return err
 		}
-		return "Reparo adicional autorizado pelo cliente: " + descricao, nil
+		os.AnotarHistorico(0, "Reparo adicional autorizado pelo cliente: "+reparo.Descricao)
+		return nil
 	})
 	if err != nil {
 		pedirReposicaoFaltante(ctx, s.sender, s.config.AdminNotificationTo, osUUID, err)
@@ -389,18 +398,19 @@ func (s *ordemServicoService) AutorizarReparoAdicional(ctx context.Context, osUU
 }
 
 func (s *ordemServicoService) RecusarReparoAdicional(ctx context.Context, osUUID uuid.UUID, reparoUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
-	return s.executarComObservacao(ctx, osUUID, 0, func(q db.Querier, os *ordemservico.OrdemServico) (string, error) {
-		if err := validarTitular(ctx, q, os.ClienteID, documento); err != nil {
-			return "", err
+	return s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
+		if err := validarTitular(ctx, r.Catalogo(), os.ClienteID, documento); err != nil {
+			return err
 		}
 		if err := os.RecusarReparo(reparoUUID, s.now()); err != nil {
-			return "", err
+			return err
 		}
 		reparo, err := os.Reparo(reparoUUID)
 		if err != nil {
-			return "", err
+			return err
 		}
-		return "Reparo adicional recusado pelo cliente: " + reparo.Descricao, nil
+		os.AnotarHistorico(0, "Reparo adicional recusado pelo cliente: "+reparo.Descricao)
+		return nil
 	})
 }
 
@@ -408,28 +418,19 @@ func (s *ordemServicoService) RecusarReparoAdicional(ctx context.Context, osUUID
 // Esqueleto comum dos comandos
 // ---------------------------------------------------------------------------
 
-// executar roda um comando sobre o agregado travado e persiste o resultado.
-// Com observação vazia nada entra no histórico (alterações de itens).
-func (s *ordemServicoService) executar(ctx context.Context, osUUID uuid.UUID, usuarioID int64, observacao string, comando func(db.Querier, *ordemservico.OrdemServico) error) (*dto.OrdemServicoResponse, error) {
-	return s.executarComObservacao(ctx, osUUID, usuarioID, func(q db.Querier, os *ordemservico.OrdemServico) (string, error) {
-		return observacao, comando(q, os)
-	})
-}
-
-// executarComObservacao é executar com a observação do histórico decidida
-// pelo próprio comando (ex.: descrição do reparo decidido).
-func (s *ordemServicoService) executarComObservacao(ctx context.Context, osUUID uuid.UUID, usuarioID int64, comando func(db.Querier, *ordemservico.OrdemServico) (string, error)) (*dto.OrdemServicoResponse, error) {
-	err := s.store.ExecTx(ctx, func(q db.Querier) error {
-		os, err := carregarOS(ctx, q, osUUID, true)
+// executar roda um comando sobre o agregado travado e salva o resultado pelo
+// repositório. O comando anota o histórico quando há mudança de status ou
+// decisão do cliente; alterações de itens não deixam linha no histórico.
+func (s *ordemServicoService) executar(ctx context.Context, osUUID uuid.UUID, comando func(Repositorios, *ordemservico.OrdemServico) error) (*dto.OrdemServicoResponse, error) {
+	err := s.uow.Executar(ctx, func(r Repositorios) error {
+		os, err := r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
 		if err != nil {
 			return err
 		}
-		anterior := os.Status
-		observacao, err := comando(q, os)
-		if err != nil {
+		if err := comando(r, os); err != nil {
 			return err
 		}
-		return salvarOS(ctx, q, os, anterior, usuarioID, observacao)
+		return r.OrdemServico().Salvar(ctx, os)
 	})
 	if err != nil {
 		return nil, err

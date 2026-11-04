@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,7 +33,7 @@ func (server *Server) CriarServico(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusCreated, dto.NewServicoResponse(*servico))
+	ctx.JSON(http.StatusCreated, dto.NewServicoResponse(readmodel.DeServico(*servico)))
 }
 
 // ListarServicos godoc
@@ -62,7 +63,7 @@ func (server *Server) ListarServicos(ctx *gin.Context) {
 
 	response := make([]dto.ServicoResponse, 0, len(servicos))
 	for _, s := range servicos {
-		response = append(response, dto.NewServicoResponse(s))
+		response = append(response, dto.NewServicoResponse(readmodel.DeServico(s)))
 	}
 	ctx.JSON(http.StatusOK, response)
 }
@@ -88,7 +89,7 @@ func (server *Server) BuscarServico(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewServicoResponse(*servico))
+	ctx.JSON(http.StatusOK, dto.NewServicoResponse(readmodel.DeServico(*servico)))
 }
 
 // AtualizarServico godoc
@@ -122,7 +123,7 @@ func (server *Server) AtualizarServico(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewServicoResponse(*servico))
+	ctx.JSON(http.StatusOK, dto.NewServicoResponse(readmodel.DeServico(*servico)))
 }
 
 // InativarServico godoc
@@ -147,5 +148,5 @@ func (server *Server) InativarServico(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewServicoResponse(*servico))
+	ctx.JSON(http.StatusOK, dto.NewServicoResponse(readmodel.DeServico(*servico)))
 }

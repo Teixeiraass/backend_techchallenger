@@ -424,6 +424,21 @@ func (mr *MockStoreMockRecorder) GetPeca(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPeca", reflect.TypeOf((*MockStore)(nil).GetPeca), arg0, arg1)
 }
 
+// GetPecaByID mocks base method.
+func (m *MockStore) GetPecaByID(arg0 context.Context, arg1 int64) (db.Peca, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPecaByID", arg0, arg1)
+	ret0, _ := ret[0].(db.Peca)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPecaByID indicates an expected call of GetPecaByID.
+func (mr *MockStoreMockRecorder) GetPecaByID(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPecaByID", reflect.TypeOf((*MockStore)(nil).GetPecaByID), arg0, arg1)
+}
+
 // GetPecaForUpdate mocks base method.
 func (m *MockStore) GetPecaForUpdate(arg0 context.Context, arg1 uuid.UUID) (db.Peca, error) {
 	m.ctrl.T.Helper()

@@ -40,6 +40,7 @@ type Querier interface {
 	// (ex: aprovação do cliente e alteração de itens) não se sobreponham.
 	GetOrdemServicoForUpdate(ctx context.Context, argUuid uuid.UUID) (OrdemServico, error)
 	GetPeca(ctx context.Context, argUuid uuid.UUID) (Peca, error)
+	GetPecaByID(ctx context.Context, id int64) (Peca, error)
 	GetPecaForUpdate(ctx context.Context, argUuid uuid.UUID) (Peca, error)
 	GetReparoAdicionalForUpdate(ctx context.Context, arg GetReparoAdicionalForUpdateParams) (ReparoAdicional, error)
 	GetServico(ctx context.Context, argUuid uuid.UUID) (Servico, error)

@@ -2,16 +2,19 @@ package service_test
 
 import (
 	"context"
-	"database/sql"
+	"testing"
 	"time"
 
-	mockdb "github.com/Teixeiraass/backend_techchallenger/db/mock"
-	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
+	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
+	mockrepo "github.com/Teixeiraass/backend_techchallenger/internal/repository/mock"
+	"github.com/Teixeiraass/backend_techchallenger/internal/service"
 	"github.com/Teixeiraass/backend_techchallenger/notification"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 )
 
 // fxSender records notifications and can simulate a delivery failure.
@@ -29,181 +32,151 @@ func fxConfig() util.Config {
 	return util.Config{AdminNotificationTo: "admin@oficina.com"}
 }
 
-func fxCliente() db.Cliente {
-	return db.Cliente{
-		ID:            util.RandomInt(1, 1000),
-		Uuid:          uuid.New(),
-		Nome:          util.RandomName(),
-		Documento:     util.RandomCPF(),
-		TipoDocumento: "CPF",
-		Email:         util.RandomEmail(),
-	}
+// fxApp é o serviço da OS ligado aos mocks das portas: unidade de trabalho,
+// repositório da OS, repositório de peças e catálogo. A unidade de trabalho
+// entrega os mesmos repositórios dentro e fora da transação.
+type fxApp struct {
+	uow      *mockrepo.MockUnidadeDeTrabalho
+	repos    *mockrepo.MockRepositorios
+	osRepo   *mockrepo.MockOrdemServicoRepositorio
+	pecas    *mockrepo.MockPecaRepositorio
+	catalogo *mockrepo.MockCatalogo
+	sender   *fxSender
+	svc      service.OrdemServicoService
+
+	cliente readmodel.Cliente
+	veiculo readmodel.Veiculo
+	// transacoes conta quantas unidades de trabalho foram abertas.
+	transacoes int
 }
 
-func fxVeiculo(clienteID int64) db.Veiculo {
-	return db.Veiculo{
-		ID:        util.RandomInt(1, 1000),
-		Uuid:      uuid.New(),
-		ClienteID: clienteID,
-		Placa:     util.RandomPlaca(),
-		Marca:     "Fiat",
-		Modelo:    "Uno",
-		Ano:       2020,
+func novaApp(t *testing.T) *fxApp {
+	ctrl := gomock.NewController(t)
+	a := &fxApp{
+		uow:      mockrepo.NewMockUnidadeDeTrabalho(ctrl),
+		repos:    mockrepo.NewMockRepositorios(ctrl),
+		osRepo:   mockrepo.NewMockOrdemServicoRepositorio(ctrl),
+		pecas:    mockrepo.NewMockPecaRepositorio(ctrl),
+		catalogo: mockrepo.NewMockCatalogo(ctrl),
+		sender:   &fxSender{},
 	}
+	a.cliente = readmodel.Cliente{ID: util.RandomInt(1, 1000), UUID: uuid.New(), Nome: util.RandomName(), Documento: util.RandomCPF(), TipoDocumento: "CPF", Email: util.RandomEmail()}
+	a.veiculo = readmodel.Veiculo{ID: util.RandomInt(1, 1000), UUID: uuid.New(), ClienteID: a.cliente.ID, ClienteUUID: a.cliente.UUID, Placa: util.RandomPlaca(), Marca: "Fiat", Modelo: "Uno", Ano: 2020}
+
+	a.repos.EXPECT().OrdemServico().AnyTimes().Return(a.osRepo)
+	a.repos.EXPECT().Pecas().AnyTimes().Return(a.pecas)
+	a.repos.EXPECT().Catalogo().AnyTimes().Return(a.catalogo)
+	a.uow.EXPECT().Leitura().AnyTimes().Return(a.repos)
+	a.uow.EXPECT().Executar(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(_ context.Context, fn func(service.Repositorios) error) error {
+			a.transacoes++
+			return fn(a.repos)
+		})
+
+	// store (read model) não é usado pelos comandos: nil.
+	a.svc = service.NewOrdemServicoService(a.uow, nil, a.sender, fxConfig())
+	return a
 }
 
-func fxServico(ativo bool) db.Servico {
-	return db.Servico{
-		ID:                   util.RandomInt(1, 1000),
-		Uuid:                 uuid.New(),
-		Nome:                 util.RandomName(),
-		PrecoCentavos:        10000,
-		TempoEstimadoMinutos: 30,
-		Ativo:                ativo,
-	}
-}
-
-func fxPeca(saldo int32, minimo int32) db.Peca {
-	return db.Peca{
-		ID:                util.RandomInt(1, 1000),
-		Uuid:              uuid.New(),
-		Codigo:            "COD-" + util.RandomString(4),
-		Nome:              util.RandomName(),
-		Tipo:              "PECA",
-		Unidade:           "UN",
-		PrecoCentavos:     2500,
-		QuantidadeEstoque: saldo,
-		EstoqueMinimo:     minimo,
-		Ativo:             true,
-	}
-}
-
-func fxOrdemServico(c db.Cliente, v db.Veiculo, status ordemservico.Status, orcamento ordemservico.StatusOrcamento) db.OrdemServico {
-	return db.OrdemServico{
+// os cria uma OS carregada no status pedido, com um serviço (10000) e, se
+// pedido, uma peça (2500 cada).
+func (a *fxApp) os(status ordemservico.Status, orcamento ordemservico.StatusOrcamento) *ordemservico.OrdemServico {
+	os := ordemservico.OrdemServico{
 		ID:              util.RandomInt(1, 1000),
-		Uuid:            uuid.New(),
-		ClienteID:       c.ID,
-		VeiculoID:       v.ID,
-		Status:          string(status),
-		OrcamentoStatus: string(orcamento),
-		CreatedAt:       time.Now(),
-		UpdatedAt:       time.Now(),
+		UUID:            uuid.New(),
+		ClienteID:       a.cliente.ID,
+		VeiculoID:       a.veiculo.ID,
+		Status:          status,
+		StatusOrcamento: orcamento,
+		CriadaEm:        time.Now(),
+		AtualizadaEm:    time.Now(),
+	}
+	return ordemservico.Reconstituir(os)
+}
+
+// leitura prepara as leituras usadas na montagem da resposta.
+func (a *fxApp) leitura(os *ordemservico.OrdemServico) {
+	a.osRepo.EXPECT().Carregar(gomock.Any(), os.UUID).AnyTimes().Return(os, nil)
+	a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).AnyTimes().Return(a.cliente, nil)
+	a.catalogo.EXPECT().VeiculoPorID(gomock.Any(), a.veiculo.ID).AnyTimes().Return(a.veiculo, nil)
+	a.catalogo.EXPECT().HistoricoDaOS(gomock.Any(), os.ID).AnyTimes().Return([]readmodel.HistoricoStatus{{StatusNovo: "RECEBIDA"}}, nil)
+}
+
+// trava prepara o carregamento travado da OS pelo comando.
+func (a *fxApp) trava(os *ordemservico.OrdemServico) {
+	a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), os.UUID).Times(1).Return(os, nil)
+}
+
+// salva captura o agregado salvo pelo comando.
+func (a *fxApp) salva() *[]ordemservico.OrdemServico {
+	salvos := []ordemservico.OrdemServico{}
+	a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).AnyTimes().
+		DoAndReturn(func(_ context.Context, os *ordemservico.OrdemServico) error {
+			for i := range os.Itens {
+				if os.Itens[i].ID == 0 {
+					os.Itens[i].ID = util.RandomInt(1, 1000)
+					os.Itens[i].UUID = uuid.New()
+				}
+			}
+			for i := range os.Reparos {
+				if os.Reparos[i].ID == 0 {
+					os.Reparos[i].ID = util.RandomInt(1, 1000)
+				}
+			}
+			if os.ID == 0 {
+				os.ID, os.UUID = util.RandomInt(1, 1000), uuid.New()
+			}
+			// A cópia guarda as alterações pendentes: o que o repositório gravaria.
+			salvos = append(salvos, *os)
+			os.LimparAlteracoes()
+			return nil
+		})
+	return &salvos
+}
+
+func fxServico(ativo bool) ordemservico.CatalogoServico {
+	return ordemservico.CatalogoServico{ID: util.RandomInt(1, 1000), UUID: uuid.New(), Nome: util.RandomName(), PrecoCentavos: 10000, Ativo: ativo}
+}
+
+func fxPeca(saldo int32, minimo int32) *estoque.Peca {
+	return &estoque.Peca{
+		ID: util.RandomInt(1, 1000), UUID: uuid.New(), Codigo: "COD-" + util.RandomString(4), Nome: util.RandomName(),
+		Tipo: estoque.TipoPeca, Unidade: "UN", PrecoCentavos: 2500, Saldo: saldo, EstoqueMinimo: minimo, Ativa: true,
 	}
 }
 
-func fxItemServico(osID int64, s db.Servico, quantidade int32) db.ListItensServicoByOrdemServicoRow {
-	return db.ListItensServicoByOrdemServicoRow{
-		ID:                    util.RandomInt(1, 1000),
-		Uuid:                  uuid.New(),
-		OrdemServicoID:        osID,
-		Quantidade:            quantidade,
-		ValorUnitarioCentavos: s.PrecoCentavos,
-		ServicoUuid:           s.Uuid,
-		ServicoNome:           s.Nome,
-	}
+func fxItemServico(servico ordemservico.CatalogoServico, quantidade int32) ordemservico.Item {
+	return ordemservico.Item{ID: util.RandomInt(1, 1000), UUID: uuid.New(), Tipo: ordemservico.ItemServico, CatalogoID: servico.ID, CatalogoUUID: servico.UUID, Nome: servico.Nome, Quantidade: quantidade, ValorUnitarioCentavos: servico.PrecoCentavos}
 }
 
-func fxItemPeca(osID int64, p db.Peca, quantidade int32) db.ListItensPecaByOrdemServicoRow {
-	return db.ListItensPecaByOrdemServicoRow{
-		ID:                    util.RandomInt(1, 1000),
-		Uuid:                  uuid.New(),
-		OrdemServicoID:        osID,
-		PecaID:                p.ID,
-		Quantidade:            quantidade,
-		ValorUnitarioCentavos: p.PrecoCentavos,
-		PecaUuid:              p.Uuid,
-		PecaCodigo:            p.Codigo,
-		PecaNome:              p.Nome,
-		PecaTipo:              p.Tipo,
-	}
+func fxItemPeca(peca *estoque.Peca, quantidade int32) ordemservico.Item {
+	return ordemservico.Item{ID: util.RandomInt(1, 1000), UUID: uuid.New(), Tipo: ordemservico.ItemPeca, CatalogoID: peca.ID, CatalogoUUID: peca.UUID, Nome: peca.Nome, Codigo: peca.Codigo, TipoPeca: string(peca.Tipo), Quantidade: quantidade, ValorUnitarioCentavos: peca.PrecoCentavos}
 }
 
-// fxDoReparo marks an item row as belonging to an additional repair.
-func fxDoReparo(item db.ListItensPecaByOrdemServicoRow, reparo db.ReparoAdicional) db.ListItensPecaByOrdemServicoRow {
-	item.ReparoAdicionalUuid = uuid.NullUUID{UUID: reparo.Uuid, Valid: true}
-	item.ReparoAdicionalStatus = sql.NullString{String: reparo.Status, Valid: true}
+// fxDoReparo liga o item a um reparo adicional.
+func fxDoReparo(item ordemservico.Item, reparo ordemservico.ReparoAdicional) ordemservico.Item {
+	item.ReparoUUID = uuid.NullUUID{UUID: reparo.UUID, Valid: true}
+	item.StatusReparo = reparo.Status
 	return item
 }
 
-func fxReparo(osID int64, status ordemservico.StatusReparo) db.ReparoAdicional {
-	return db.ReparoAdicional{
-		ID:             util.RandomInt(1, 1000),
-		Uuid:           uuid.New(),
-		OrdemServicoID: osID,
-		Descricao:      "Disco empenado",
-		Status:         string(status),
+func fxReparo(status ordemservico.StatusReparo) ordemservico.ReparoAdicional {
+	return ordemservico.ReparoAdicional{ID: util.RandomInt(1, 1000), UUID: uuid.New(), Descricao: "Disco empenado", Status: status}
+}
+
+// baixaOK prepara a baixa de uma peça pelo repositório de estoque.
+func (a *fxApp) baixaOK(peca *estoque.Peca) {
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Times(1).Return(peca, nil)
+	a.pecas.EXPECT().AplicarMovimento(gomock.Any(), peca, gomock.Any()).Times(1).Return(nil)
+}
+
+func requireHistorico(t *testing.T, os ordemservico.OrdemServico, observacao string) ordemservico.EntradaHistorico {
+	t.Helper()
+	for _, h := range os.Alteracoes().Historico {
+		if h.Observacao == observacao || (observacao == "" && len(os.Alteracoes().Historico) == 1) {
+			return h
+		}
 	}
-}
-
-// fxExecTx makes the mock itself act as the transaction Querier.
-func fxExecTx(store *mockdb.MockStore) {
-	store.EXPECT().ExecTx(gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(_ context.Context, fn func(db.Querier) error) error {
-			return fn(store)
-		})
-}
-
-// fxLeitura is the read model returned by the queries used to render an OS
-// (and reused inside transactions to load items, repairs and the owner).
-type fxLeitura struct {
-	os       db.OrdemServico
-	cliente  db.Cliente
-	veiculo  db.Veiculo
-	servicos []db.ListItensServicoByOrdemServicoRow
-	pecas    []db.ListItensPecaByOrdemServicoRow
-	reparos  []db.ReparoAdicional
-}
-
-func fxStubLeitura(store *mockdb.MockStore, l fxLeitura) {
-	servicos := l.servicos
-	if servicos == nil {
-		servicos = []db.ListItensServicoByOrdemServicoRow{}
-	}
-	pecas := l.pecas
-	if pecas == nil {
-		pecas = []db.ListItensPecaByOrdemServicoRow{}
-	}
-	reparos := l.reparos
-	if reparos == nil {
-		reparos = []db.ReparoAdicional{}
-	}
-
-	store.EXPECT().GetOrdemServico(gomock.Any(), gomock.Any()).AnyTimes().Return(l.os, nil)
-	store.EXPECT().GetClienteByID(gomock.Any(), gomock.Any()).AnyTimes().Return(l.cliente, nil)
-	store.EXPECT().GetVeiculoByID(gomock.Any(), gomock.Any()).AnyTimes().Return(l.veiculo, nil)
-	store.EXPECT().ListItensServicoByOrdemServico(gomock.Any(), gomock.Any()).AnyTimes().Return(servicos, nil)
-	store.EXPECT().ListItensPecaByOrdemServico(gomock.Any(), gomock.Any()).AnyTimes().Return(pecas, nil)
-	store.EXPECT().ListReparosAdicionaisByOrdemServico(gomock.Any(), gomock.Any()).AnyTimes().Return(reparos, nil)
-	store.EXPECT().ListHistoricoStatusOSByOrdemServico(gomock.Any(), gomock.Any()).AnyTimes().Return([]db.HistoricoStatusOS{}, nil)
-}
-
-// fxCapturaEstado records every persisted aggregate state.
-func fxCapturaEstado(store *mockdb.MockStore) *[]db.UpdateOrdemServicoEstadoParams {
-	calls := []db.UpdateOrdemServicoEstadoParams{}
-	store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(_ context.Context, arg db.UpdateOrdemServicoEstadoParams) (db.OrdemServico, error) {
-			calls = append(calls, arg)
-			return db.OrdemServico{ID: arg.ID, Status: arg.Status}, nil
-		})
-	return &calls
-}
-
-func fxCapturaHistorico(store *mockdb.MockStore) *[]db.CreateHistoricoStatusOSParams {
-	calls := []db.CreateHistoricoStatusOSParams{}
-	store.EXPECT().CreateHistoricoStatusOS(gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(_ context.Context, arg db.CreateHistoricoStatusOSParams) (db.HistoricoStatusOS, error) {
-			calls = append(calls, arg)
-			return db.HistoricoStatusOS{OrdemServicoID: arg.OrdemServicoID, StatusNovo: arg.StatusNovo}, nil
-		})
-	return &calls
-}
-
-func fxCapturaValorTotal(store *mockdb.MockStore) *[]int64 {
-	calls := []int64{}
-	store.EXPECT().UpdateOrdemServicoValorTotal(gomock.Any(), gomock.Any()).AnyTimes().
-		DoAndReturn(func(_ context.Context, arg db.UpdateOrdemServicoValorTotalParams) (db.OrdemServico, error) {
-			calls = append(calls, arg.ValorTotalCentavos)
-			return db.OrdemServico{ID: arg.ID, ValorTotalCentavos: arg.ValorTotalCentavos}, nil
-		})
-	return &calls
+	require.Failf(t, "histórico não encontrado", "observação %q em %+v", observacao, os.Alteracoes().Historico)
+	return ordemservico.EntradaHistorico{}
 }

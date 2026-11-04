@@ -52,6 +52,12 @@ server:
 mock:
 	mockgen -package mockdb -destination db/mock/store.go github.com/Teixeiraass/backend_techchallenger/db/sqlc Store
 
+# Mocks dos repositórios (portas do domínio) e das portas da aplicação, usados nos testes de serviço.
+mockrepo:
+	mockgen -source internal/domain/ordemservico/repositorio.go -destination internal/repository/mock/ordemservico.go -package mockrepo -mock_names Repositorio=MockOrdemServicoRepositorio
+	mockgen -source internal/domain/estoque/peca.go -destination internal/repository/mock/estoque.go -package mockrepo -mock_names Repositorio=MockPecaRepositorio
+	mockgen -source internal/service/portas.go -destination internal/repository/mock/portas.go -package mockrepo
+
 swag:
 	swag init -g cmd/server/main.go
 

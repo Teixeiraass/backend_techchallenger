@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,7 +33,7 @@ func (server *Server) CriarCliente(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusCreated, dto.NewClienteResponse(*cliente))
+	ctx.JSON(http.StatusCreated, dto.NewClienteResponse(readmodel.DeCliente(*cliente)))
 }
 
 // ListarClientes godoc
@@ -61,7 +62,7 @@ func (server *Server) ListarClientes(ctx *gin.Context) {
 
 	response := make([]dto.ClienteResponse, 0, len(clientes))
 	for _, c := range clientes {
-		response = append(response, dto.NewClienteResponse(c))
+		response = append(response, dto.NewClienteResponse(readmodel.DeCliente(c)))
 	}
 	ctx.JSON(http.StatusOK, response)
 }
@@ -87,7 +88,7 @@ func (server *Server) BuscarCliente(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewClienteResponse(*cliente))
+	ctx.JSON(http.StatusOK, dto.NewClienteResponse(readmodel.DeCliente(*cliente)))
 }
 
 // BuscarClientePorDocumento godoc
@@ -106,7 +107,7 @@ func (server *Server) BuscarClientePorDocumento(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewClienteResponse(*cliente))
+	ctx.JSON(http.StatusOK, dto.NewClienteResponse(readmodel.DeCliente(*cliente)))
 }
 
 // AtualizarCliente godoc
@@ -139,7 +140,7 @@ func (server *Server) AtualizarCliente(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewClienteResponse(*cliente))
+	ctx.JSON(http.StatusOK, dto.NewClienteResponse(readmodel.DeCliente(*cliente)))
 }
 
 // RemoverCliente godoc

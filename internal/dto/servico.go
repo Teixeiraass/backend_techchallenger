@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/google/uuid"
 )
 
@@ -39,15 +39,15 @@ type ServicoResponse struct {
 	UpdatedAt            time.Time `json:"updated_at"`
 }
 
-func NewServicoResponse(s db.Servico) ServicoResponse {
+func NewServicoResponse(s readmodel.Servico) ServicoResponse {
 	return ServicoResponse{
-		Uuid:                 s.Uuid,
+		Uuid:                 s.UUID,
 		Nome:                 s.Nome,
 		Descricao:            s.Descricao,
 		PrecoCentavos:        s.PrecoCentavos,
 		TempoEstimadoMinutos: s.TempoEstimadoMinutos,
 		Ativo:                s.Ativo,
-		CreatedAt:            s.CreatedAt,
-		UpdatedAt:            s.UpdatedAt,
+		CreatedAt:            s.CriadoEm,
+		UpdatedAt:            s.AtualizadoEm,
 	}
 }

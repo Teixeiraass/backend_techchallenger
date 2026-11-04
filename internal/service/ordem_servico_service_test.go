@@ -14,6 +14,7 @@ import (
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/veiculo"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/Teixeiraass/backend_techchallenger/internal/service"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/golang/mock/gomock"
@@ -21,214 +22,134 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fxCenario struct {
-	store   *mockdb.MockStore
-	sender  *fxSender
-	svc     service.OrdemServicoService
-	cliente db.Cliente
-	veiculo db.Veiculo
-	os      db.OrdemServico
-}
-
-func novoCenario(t *testing.T, status ordemservico.Status, orcamento ordemservico.StatusOrcamento) *fxCenario {
-	ctrl := gomock.NewController(t)
-	store := mockdb.NewMockStore(ctrl)
-	sender := &fxSender{}
-	c := fxCliente()
-	v := fxVeiculo(c.ID)
-	return &fxCenario{
-		store:   store,
-		sender:  sender,
-		svc:     service.NewOrdemServicoService(store, sender, fxConfig()),
-		cliente: c,
-		veiculo: v,
-		os:      fxOrdemServico(c, v, status, orcamento),
-	}
-}
-
-func (c *fxCenario) leitura(servicos []db.ListItensServicoByOrdemServicoRow, pecas []db.ListItensPecaByOrdemServicoRow, reparos []db.ReparoAdicional) {
-	fxStubLeitura(c.store, fxLeitura{
-		os:       c.os,
-		cliente:  c.cliente,
-		veiculo:  c.veiculo,
-		servicos: servicos,
-		pecas:    pecas,
-		reparos:  reparos,
-	})
-}
-
-func (c *fxCenario) travaOS() {
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), c.os.Uuid).Times(1).Return(c.os, nil)
-}
+// Os testes do serviço da OS usam os mocks das portas (unidade de trabalho,
+// repositórios e catálogo): verificam que cada comando carrega o agregado
+// travado, delega a regra à raiz, anota o histórico e salva. A persistência
+// real é testada em internal/repository e em db/sqlc.
 
 // ---------------------------------------------------------------------------
 // Abertura
 // ---------------------------------------------------------------------------
 
 func TestAbrirOrdemServicoComItens(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	servico := fxServico(true)
 	peca := fxPeca(10, 2)
-	itemServico := fxItemServico(c.os.ID, servico, 1)
-	itemPeca := fxItemPeca(c.os.ID, peca, 2)
-	c.leitura([]db.ListItensServicoByOrdemServicoRow{itemServico}, []db.ListItensPecaByOrdemServicoRow{itemPeca}, nil)
-	historico := fxCapturaHistorico(c.store)
-	estados := fxCapturaEstado(c.store)
+	salvos := a.salva()
 
-	c.store.EXPECT().GetClienteByDocumento(gomock.Any(), c.cliente.Documento).Return(c.cliente, nil)
-	c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), c.veiculo.Placa).Return(c.veiculo, nil)
-	c.store.EXPECT().CreateOrdemServico(gomock.Any(), db.CreateOrdemServicoParams{
-		ClienteID:         c.cliente.ID,
-		VeiculoID:         c.veiculo.ID,
-		DescricaoProblema: "Barulho",
-	}).Return(c.os, nil)
-	c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
-	c.store.EXPECT().CreateItemServico(gomock.Any(), db.CreateItemServicoParams{
-		OrdemServicoID:        c.os.ID,
-		ServicoID:             servico.ID,
-		Quantidade:            1,
-		ValorUnitarioCentavos: servico.PrecoCentavos,
-	}).Return(db.ItemServico{}, nil)
-	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
-	c.store.EXPECT().CreateItemPeca(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.CreateItemPecaParams) (db.ItemPeca, error) {
-			require.Equal(t, int32(2), arg.Quantidade)
-			require.Equal(t, peca.PrecoCentavos, arg.ValorUnitarioCentavos)
-			require.False(t, arg.ReparoAdicionalID.Valid)
-			return db.ItemPeca{}, nil
+	a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), a.cliente.Documento).Return(a.cliente, nil)
+	a.catalogo.EXPECT().VeiculoPorPlaca(gomock.Any(), a.veiculo.Placa).Return(a.veiculo, nil)
+	a.catalogo.EXPECT().Servico(gomock.Any(), servico.UUID).Return(servico, nil)
+	a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(peca, nil)
+	a.osRepo.EXPECT().Carregar(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, osUUID uuid.UUID) (*ordemservico.OrdemServico, error) {
+			require.Equal(t, (*salvos)[0].UUID, osUUID)
+			os := (*salvos)[0]
+			return &os, nil
 		})
+	a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(a.cliente, nil)
+	a.catalogo.EXPECT().VeiculoPorID(gomock.Any(), a.veiculo.ID).Return(a.veiculo, nil)
+	a.catalogo.EXPECT().HistoricoDaOS(gomock.Any(), gomock.Any()).Return(nil, nil)
 
-	rsp, err := c.svc.AbrirOrdemServico(context.Background(), dto.AbrirOrdemServicoRequest{
-		Documento:         c.cliente.Documento,
-		Placa:             c.veiculo.Placa,
+	rsp, err := a.svc.AbrirOrdemServico(context.Background(), dto.AbrirOrdemServicoRequest{
+		Documento:         a.cliente.Documento,
+		Placa:             a.veiculo.Placa,
 		DescricaoProblema: "Barulho",
-		Servicos:          []dto.ItemServicoRequest{{ServicoUuid: servico.Uuid}},
-		Pecas:             []dto.ItemPecaRequest{{PecaUuid: peca.Uuid, Quantidade: 2}},
+		Servicos:          []dto.ItemServicoRequest{{ServicoUuid: servico.UUID}},
+		Pecas:             []dto.ItemPecaRequest{{PecaUuid: peca.UUID, Quantidade: 2}},
 	}, 7)
 	require.NoError(t, err)
-	require.Equal(t, c.os.Uuid, rsp.Uuid)
 	require.Equal(t, string(ordemservico.StatusRecebida), rsp.Status)
 	require.Len(t, rsp.Servicos, 1)
 	require.Len(t, rsp.Pecas, 1)
-	require.Len(t, *estados, 1)
-	require.Equal(t, int64(10000+2*2500), (*estados)[0].ValorTotalCentavos)
-	require.Len(t, *historico, 1)
-	require.Equal(t, "", (*historico)[0].StatusAnterior)
-	require.Equal(t, int64(7), (*historico)[0].UsuarioID.Int64)
+	require.Equal(t, int64(10000+2*2500), rsp.Orcamento.TotalCentavos)
+
+	salvo := (*salvos)[0]
+	require.Equal(t, a.cliente.ID, salvo.ClienteID)
+	require.Equal(t, a.veiculo.ID, salvo.VeiculoID)
+	require.Equal(t, "Barulho", salvo.DescricaoProblema)
+	historico := requireHistorico(t, salvo, "OS aberta")
+	require.Equal(t, ordemservico.Status(""), historico.StatusAnterior)
+	require.Equal(t, int64(7), historico.UsuarioID)
+	require.Equal(t, 1, a.transacoes)
 }
 
 func TestAbrirOrdemServicoErros(t *testing.T) {
+	servico := fxServico(true)
+	peca := fxPeca(10, 1)
 	testCases := []struct {
 		name       string
-		documento  func(c *fxCenario) string
-		placa      func(c *fxCenario) string
-		buildStubs func(c *fxCenario, servico db.Servico, peca db.Peca)
+		documento  func(a *fxApp) string
+		placa      func(a *fxApp) string
+		buildStubs func(a *fxApp)
 		pecas      bool
 		servicos   bool
 		wantErr    error
 	}{
+		{name: "DocumentoInvalido", documento: func(*fxApp) string { return "123" }, placa: func(a *fxApp) string { return a.veiculo.Placa }, buildStubs: func(*fxApp) {}, wantErr: cliente.ErrDocumentoInvalido},
+		{name: "PlacaInvalida", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(*fxApp) string { return "12-ABC" }, buildStubs: func(*fxApp) {}, wantErr: veiculo.ErrPlacaInvalida},
 		{
-			name:       "DocumentoInvalido",
-			documento:  func(c *fxCenario) string { return "123" },
-			placa:      func(c *fxCenario) string { return c.veiculo.Placa },
-			buildStubs: func(c *fxCenario, _ db.Servico, _ db.Peca) {},
-			wantErr:    cliente.ErrDocumentoInvalido,
-		},
-		{
-			name:       "PlacaInvalida",
-			documento:  func(c *fxCenario) string { return c.cliente.Documento },
-			placa:      func(c *fxCenario) string { return "12-ABC" },
-			buildStubs: func(c *fxCenario, _ db.Servico, _ db.Peca) {},
-			wantErr:    veiculo.ErrPlacaInvalida,
-		},
-		{
-			name:      "ClienteNaoEncontrado",
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			placa:     func(c *fxCenario) string { return c.veiculo.Placa },
-			buildStubs: func(c *fxCenario, _ db.Servico, _ db.Peca) {
-				c.store.EXPECT().GetClienteByDocumento(gomock.Any(), gomock.Any()).Return(db.Cliente{}, sql.ErrNoRows)
+			name: "ClienteNaoEncontrado", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(a *fxApp) string { return a.veiculo.Placa },
+			buildStubs: func(a *fxApp) {
+				a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), gomock.Any()).Return(readmodel.Cliente{}, service.ErrClienteNaoEncontrado)
 			},
 			wantErr: service.ErrClienteNaoEncontrado,
 		},
 		{
-			name:      "VeiculoNaoEncontrado",
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			placa:     func(c *fxCenario) string { return c.veiculo.Placa },
-			buildStubs: func(c *fxCenario, _ db.Servico, _ db.Peca) {
-				c.store.EXPECT().GetClienteByDocumento(gomock.Any(), gomock.Any()).Return(c.cliente, nil)
-				c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), gomock.Any()).Return(db.Veiculo{}, sql.ErrNoRows)
+			name: "VeiculoNaoEncontrado", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(a *fxApp) string { return a.veiculo.Placa },
+			buildStubs: func(a *fxApp) {
+				a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorPlaca(gomock.Any(), gomock.Any()).Return(readmodel.Veiculo{}, service.ErrVeiculoNaoEncontrado)
 			},
 			wantErr: service.ErrVeiculoNaoEncontrado,
 		},
 		{
-			name:      "VeiculoDeOutroCliente",
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			placa:     func(c *fxCenario) string { return c.veiculo.Placa },
-			buildStubs: func(c *fxCenario, _ db.Servico, _ db.Peca) {
-				outro := c.veiculo
-				outro.ClienteID = c.cliente.ID + 1
-				c.store.EXPECT().GetClienteByDocumento(gomock.Any(), gomock.Any()).Return(c.cliente, nil)
-				c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), gomock.Any()).Return(outro, nil)
+			name: "VeiculoDeOutroCliente", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(a *fxApp) string { return a.veiculo.Placa },
+			buildStubs: func(a *fxApp) {
+				outro := a.veiculo
+				outro.ClienteID = a.cliente.ID + 1
+				a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorPlaca(gomock.Any(), gomock.Any()).Return(outro, nil)
 			},
 			wantErr: service.ErrVeiculoDeOutroCliente,
 		},
 		{
-			name:      "ServicoInativo",
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			placa:     func(c *fxCenario) string { return c.veiculo.Placa },
-			servicos:  true,
-			buildStubs: func(c *fxCenario, servico db.Servico, _ db.Peca) {
-				servico.Ativo = false
-				c.store.EXPECT().GetClienteByDocumento(gomock.Any(), gomock.Any()).Return(c.cliente, nil)
-				c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), gomock.Any()).Return(c.veiculo, nil)
-				c.store.EXPECT().CreateOrdemServico(gomock.Any(), gomock.Any()).Return(c.os, nil)
-				fxCapturaHistorico(c.store)
-				c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
+			name: "ServicoInativo", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(a *fxApp) string { return a.veiculo.Placa }, servicos: true,
+			buildStubs: func(a *fxApp) {
+				inativo := servico
+				inativo.Ativo = false
+				a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorPlaca(gomock.Any(), gomock.Any()).Return(a.veiculo, nil)
+				a.catalogo.EXPECT().Servico(gomock.Any(), servico.UUID).Return(inativo, nil)
 			},
 			wantErr: service.ErrServicoInativo,
 		},
 		{
-			name:      "ServicoNaoEncontrado",
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			placa:     func(c *fxCenario) string { return c.veiculo.Placa },
-			servicos:  true,
-			buildStubs: func(c *fxCenario, servico db.Servico, _ db.Peca) {
-				c.store.EXPECT().GetClienteByDocumento(gomock.Any(), gomock.Any()).Return(c.cliente, nil)
-				c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), gomock.Any()).Return(c.veiculo, nil)
-				c.store.EXPECT().CreateOrdemServico(gomock.Any(), gomock.Any()).Return(c.os, nil)
-				fxCapturaHistorico(c.store)
-				c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(db.Servico{}, sql.ErrNoRows)
+			name: "ServicoNaoEncontrado", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(a *fxApp) string { return a.veiculo.Placa }, servicos: true,
+			buildStubs: func(a *fxApp) {
+				a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorPlaca(gomock.Any(), gomock.Any()).Return(a.veiculo, nil)
+				a.catalogo.EXPECT().Servico(gomock.Any(), servico.UUID).Return(ordemservico.CatalogoServico{}, service.ErrServicoNaoEncontrado)
 			},
 			wantErr: service.ErrServicoNaoEncontrado,
 		},
 		{
-			name:      "PecaSemEstoque",
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			placa:     func(c *fxCenario) string { return c.veiculo.Placa },
-			pecas:     true,
-			buildStubs: func(c *fxCenario, _ db.Servico, peca db.Peca) {
-				peca.QuantidadeEstoque = 1
-				c.store.EXPECT().GetClienteByDocumento(gomock.Any(), gomock.Any()).Return(c.cliente, nil)
-				c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), gomock.Any()).Return(c.veiculo, nil)
-				c.store.EXPECT().CreateOrdemServico(gomock.Any(), gomock.Any()).Return(c.os, nil)
-				fxCapturaHistorico(c.store)
-				c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
-				c.leitura(nil, nil, nil)
+			name: "PecaSemEstoque", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(a *fxApp) string { return a.veiculo.Placa }, pecas: true,
+			buildStubs: func(a *fxApp) {
+				pouca := *peca
+				pouca.Saldo = 1
+				a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorPlaca(gomock.Any(), gomock.Any()).Return(a.veiculo, nil)
+				a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(&pouca, nil)
 			},
 			wantErr: estoque.ErrEstoqueInsuficiente,
 		},
 		{
-			name:      "PecaNaoEncontrada",
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			placa:     func(c *fxCenario) string { return c.veiculo.Placa },
-			pecas:     true,
-			buildStubs: func(c *fxCenario, _ db.Servico, peca db.Peca) {
-				c.store.EXPECT().GetClienteByDocumento(gomock.Any(), gomock.Any()).Return(c.cliente, nil)
-				c.store.EXPECT().GetVeiculoByPlaca(gomock.Any(), gomock.Any()).Return(c.veiculo, nil)
-				c.store.EXPECT().CreateOrdemServico(gomock.Any(), gomock.Any()).Return(c.os, nil)
-				fxCapturaHistorico(c.store)
-				c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(db.Peca{}, sql.ErrNoRows)
+			name: "PecaNaoEncontrada", documento: func(a *fxApp) string { return a.cliente.Documento }, placa: func(a *fxApp) string { return a.veiculo.Placa }, pecas: true,
+			buildStubs: func(a *fxApp) {
+				a.catalogo.EXPECT().ClientePorDocumento(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorPlaca(gomock.Any(), gomock.Any()).Return(a.veiculo, nil)
+				a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(nil, service.ErrPecaNaoEncontrada)
 			},
 			wantErr: service.ErrPecaNaoEncontrada,
 		},
@@ -237,22 +158,19 @@ func TestAbrirOrdemServicoErros(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-			fxExecTx(c.store)
-			servico := fxServico(true)
-			peca := fxPeca(10, 1)
-			tc.buildStubs(c, servico, peca)
+			a := novaApp(t)
+			tc.buildStubs(a)
+			a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
 
-			req := dto.AbrirOrdemServicoRequest{Documento: tc.documento(c), Placa: tc.placa(c)}
+			req := dto.AbrirOrdemServicoRequest{Documento: tc.documento(a), Placa: tc.placa(a)}
 			if tc.servicos {
-				req.Servicos = []dto.ItemServicoRequest{{ServicoUuid: servico.Uuid}}
+				req.Servicos = []dto.ItemServicoRequest{{ServicoUuid: servico.UUID}}
 			}
 			if tc.pecas {
-				req.Pecas = []dto.ItemPecaRequest{{PecaUuid: peca.Uuid, Quantidade: 5}}
+				req.Pecas = []dto.ItemPecaRequest{{PecaUuid: peca.UUID, Quantidade: 5}}
 			}
 
-			rsp, err := c.svc.AbrirOrdemServico(context.Background(), req, 1)
-			require.Error(t, err)
+			rsp, err := a.svc.AbrirOrdemServico(context.Background(), req, 1)
 			require.True(t, errors.Is(err, tc.wantErr), "got %v", err)
 			require.Nil(t, rsp)
 		})
@@ -264,140 +182,160 @@ func TestAbrirOrdemServicoErros(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAdicionarServico(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	servico := fxServico(true)
-	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, servico, 2)}, nil, nil)
-	estados := fxCapturaEstado(c.store)
-	c.travaOS()
-	c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
-	c.store.EXPECT().CreateItemServico(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.CreateItemServicoParams) (db.ItemServico, error) {
-			require.Equal(t, int32(2), arg.Quantidade)
-			require.Equal(t, servico.ID, arg.ServicoID)
-			return db.ItemServico{}, nil
-		})
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{fxItemServico(servico, 2)}
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
+	a.catalogo.EXPECT().Servico(gomock.Any(), servico.UUID).Return(servico, nil)
 
-	rsp, err := c.svc.AdicionarServico(context.Background(), c.os.Uuid, dto.ItemServicoRequest{ServicoUuid: servico.Uuid, Quantidade: 2})
+	rsp, err := a.svc.AdicionarServico(context.Background(), os.UUID, dto.ItemServicoRequest{ServicoUuid: servico.UUID, Quantidade: 2})
 	require.NoError(t, err)
 	require.NotNil(t, rsp)
-	// 2 já na OS + 2 novos, a 10000 cada: o orçamento é recalculado pela raiz.
-	require.Len(t, *estados, 1)
-	require.Equal(t, int64(40000), (*estados)[0].ValorTotalCentavos)
+	require.Len(t, *salvos, 1)
+	require.Len(t, (*salvos)[0].Itens, 2)
+	require.Equal(t, int64(40000), (*salvos)[0].ValorTotalCentavos, "2 já na OS + 2 novos, a 10000")
+	require.Empty(t, (*salvos)[0].Alteracoes().Historico, "alteração de item não entra no histórico")
 }
 
-func TestAdicionarServicoStatusNaoEditavel(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-
-	_, err := c.svc.AdicionarServico(context.Background(), c.os.Uuid, dto.ItemServicoRequest{ServicoUuid: uuid.New()})
-	require.True(t, errors.Is(err, ordemservico.ErrItensNaoEditaveis))
-}
-
-func TestAdicionarServicoOSNaoEncontrada(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-
-	_, err := c.svc.AdicionarServico(context.Background(), c.os.Uuid, dto.ItemServicoRequest{ServicoUuid: uuid.New()})
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+func TestAdicionarServicoErros(t *testing.T) {
+	t.Run("StatusNaoEditavel", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+		_, err := a.svc.AdicionarServico(context.Background(), os.UUID, dto.ItemServicoRequest{ServicoUuid: uuid.New()})
+		require.ErrorIs(t, err, ordemservico.ErrItensNaoEditaveis)
+	})
+	t.Run("OSNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.AdicionarServico(context.Background(), uuid.New(), dto.ItemServicoRequest{ServicoUuid: uuid.New()})
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
+	t.Run("ServicoNaoEncontrado", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
+		a.trava(os)
+		a.catalogo.EXPECT().Servico(gomock.Any(), gomock.Any()).Return(ordemservico.CatalogoServico{}, service.ErrServicoNaoEncontrado)
+		_, err := a.svc.AdicionarServico(context.Background(), os.UUID, dto.ItemServicoRequest{ServicoUuid: uuid.New()})
+		require.ErrorIs(t, err, service.ErrServicoNaoEncontrado)
+	})
+	t.Run("ErroAoSalvar", func(t *testing.T) {
+		a := novaApp(t)
+		servico := fxServico(true)
+		os := a.os(ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
+		a.trava(os)
+		a.catalogo.EXPECT().Servico(gomock.Any(), gomock.Any()).Return(servico, nil)
+		a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Return(sql.ErrConnDone)
+		_, err := a.svc.AdicionarServico(context.Background(), os.UUID, dto.ItemServicoRequest{ServicoUuid: servico.UUID})
+		require.ErrorIs(t, err, sql.ErrConnDone)
+	})
 }
 
 func TestRemoverServico(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	item := fxItemServico(c.os.ID, fxServico(true), 1)
-	c.leitura([]db.ListItensServicoByOrdemServicoRow{item}, nil, nil)
-	estados := fxCapturaEstado(c.store)
-	c.travaOS()
-	c.store.EXPECT().DeleteItemServico(gomock.Any(), db.DeleteItemServicoParams{Uuid: item.Uuid, OrdemServicoID: c.os.ID}).Return(int64(1), nil)
+	a := novaApp(t)
+	item := fxItemServico(fxServico(true), 1)
+	os := a.os(ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{item}
+	os.ValorTotalCentavos = 10000
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
 
-	_, err := c.svc.RemoverServico(context.Background(), c.os.Uuid, item.Uuid)
+	_, err := a.svc.RemoverServico(context.Background(), os.UUID, item.UUID)
 	require.NoError(t, err)
-	require.Len(t, *estados, 1)
-	require.Equal(t, int64(0), (*estados)[0].ValorTotalCentavos)
+	require.Empty(t, (*salvos)[0].Itens)
+	require.Equal(t, int64(0), (*salvos)[0].ValorTotalCentavos)
+	require.Len(t, (*salvos)[0].Alteracoes().ItensRemovidos, 1)
 }
 
-// O item inexistente é recusado pela raiz: nenhum DELETE chega ao banco.
 func TestRemoverServicoItemNaoEncontrado(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-	c.store.EXPECT().DeleteItemServico(gomock.Any(), gomock.Any()).Times(0)
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
+	a.trava(os)
+	a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
 
-	_, err := c.svc.RemoverServico(context.Background(), c.os.Uuid, uuid.New())
-	require.True(t, errors.Is(err, service.ErrItemNaoEncontrado))
+	_, err := a.svc.RemoverServico(context.Background(), os.UUID, uuid.New())
+	require.ErrorIs(t, err, service.ErrItemNaoEncontrado)
 }
 
 func TestAdicionarPecaConsideraQuantidadeJaNaOS(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	peca := fxPeca(5, 1)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 4)}, nil)
-	c.travaOS()
-	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
-	c.store.EXPECT().CreateItemPeca(gomock.Any(), gomock.Any()).Times(0)
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 4)}
+	a.trava(os)
+	a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(peca, nil)
+	a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
 
 	// 4 já na OS + 2 pedidas > saldo 5
-	_, err := c.svc.AdicionarPeca(context.Background(), c.os.Uuid, dto.ItemPecaRequest{PecaUuid: peca.Uuid, Quantidade: 2})
-	require.True(t, errors.Is(err, estoque.ErrEstoqueInsuficiente))
+	_, err := a.svc.AdicionarPeca(context.Background(), os.UUID, dto.ItemPecaRequest{PecaUuid: peca.UUID, Quantidade: 2})
+	require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
 	require.Contains(t, err.Error(), peca.Codigo)
 }
 
 func TestAdicionarPecaOK(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	peca := fxPeca(5, 1)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 1)}, nil)
-	estados := fxCapturaEstado(c.store)
-	c.travaOS()
-	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
-	c.store.EXPECT().CreateItemPeca(gomock.Any(), gomock.Any()).Return(db.ItemPeca{}, nil)
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 1)}
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
+	a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(peca, nil)
 
-	_, err := c.svc.AdicionarPeca(context.Background(), c.os.Uuid, dto.ItemPecaRequest{PecaUuid: peca.Uuid, Quantidade: 2})
+	_, err := a.svc.AdicionarPeca(context.Background(), os.UUID, dto.ItemPecaRequest{PecaUuid: peca.UUID, Quantidade: 2})
 	require.NoError(t, err)
-	// 1 já na OS + 2 novas, a 2500 cada.
-	require.Equal(t, int64(7500), (*estados)[0].ValorTotalCentavos)
+	require.Equal(t, int64(7500), (*salvos)[0].ValorTotalCentavos, "1 já na OS + 2 novas, a 2500")
 }
 
-func TestAdicionarPecaInativa(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	peca := fxPeca(5, 1)
-	peca.Ativo = false
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
-
-	_, err := c.svc.AdicionarPeca(context.Background(), c.os.Uuid, dto.ItemPecaRequest{PecaUuid: peca.Uuid, Quantidade: 1})
-	require.True(t, errors.Is(err, estoque.ErrPecaInativa))
+func TestAdicionarPecaErros(t *testing.T) {
+	t.Run("Inativa", func(t *testing.T) {
+		a := novaApp(t)
+		peca := fxPeca(5, 1)
+		peca.Ativa = false
+		os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+		a.trava(os)
+		a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(peca, nil)
+		_, err := a.svc.AdicionarPeca(context.Background(), os.UUID, dto.ItemPecaRequest{PecaUuid: peca.UUID, Quantidade: 1})
+		require.ErrorIs(t, err, estoque.ErrPecaInativa)
+	})
+	t.Run("NaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+		a.trava(os)
+		a.pecas.EXPECT().Carregar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err := a.svc.AdicionarPeca(context.Background(), os.UUID, dto.ItemPecaRequest{PecaUuid: uuid.New(), Quantidade: 1})
+		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	})
+	t.Run("StatusNaoEditavel", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+		a.trava(os)
+		_, err := a.svc.AdicionarPeca(context.Background(), os.UUID, dto.ItemPecaRequest{PecaUuid: uuid.New(), Quantidade: 1})
+		require.ErrorIs(t, err, ordemservico.ErrItensNaoEditaveis)
+	})
 }
 
 func TestRemoverPeca(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	item := fxItemPeca(c.os.ID, fxPeca(5, 1), 2)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{item}, nil)
-	fxCapturaEstado(c.store)
-	c.travaOS()
-	c.store.EXPECT().DeleteItemPeca(gomock.Any(), db.DeleteItemPecaParams{Uuid: item.Uuid, OrdemServicoID: c.os.ID}).Return(int64(1), nil)
+	a := novaApp(t)
+	item := fxItemPeca(fxPeca(5, 1), 2)
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{item}
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
 
-	_, err := c.svc.RemoverPeca(context.Background(), c.os.Uuid, item.Uuid)
+	_, err := a.svc.RemoverPeca(context.Background(), os.UUID, item.UUID)
 	require.NoError(t, err)
-}
+	require.Empty(t, (*salvos)[0].Itens)
 
-func TestRemoverPecaItemNaoEncontrado(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-	c.store.EXPECT().DeleteItemPeca(gomock.Any(), gomock.Any()).Times(0)
-
-	_, err := c.svc.RemoverPeca(context.Background(), c.os.Uuid, uuid.New())
-	require.True(t, errors.Is(err, service.ErrItemNaoEncontrado))
+	a.trava(os)
+	_, err = a.svc.RemoverPeca(context.Background(), os.UUID, uuid.New())
+	require.ErrorIs(t, err, service.ErrItemNaoEncontrado)
 }
 
 // ---------------------------------------------------------------------------
@@ -405,229 +343,253 @@ func TestRemoverPecaItemNaoEncontrado(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIniciarDiagnostico(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	estados := fxCapturaEstado(c.store)
-	historico := fxCapturaHistorico(c.store)
-	c.travaOS()
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
 
-	_, err := c.svc.IniciarDiagnostico(context.Background(), c.os.Uuid, 3)
+	_, err := a.svc.IniciarDiagnostico(context.Background(), os.UUID, 3)
 	require.NoError(t, err)
-	require.Len(t, *estados, 1)
-	require.Equal(t, string(ordemservico.StatusEmDiagnostico), (*estados)[0].Status)
-	require.True(t, (*estados)[0].DiagnosticoIniciadoEm.Valid)
-	require.Equal(t, string(ordemservico.StatusRecebida), (*historico)[0].StatusAnterior)
-	require.Equal(t, string(ordemservico.StatusEmDiagnostico), (*historico)[0].StatusNovo)
+	salvo := (*salvos)[0]
+	require.Equal(t, ordemservico.StatusEmDiagnostico, salvo.Status)
+	require.NotNil(t, salvo.DiagnosticoIniciadoEm)
+	historico := requireHistorico(t, salvo, "Diagnóstico iniciado")
+	require.Equal(t, ordemservico.StatusRecebida, historico.StatusAnterior)
+	require.Equal(t, ordemservico.StatusEmDiagnostico, historico.StatusNovo)
+	require.Equal(t, int64(3), historico.UsuarioID)
 }
 
-func TestIniciarDiagnosticoTransicaoInvalida(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-	c.store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).Times(0)
-
-	_, err := c.svc.IniciarDiagnostico(context.Background(), c.os.Uuid, 3)
-	require.True(t, errors.Is(err, ordemservico.ErrTransicaoInvalida))
-}
-
-func TestIniciarDiagnosticoOSNaoEncontrada(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-
-	_, err := c.svc.IniciarDiagnostico(context.Background(), c.os.Uuid, 3)
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+func TestIniciarDiagnosticoErros(t *testing.T) {
+	t.Run("TransicaoInvalida", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+		_, err := a.svc.IniciarDiagnostico(context.Background(), os.UUID, 3)
+		require.ErrorIs(t, err, ordemservico.ErrTransicaoInvalida)
+	})
+	t.Run("OSNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.IniciarDiagnostico(context.Background(), uuid.New(), 3)
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
 }
 
 func TestEnviarOrcamento(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	servico := fxServico(true)
-	peca := fxPeca(10, 1)
-	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, servico, 1)},
-		[]db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 2)}, nil)
-	estados := fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-	c.travaOS()
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1), fxItemPeca(fxPeca(10, 1), 2)}
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
 
-	_, err := c.svc.EnviarOrcamento(context.Background(), c.os.Uuid, dto.EnviarOrcamentoRequest{Diagnostico: "Pastilhas gastas"}, 2)
+	_, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{Diagnostico: "Pastilhas gastas"}, 2)
 	require.NoError(t, err)
-	estado := (*estados)[0]
-	require.Equal(t, string(ordemservico.StatusAguardandoAprovacao), estado.Status)
-	require.Equal(t, string(ordemservico.OrcamentoAguardando), estado.OrcamentoStatus)
-	require.Equal(t, int64(15000), estado.ValorTotalCentavos)
-	require.Equal(t, "Pastilhas gastas", estado.Diagnostico)
-	require.True(t, estado.OrcamentoEnviadoEm.Valid)
+	salvo := (*salvos)[0]
+	require.Equal(t, ordemservico.StatusAguardandoAprovacao, salvo.Status)
+	require.Equal(t, ordemservico.OrcamentoAguardando, salvo.StatusOrcamento)
+	require.Equal(t, int64(15000), salvo.ValorTotalCentavos)
+	require.Equal(t, "Pastilhas gastas", salvo.Diagnostico)
+	require.NotNil(t, salvo.OrcamentoEnviadoEm)
+	requireHistorico(t, salvo, "Orçamento enviado ao cliente")
 
-	require.Len(t, c.sender.msgs, 1)
-	require.Equal(t, c.cliente.Email, c.sender.msgs[0].To)
-	require.Contains(t, c.sender.msgs[0].Body, "R$ 150,00")
+	// Política: o cliente é notificado depois do commit.
+	require.Len(t, a.sender.msgs, 1)
+	require.Equal(t, a.cliente.Email, a.sender.msgs[0].To)
+	require.Contains(t, a.sender.msgs[0].Body, "R$ 150,00")
 }
 
-func TestEnviarOrcamentoSemItens(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-
-	_, err := c.svc.EnviarOrcamento(context.Background(), c.os.Uuid, dto.EnviarOrcamentoRequest{}, 2)
-	require.True(t, errors.Is(err, ordemservico.ErrOrcamentoSemItens))
-	require.Empty(t, c.sender.msgs)
-}
-
-func TestEnviarOrcamentoTransicaoInvalida(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, fxServico(true), 1)}, nil, nil)
-	c.travaOS()
-
-	_, err := c.svc.EnviarOrcamento(context.Background(), c.os.Uuid, dto.EnviarOrcamentoRequest{}, 2)
-	require.True(t, errors.Is(err, ordemservico.ErrTransicaoInvalida))
+func TestEnviarOrcamentoErros(t *testing.T) {
+	t.Run("SemItens", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+		a.trava(os)
+		_, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
+		require.ErrorIs(t, err, ordemservico.ErrOrcamentoSemItens)
+		require.Empty(t, a.sender.msgs)
+	})
+	t.Run("TransicaoInvalida", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
+		os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1)}
+		a.trava(os)
+		_, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
+		require.ErrorIs(t, err, ordemservico.ErrTransicaoInvalida)
+	})
+	t.Run("OSNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.EnviarOrcamento(context.Background(), uuid.New(), dto.EnviarOrcamentoRequest{}, 2)
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
 }
 
 func TestEnviarOrcamentoNotificacaoFalhaNaoDesfaz(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	c.sender.err = errors.New("smtp fora do ar")
-	fxExecTx(c.store)
-	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, fxServico(true), 1)}, nil, nil)
-	fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-	c.travaOS()
+	a := novaApp(t)
+	a.sender.err = errors.New("smtp fora do ar")
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1)}
+	a.trava(os)
+	a.leitura(os)
+	a.salva()
 
-	rsp, err := c.svc.EnviarOrcamento(context.Background(), c.os.Uuid, dto.EnviarOrcamentoRequest{}, 2)
+	rsp, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
 	require.NoError(t, err)
 	require.NotNil(t, rsp)
-	require.Equal(t, c.cliente.Email, c.sender.msgs[0].To)
+	require.Equal(t, a.cliente.Email, a.sender.msgs[0].To)
 }
 
 // A notificação é por e-mail (linguagem ubíqua §1.2): cliente sem e-mail não
 // recebe aviso, e o envio do orçamento continua válido.
 func TestEnviarOrcamentoClienteSemEmailNaoNotifica(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.cliente.Email = ""
-	c.cliente.Telefone = "11999990000"
-	c.leitura([]db.ListItensServicoByOrdemServicoRow{fxItemServico(c.os.ID, fxServico(true), 1)}, nil, nil)
-	fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-	c.travaOS()
+	a := novaApp(t)
+	a.cliente.Email = ""
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1)}
+	a.trava(os)
+	a.leitura(os)
+	a.salva()
 
-	rsp, err := c.svc.EnviarOrcamento(context.Background(), c.os.Uuid, dto.EnviarOrcamentoRequest{}, 2)
+	rsp, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
 	require.NoError(t, err)
 	require.NotNil(t, rsp)
-	require.Empty(t, c.sender.msgs)
+	require.Empty(t, a.sender.msgs)
 }
 
+func TestEnviarOrcamentoClienteNaoCarregadoNaoNotifica(t *testing.T) {
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+	os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1)}
+	a.trava(os)
+	a.salva()
+	a.osRepo.EXPECT().Carregar(gomock.Any(), os.UUID).Return(os, nil)
+	a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Times(2).Return(readmodel.Cliente{}, sql.ErrConnDone)
+
+	_, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
+	require.ErrorIs(t, err, sql.ErrConnDone, "a resposta falha, mas a OS já foi salva")
+	require.Empty(t, a.sender.msgs)
+}
+
+// ---------------------------------------------------------------------------
+// Aprovação, rejeição e execução
+// ---------------------------------------------------------------------------
+
 func TestAprovarOrcamentoIniciaExecucaoEBaixaEstoque(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	peca := fxPeca(3, 2)
-	reparo := fxReparo(c.os.ID, ordemservico.ReparoPendente)
-	itemBase := fxItemPeca(c.os.ID, peca, 2)
-	itemReparo := fxDoReparo(fxItemPeca(c.os.ID, peca, 1), reparo)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{itemBase, itemReparo}, nil)
-	estados := fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-
-	aprovada := c.os
-	aprovada.OrcamentoStatus = string(ordemservico.OrcamentoAprovado)
-	c.travaOS()
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), c.os.Uuid).Times(1).Return(aprovada, nil)
-
-	depois := peca
-	depois.QuantidadeEstoque = 1
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), db.BaixarEstoquePecaParams{ID: peca.ID, Quantidade: 2}).Times(1).Return(depois, nil)
-	c.store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.CreateMovimentoEstoqueParams) (db.MovimentoEstoque, error) {
-			require.Equal(t, string(estoque.MovimentoSaida), arg.Tipo)
-			require.Equal(t, int32(-2), arg.Quantidade)
-			require.Equal(t, int32(3), arg.SaldoAnterior)
-			require.Equal(t, int32(1), arg.SaldoPosterior)
-			require.Equal(t, c.os.ID, arg.OrdemServicoID.Int64)
-			return db.MovimentoEstoque{}, nil
+	reparo := fxReparo(ordemservico.ReparoPendente)
+	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 2), fxDoReparo(fxItemPeca(peca, 1), reparo)}
+	os.Reparos = []ordemservico.ReparoAdicional{reparo}
+	// Duas transações: aprovação e início da execução, cada uma trava a OS.
+	a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), os.UUID).Times(2).Return(os, nil)
+	a.leitura(os)
+	salvos := a.salva()
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
+	a.pecas.EXPECT().AplicarMovimento(gomock.Any(), peca, gomock.Any()).
+		DoAndReturn(func(_ context.Context, p *estoque.Peca, mov estoque.MovimentoEstoque) error {
+			require.Equal(t, estoque.MovimentoSaida, mov.Tipo)
+			require.Equal(t, int32(-2), mov.Quantidade, "só a peça do orçamento; a do reparo pendente não")
+			require.Equal(t, int32(3), mov.SaldoAnterior)
+			require.Equal(t, int32(1), mov.SaldoPosterior)
+			require.Equal(t, os.ID, mov.OrdemServicoID)
+			return nil
 		})
 
-	rsp, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+	rsp, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
 	require.NoError(t, err)
 	require.Empty(t, rsp.Aviso)
-	require.Len(t, *estados, 2)
-	require.Equal(t, string(ordemservico.OrcamentoAprovado), (*estados)[0].OrcamentoStatus)
-	require.Equal(t, string(ordemservico.StatusAguardandoAprovacao), (*estados)[0].Status)
-	require.Equal(t, string(ordemservico.StatusEmExecucao), (*estados)[1].Status)
-	require.True(t, (*estados)[1].ExecucaoIniciadaEm.Valid)
+	require.Len(t, *salvos, 2)
+	require.Equal(t, ordemservico.OrcamentoAprovado, (*salvos)[0].StatusOrcamento)
+	require.Equal(t, ordemservico.StatusAguardandoAprovacao, (*salvos)[0].Status)
+	requireHistorico(t, (*salvos)[0], "Orçamento aprovado pelo cliente")
+	require.Equal(t, ordemservico.StatusEmExecucao, (*salvos)[1].Status)
+	require.NotNil(t, (*salvos)[1].ExecucaoIniciadaEm)
+	requireHistorico(t, (*salvos)[1], "Execução iniciada e estoque baixado")
+	require.Equal(t, 2, a.transacoes)
 
 	// saldo 1 <= mínimo 2: pedido de reposição para o administrador
-	require.Len(t, c.sender.msgs, 1)
-	require.Equal(t, "admin@oficina.com", c.sender.msgs[0].To)
+	require.Len(t, a.sender.msgs, 1)
+	require.Equal(t, "admin@oficina.com", a.sender.msgs[0].To)
+	require.Contains(t, a.sender.msgs[0].Body, peca.Codigo)
 }
 
 func TestAprovarOrcamentoEstoqueInsuficienteMantemAprovacao(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	peca := fxPeca(0, 2)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 2)}, nil)
-	estados := fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
+	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 2)}
+	a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), os.UUID).Times(2).Return(os, nil)
+	a.leitura(os)
+	salvos := a.salva()
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
+	a.pecas.EXPECT().AplicarMovimento(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
-	aprovada := c.os
-	aprovada.OrcamentoStatus = string(ordemservico.OrcamentoAprovado)
-	c.travaOS()
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), c.os.Uuid).Times(1).Return(aprovada, nil)
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
-
-	rsp, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+	rsp, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
 	require.NoError(t, err)
 	require.Contains(t, rsp.Aviso, "a oficina inicia o serviço")
-	require.Len(t, *estados, 1)
-	require.Equal(t, string(ordemservico.OrcamentoAprovado), (*estados)[0].OrcamentoStatus)
+	require.Len(t, *salvos, 1, "só a aprovação é gravada")
+	require.Equal(t, ordemservico.OrcamentoAprovado, (*salvos)[0].StatusOrcamento)
 
 	// Falta de saldo gera pedido de reposição, senão a OS fica parada.
-	require.Len(t, c.sender.msgs, 1)
-	require.Equal(t, "admin@oficina.com", c.sender.msgs[0].To)
-	require.Contains(t, c.sender.msgs[0].Body, peca.Codigo)
-	require.Contains(t, c.sender.msgs[0].Body, c.os.Uuid.String())
+	require.Len(t, a.sender.msgs, 1)
+	require.Equal(t, "admin@oficina.com", a.sender.msgs[0].To)
+	require.Contains(t, a.sender.msgs[0].Body, peca.Codigo)
+	require.Contains(t, a.sender.msgs[0].Body, os.UUID.String())
+}
+
+// O saldo acabou entre a leitura e a gravação: o UPDATE condicional do
+// repositório devolve ErrEstoqueInsuficiente e a execução não começa.
+func TestIniciarExecucaoConcorrenciaNaBaixa(t *testing.T) {
+	a := novaApp(t)
+	peca := fxPeca(5, 1)
+	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 2)}
+	a.trava(os)
+	a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
+	a.pecas.EXPECT().AplicarMovimento(gomock.Any(), peca, gomock.Any()).Return(estoque.ErrEstoqueInsuficientePara(peca.Nome, peca.Codigo))
+
+	_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
+	require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
+	require.Len(t, a.sender.msgs, 1, "pedido de reposição")
 }
 
 // Repetir a aprovação com a execução ainda não iniciada (aprovação gravada,
 // faltou peça) não dá 409: o serviço tenta iniciar a execução de novo.
 func TestAprovarOrcamentoRepetidaTentaIniciarExecucao(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	peca := fxPeca(5, 1)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 2)}, nil)
-	estados := fxCapturaEstado(c.store)
-	historico := fxCapturaHistorico(c.store)
-	c.travaOS()
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), c.os.Uuid).Times(1).Return(c.os, nil)
-	depois := peca
-	depois.QuantidadeEstoque = 3
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), db.BaixarEstoquePecaParams{ID: peca.ID, Quantidade: 2}).Times(1).Return(depois, nil)
-	c.store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, nil)
+	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 2)}
+	a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), os.UUID).Times(2).Return(os, nil)
+	a.leitura(os)
+	salvos := a.salva()
+	a.baixaOK(peca)
 
-	rsp, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+	rsp, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
 	require.NoError(t, err)
 	require.Empty(t, rsp.Aviso)
 	// Só a execução é gravada: a aprovação não entra de novo no histórico.
-	require.Len(t, *estados, 1)
-	require.Equal(t, string(ordemservico.StatusEmExecucao), (*estados)[0].Status)
-	require.Len(t, *historico, 1)
-	require.Equal(t, string(ordemservico.StatusEmExecucao), (*historico)[0].StatusNovo)
+	require.Len(t, *salvos, 1)
+	require.Equal(t, ordemservico.StatusEmExecucao, (*salvos)[0].Status)
+	require.Len(t, (*salvos)[0].Alteracoes().Historico, 1)
+	require.Equal(t, ordemservico.StatusEmExecucao, (*salvos)[0].Alteracoes().Historico[0].StatusNovo)
 }
 
 func TestAprovarOrcamentoRepetidaComExecucaoIniciada(t *testing.T) {
 	for _, status := range []ordemservico.Status{ordemservico.StatusEmExecucao, ordemservico.StatusFinalizada} {
 		t.Run(string(status), func(t *testing.T) {
-			c := novoCenario(t, status, ordemservico.OrcamentoAprovado)
-			fxExecTx(c.store)
-			c.leitura(nil, nil, nil)
-			c.travaOS()
-			c.store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).Times(0)
-			c.store.EXPECT().CreateHistoricoStatusOS(gomock.Any(), gomock.Any()).Times(0)
-			c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Times(0)
+			a := novaApp(t)
+			os := a.os(status, ordemservico.OrcamentoAprovado)
+			a.trava(os)
+			a.leitura(os)
+			a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+			a.pecas.EXPECT().AplicarMovimento(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
-			rsp, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+			rsp, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
 			require.NoError(t, err)
 			require.Equal(t, "Orçamento já aprovado", rsp.Aviso)
 			require.Equal(t, string(status), rsp.Status)
@@ -635,185 +597,204 @@ func TestAprovarOrcamentoRepetidaComExecucaoIniciada(t *testing.T) {
 	}
 }
 
-func TestAprovarOrcamentoDocumentoErrado(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-	c.store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).Times(0)
-
-	_, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, util.RandomCPF())
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
-}
-
-func TestAprovarOrcamentoNaoAguardando(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-
-	_, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
-	require.True(t, errors.Is(err, ordemservico.ErrOrcamentoNaoAguardando))
-}
-
-func TestAprovarOrcamentoOSNaoEncontrada(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-	fxExecTx(c.store)
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-
-	_, err := c.svc.AprovarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+func TestAprovarOrcamentoErros(t *testing.T) {
+	t.Run("DocumentoErrado", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+		a.trava(os)
+		a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(a.cliente, nil)
+		a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+		_, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, util.RandomCPF())
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
+	t.Run("NaoAguardando", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+		a.trava(os)
+		a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(a.cliente, nil)
+		_, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
+		require.ErrorIs(t, err, ordemservico.ErrOrcamentoNaoAguardando)
+	})
+	t.Run("OSNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.AprovarOrcamento(context.Background(), uuid.New(), a.cliente.Documento)
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
+	t.Run("DonoNaoCarregado", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+		a.trava(os)
+		a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(readmodel.Cliente{}, sql.ErrConnDone)
+		_, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
+		require.ErrorIs(t, err, sql.ErrConnDone)
+	})
 }
 
 func TestRejeitarOrcamento(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	estados := fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-	c.travaOS()
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
 
-	_, err := c.svc.RejeitarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+	_, err := a.svc.RejeitarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
 	require.NoError(t, err)
-	require.Equal(t, string(ordemservico.StatusEmDiagnostico), (*estados)[0].Status)
-	require.Equal(t, string(ordemservico.OrcamentoRejeitado), (*estados)[0].OrcamentoStatus)
+	require.Equal(t, ordemservico.StatusEmDiagnostico, (*salvos)[0].Status)
+	require.Equal(t, ordemservico.OrcamentoRejeitado, (*salvos)[0].StatusOrcamento)
+	requireHistorico(t, (*salvos)[0], "Orçamento rejeitado pelo cliente")
 }
 
 func TestRejeitarOrcamentoErros(t *testing.T) {
 	t.Run("DocumentoErrado", func(t *testing.T) {
-		c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-		fxExecTx(c.store)
-		c.leitura(nil, nil, nil)
-		c.travaOS()
-		_, err := c.svc.RejeitarOrcamento(context.Background(), c.os.Uuid, "000")
-		require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+		a.trava(os)
+		a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(a.cliente, nil)
+		_, err := a.svc.RejeitarOrcamento(context.Background(), os.UUID, "000")
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
 	})
 	t.Run("NaoAguardando", func(t *testing.T) {
-		c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-		fxExecTx(c.store)
-		c.leitura(nil, nil, nil)
-		c.travaOS()
-		_, err := c.svc.RejeitarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
-		require.True(t, errors.Is(err, ordemservico.ErrOrcamentoNaoAguardando))
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(a.cliente, nil)
+		_, err := a.svc.RejeitarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
+		require.ErrorIs(t, err, ordemservico.ErrOrcamentoNaoAguardando)
 	})
 	t.Run("OSNaoEncontrada", func(t *testing.T) {
-		c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-		fxExecTx(c.store)
-		c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-		_, err := c.svc.RejeitarOrcamento(context.Background(), c.os.Uuid, c.cliente.Documento)
-		require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.RejeitarOrcamento(context.Background(), uuid.New(), a.cliente.Documento)
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
 	})
 }
 
 func TestIniciarExecucaoSemPecas(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	estados := fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-	c.travaOS()
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Times(0)
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), gomock.Any()).Times(0)
 
-	_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
+	_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
 	require.NoError(t, err)
-	require.Equal(t, string(ordemservico.StatusEmExecucao), (*estados)[0].Status)
-	require.Empty(t, c.sender.msgs)
+	require.Equal(t, ordemservico.StatusEmExecucao, (*salvos)[0].Status)
+	require.Empty(t, a.sender.msgs)
 }
 
 func TestIniciarExecucaoErros(t *testing.T) {
 	t.Run("OrcamentoNaoAprovado", func(t *testing.T) {
-		c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
-		fxExecTx(c.store)
-		c.leitura(nil, nil, nil)
-		c.travaOS()
-		_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
-		require.True(t, errors.Is(err, ordemservico.ErrOrcamentoNaoAprovado))
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAguardando)
+		a.trava(os)
+		_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
+		require.ErrorIs(t, err, ordemservico.ErrOrcamentoNaoAprovado)
 	})
 	t.Run("OSNaoEncontrada", func(t *testing.T) {
-		c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
-		fxExecTx(c.store)
-		c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-		_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
-		require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.IniciarExecucao(context.Background(), uuid.New(), 4)
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
 	})
-	t.Run("ErroNoBanco", func(t *testing.T) {
-		c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
-		fxExecTx(c.store)
-		c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, fxPeca(5, 1), 1)}, nil)
-		c.travaOS()
-		c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrConnDone)
-		_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
+	t.Run("PecaNaoCarregada", func(t *testing.T) {
+		a := novaApp(t)
+		peca := fxPeca(5, 1)
+		os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+		os.Itens = []ordemservico.Item{fxItemPeca(peca, 1)}
+		a.trava(os)
+		a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(nil, sql.ErrConnDone)
+		_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
 		require.ErrorIs(t, err, sql.ErrConnDone)
-		require.Empty(t, c.sender.msgs)
+		require.Empty(t, a.sender.msgs)
 	})
+	t.Run("ErroNoBancoNaBaixa", func(t *testing.T) {
+		a := novaApp(t)
+		peca := fxPeca(5, 1)
+		os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+		os.Itens = []ordemservico.Item{fxItemPeca(peca, 1)}
+		a.trava(os)
+		a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
+		a.pecas.EXPECT().AplicarMovimento(gomock.Any(), peca, gomock.Any()).Return(sql.ErrConnDone)
+		_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
+		require.ErrorIs(t, err, sql.ErrConnDone)
+		require.Empty(t, a.sender.msgs)
+	})
+}
+
+// Falha no envio do pedido de reposição não troca o erro devolvido.
+func TestIniciarExecucaoSemEstoquePedidoDeReposicaoFalha(t *testing.T) {
+	a := novaApp(t)
+	a.sender.err = errors.New("smtp fora do ar")
+	peca := fxPeca(1, 0)
+	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 3)}
+	a.trava(os)
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
+
+	_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
+	require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
+	require.Len(t, a.sender.msgs, 1)
 }
 
 func TestFinalizarOrdemServico(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
 	inicio := time.Now().Add(-90 * time.Minute)
-	c.os.ExecucaoIniciadaEm = sql.NullTime{Time: inicio, Valid: true}
-	fxExecTx(c.store)
-	c.leitura(nil, nil, []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoAutorizado)})
-	estados := fxCapturaEstado(c.store)
-	historico := fxCapturaHistorico(c.store)
-	c.travaOS()
+	os.ExecucaoIniciadaEm = &inicio
+	os.Reparos = []ordemservico.ReparoAdicional{fxReparo(ordemservico.ReparoAutorizado)}
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
 
-	_, err := c.svc.FinalizarOrdemServico(context.Background(), c.os.Uuid, 5)
+	_, err := a.svc.FinalizarOrdemServico(context.Background(), os.UUID, 5)
 	require.NoError(t, err)
-	require.Equal(t, string(ordemservico.StatusFinalizada), (*estados)[0].Status)
-	require.True(t, (*estados)[0].FinalizadaEm.Valid)
-	require.Contains(t, (*historico)[0].Observacao, "1h 30min")
-	require.Len(t, c.sender.msgs, 1)
+	require.Equal(t, ordemservico.StatusFinalizada, (*salvos)[0].Status)
+	require.NotNil(t, (*salvos)[0].FinalizadaEm)
+	require.Contains(t, (*salvos)[0].Alteracoes().Historico[0].Observacao, "1h 30min")
+	require.Len(t, a.sender.msgs, 1)
+	require.Equal(t, a.cliente.Email, a.sender.msgs[0].To)
 }
 
-// Cliente antigo sem e-mail: a OS é finalizada e o aviso não sai.
-func TestFinalizarOrdemServicoClienteSemEmailNaoNotifica(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	c.os.ExecucaoIniciadaEm = sql.NullTime{Time: time.Now().Add(-time.Hour), Valid: true}
-	c.cliente.Email = ""
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	estados := fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-	c.travaOS()
-
-	_, err := c.svc.FinalizarOrdemServico(context.Background(), c.os.Uuid, 5)
-	require.NoError(t, err)
-	require.Equal(t, string(ordemservico.StatusFinalizada), (*estados)[0].Status)
-	require.Empty(t, c.sender.msgs)
-}
-
-func TestFinalizarOrdemServicoReparoPendente(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoPendente)})
-	c.travaOS()
-
-	_, err := c.svc.FinalizarOrdemServico(context.Background(), c.os.Uuid, 5)
-	require.True(t, errors.Is(err, ordemservico.ErrReparoPendente))
-	require.Empty(t, c.sender.msgs)
-}
-
-func TestFinalizarOrdemServicoOSNaoEncontrada(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-
-	_, err := c.svc.FinalizarOrdemServico(context.Background(), c.os.Uuid, 5)
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
-}
-
-func TestFinalizarOrdemServicoNotificacaoFalha(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	c.sender.err = errors.New("push indisponível")
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	fxCapturaEstado(c.store)
-	fxCapturaHistorico(c.store)
-	c.travaOS()
-
-	_, err := c.svc.FinalizarOrdemServico(context.Background(), c.os.Uuid, 5)
-	require.NoError(t, err)
+func TestFinalizarOrdemServicoErros(t *testing.T) {
+	t.Run("ReparoPendente", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		os.Reparos = []ordemservico.ReparoAdicional{fxReparo(ordemservico.ReparoPendente)}
+		a.trava(os)
+		_, err := a.svc.FinalizarOrdemServico(context.Background(), os.UUID, 5)
+		require.ErrorIs(t, err, ordemservico.ErrReparoPendente)
+		require.Empty(t, a.sender.msgs)
+	})
+	t.Run("OSNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.FinalizarOrdemServico(context.Background(), uuid.New(), 5)
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
+	t.Run("SemEmailNaoNotifica", func(t *testing.T) {
+		a := novaApp(t)
+		a.cliente.Email = ""
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.leitura(os)
+		a.salva()
+		_, err := a.svc.FinalizarOrdemServico(context.Background(), os.UUID, 5)
+		require.NoError(t, err)
+		require.Empty(t, a.sender.msgs)
+	})
+	t.Run("NotificacaoFalhaNaoDesfaz", func(t *testing.T) {
+		a := novaApp(t)
+		a.sender.err = errors.New("smtp fora do ar")
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.leitura(os)
+		a.salva()
+		rsp, err := a.svc.FinalizarOrdemServico(context.Background(), os.UUID, 5)
+		require.NoError(t, err)
+		require.Equal(t, string(ordemservico.StatusFinalizada), rsp.Status)
+	})
 }
 
 func TestEntregarVeiculo(t *testing.T) {
@@ -824,8 +805,8 @@ func TestEntregarVeiculo(t *testing.T) {
 		wantErr    error
 		observacao string
 	}{
-		{name: "Finalizada", status: ordemservico.StatusFinalizada, orcamento: ordemservico.OrcamentoAprovado, observacao: "Veículo entregue"},
-		{name: "OrcamentoRejeitado", status: ordemservico.StatusEmDiagnostico, orcamento: ordemservico.OrcamentoRejeitado, observacao: "sem execução"},
+		{name: "Finalizada", status: ordemservico.StatusFinalizada, orcamento: ordemservico.OrcamentoAprovado, observacao: "Veículo entregue ao cliente"},
+		{name: "OrcamentoRejeitado", status: ordemservico.StatusEmDiagnostico, orcamento: ordemservico.OrcamentoRejeitado, observacao: "Veículo entregue sem execução (orçamento rejeitado)"},
 		{name: "SemOrcamento", status: ordemservico.StatusEmDiagnostico, orcamento: ordemservico.OrcamentoNaoEnviado, wantErr: ordemservico.ErrEntregaNaoPermitida},
 		{name: "EmExecucao", status: ordemservico.StatusEmExecucao, orcamento: ordemservico.OrcamentoAprovado, wantErr: ordemservico.ErrEntregaNaoPermitida},
 	}
@@ -833,312 +814,252 @@ func TestEntregarVeiculo(t *testing.T) {
 	for i := range testCases {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
-			c := novoCenario(t, tc.status, tc.orcamento)
-			fxExecTx(c.store)
-			c.leitura(nil, nil, nil)
-			estados := fxCapturaEstado(c.store)
-			historico := fxCapturaHistorico(c.store)
-			c.travaOS()
+			a := novaApp(t)
+			os := a.os(tc.status, tc.orcamento)
+			a.trava(os)
+			a.leitura(os)
+			salvos := a.salva()
 
-			_, err := c.svc.EntregarVeiculo(context.Background(), c.os.Uuid, 6)
+			_, err := a.svc.EntregarVeiculo(context.Background(), os.UUID, 6)
 			if tc.wantErr != nil {
-				require.True(t, errors.Is(err, tc.wantErr))
-				require.Empty(t, *estados)
+				require.ErrorIs(t, err, tc.wantErr)
+				require.Empty(t, *salvos)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, string(ordemservico.StatusEntregue), (*estados)[0].Status)
-			require.True(t, (*estados)[0].EntregueEm.Valid)
-			require.Contains(t, (*historico)[0].Observacao, tc.observacao)
+			require.Equal(t, ordemservico.StatusEntregue, (*salvos)[0].Status)
+			require.NotNil(t, (*salvos)[0].EntregueEm)
+			requireHistorico(t, (*salvos)[0], tc.observacao)
 		})
 	}
-}
 
-func TestEntregarVeiculoOSNaoEncontrada(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusFinalizada, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-
-	_, err := c.svc.EntregarVeiculo(context.Background(), c.os.Uuid, 6)
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+	t.Run("OSNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.EntregarVeiculo(context.Background(), uuid.New(), 6)
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
 }
 
 // ---------------------------------------------------------------------------
 // Reparo adicional
 // ---------------------------------------------------------------------------
 
-func TestRegistrarReparoAdicionalSemItens(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-
-	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{Descricao: "x"})
-	require.True(t, errors.Is(err, ordemservico.ErrReparoSemItens))
-}
-
-func TestRegistrarReparoAdicionalForaDeExecucao(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	fxExecTx(c.store)
-	c.leitura(nil, nil, nil)
-	c.travaOS()
-	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Times(0)
-
-	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{
-		Descricao: "x",
-		Servicos:  []dto.ItemServicoRequest{{ServicoUuid: uuid.New()}},
-	})
-	require.True(t, errors.Is(err, ordemservico.ErrReparoForaDeExecucao))
-}
-
-func TestRegistrarReparoAdicionalOSNaoEncontrada(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-
-	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{
-		Descricao: "x",
-		Pecas:     []dto.ItemPecaRequest{{PecaUuid: uuid.New(), Quantidade: 1}},
-	})
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
-}
-
 func TestRegistrarReparoAdicional(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	servico := fxServico(true)
 	peca := fxPeca(4, 1)
-	reparo := fxReparo(c.os.ID, ordemservico.ReparoPendente)
+	os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
 	// Item base já baixado (OS em execução) não conta; outro reparo pendente conta.
-	outroPendente := fxDoReparo(fxItemPeca(c.os.ID, peca, 2), fxReparo(c.os.ID, ordemservico.ReparoPendente))
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, peca, 3), outroPendente}, nil)
-	estados := fxCapturaEstado(c.store)
-	c.travaOS()
-	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), db.CreateReparoAdicionalParams{
-		OrdemServicoID: c.os.ID,
-		Descricao:      "Disco empenado",
-	}).Return(reparo, nil)
-	c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
-	c.store.EXPECT().CreateItemServico(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.CreateItemServicoParams) (db.ItemServico, error) {
-			require.Equal(t, reparo.ID, arg.ReparoAdicionalID.Int64)
-			return db.ItemServico{}, nil
-		})
-	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
-	c.store.EXPECT().CreateItemPeca(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.CreateItemPecaParams) (db.ItemPeca, error) {
-			require.True(t, arg.ReparoAdicionalID.Valid)
-			return db.ItemPeca{}, nil
-		})
+	outro := fxReparo(ordemservico.ReparoPendente)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 3), fxDoReparo(fxItemPeca(peca, 2), outro)}
+	os.Reparos = []ordemservico.ReparoAdicional{outro}
+	os.ValorTotalCentavos = 7500
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
+	a.catalogo.EXPECT().Servico(gomock.Any(), servico.UUID).Return(servico, nil)
+	a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(peca, nil)
 
-	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{
+	_, err := a.svc.RegistrarReparoAdicional(context.Background(), os.UUID, dto.RegistrarReparoAdicionalRequest{
 		Descricao: "Disco empenado",
-		Servicos:  []dto.ItemServicoRequest{{ServicoUuid: servico.Uuid}},
-		Pecas:     []dto.ItemPecaRequest{{PecaUuid: peca.Uuid, Quantidade: 2}},
+		Servicos:  []dto.ItemServicoRequest{{ServicoUuid: servico.UUID}},
+		Pecas:     []dto.ItemPecaRequest{{PecaUuid: peca.UUID, Quantidade: 2}},
 	})
 	require.NoError(t, err)
-	require.Len(t, c.sender.msgs, 1)
-	require.Contains(t, c.sender.msgs[0].Body, "Disco empenado")
-	// Reparo pendente fica fora do orçamento: só a peça base (3 x 2500) conta.
-	require.Equal(t, int64(7500), (*estados)[0].ValorTotalCentavos)
+	salvo := (*salvos)[0]
+	require.Len(t, salvo.Reparos, 2)
+	require.Equal(t, "Disco empenado", salvo.Reparos[1].Descricao)
+	require.Len(t, salvo.Itens, 4)
+	require.Equal(t, int64(7500), salvo.ValorTotalCentavos, "reparo pendente fica fora do orçamento")
+	require.Empty(t, salvo.Alteracoes().Historico)
+
+	// Política: o cliente é chamado a decidir.
+	require.Len(t, a.sender.msgs, 1)
+	require.Contains(t, a.sender.msgs[0].Body, "Disco empenado")
 }
 
-// Cliente antigo sem e-mail: o reparo é registrado e o aviso não sai.
-func TestRegistrarReparoAdicionalClienteSemEmailNaoNotifica(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	c.cliente.Email = ""
-	fxExecTx(c.store)
-	servico := fxServico(true)
-	c.leitura(nil, nil, nil)
-	fxCapturaEstado(c.store)
-	c.travaOS()
-	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Return(fxReparo(c.os.ID, ordemservico.ReparoPendente), nil)
-	c.store.EXPECT().GetServico(gomock.Any(), servico.Uuid).Return(servico, nil)
-	c.store.EXPECT().CreateItemServico(gomock.Any(), gomock.Any()).Return(db.ItemServico{}, nil)
-
-	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{
-		Descricao: "Disco empenado",
-		Servicos:  []dto.ItemServicoRequest{{ServicoUuid: servico.Uuid}},
+func TestRegistrarReparoAdicionalErros(t *testing.T) {
+	t.Run("SemItens", func(t *testing.T) {
+		a := novaApp(t)
+		_, err := a.svc.RegistrarReparoAdicional(context.Background(), uuid.New(), dto.RegistrarReparoAdicionalRequest{Descricao: "x"})
+		require.ErrorIs(t, err, ordemservico.ErrReparoSemItens)
+		require.Zero(t, a.transacoes)
 	})
-	require.NoError(t, err)
-	require.Empty(t, c.sender.msgs)
-}
-
-func TestRegistrarReparoAdicionalPecaSemEstoque(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	peca := fxPeca(4, 1)
-	outroPendente := fxDoReparo(fxItemPeca(c.os.ID, peca, 3), fxReparo(c.os.ID, ordemservico.ReparoPendente))
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{outroPendente}, nil)
-	c.travaOS()
-	// A raiz recusa antes de qualquer gravação.
-	c.store.EXPECT().CreateReparoAdicional(gomock.Any(), gomock.Any()).Times(0)
-	c.store.EXPECT().GetPeca(gomock.Any(), peca.Uuid).Return(peca, nil)
-
-	_, err := c.svc.RegistrarReparoAdicional(context.Background(), c.os.Uuid, dto.RegistrarReparoAdicionalRequest{
-		Descricao: "x",
-		Pecas:     []dto.ItemPecaRequest{{PecaUuid: peca.Uuid, Quantidade: 2}},
+	t.Run("ForaDeExecucao", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
+		a.trava(os)
+		a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+		_, err := a.svc.RegistrarReparoAdicional(context.Background(), os.UUID, dto.RegistrarReparoAdicionalRequest{
+			Descricao: "x", Servicos: []dto.ItemServicoRequest{{ServicoUuid: uuid.New()}},
+		})
+		require.ErrorIs(t, err, ordemservico.ErrReparoForaDeExecucao)
 	})
-	require.True(t, errors.Is(err, estoque.ErrEstoqueInsuficiente))
-	require.Empty(t, c.sender.msgs)
+	t.Run("OSNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+		_, err := a.svc.RegistrarReparoAdicional(context.Background(), uuid.New(), dto.RegistrarReparoAdicionalRequest{
+			Descricao: "x", Pecas: []dto.ItemPecaRequest{{PecaUuid: uuid.New(), Quantidade: 1}},
+		})
+		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
+	})
+	t.Run("ServicoNaoEncontrado", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.catalogo.EXPECT().Servico(gomock.Any(), gomock.Any()).Return(ordemservico.CatalogoServico{}, service.ErrServicoNaoEncontrado)
+		_, err := a.svc.RegistrarReparoAdicional(context.Background(), os.UUID, dto.RegistrarReparoAdicionalRequest{
+			Descricao: "x", Servicos: []dto.ItemServicoRequest{{ServicoUuid: uuid.New()}},
+		})
+		require.ErrorIs(t, err, service.ErrServicoNaoEncontrado)
+	})
+	t.Run("PecaNaoEncontrada", func(t *testing.T) {
+		a := novaApp(t)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.pecas.EXPECT().Carregar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err := a.svc.RegistrarReparoAdicional(context.Background(), os.UUID, dto.RegistrarReparoAdicionalRequest{
+			Descricao: "x", Pecas: []dto.ItemPecaRequest{{PecaUuid: uuid.New(), Quantidade: 1}},
+		})
+		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	})
+	t.Run("PecaSemEstoque", func(t *testing.T) {
+		a := novaApp(t)
+		peca := fxPeca(4, 1)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		outro := fxReparo(ordemservico.ReparoPendente)
+		os.Itens = []ordemservico.Item{fxDoReparo(fxItemPeca(peca, 3), outro)}
+		os.Reparos = []ordemservico.ReparoAdicional{outro}
+		a.trava(os)
+		a.pecas.EXPECT().Carregar(gomock.Any(), peca.UUID).Return(peca, nil)
+		a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+		_, err := a.svc.RegistrarReparoAdicional(context.Background(), os.UUID, dto.RegistrarReparoAdicionalRequest{
+			Descricao: "x", Pecas: []dto.ItemPecaRequest{{PecaUuid: peca.UUID, Quantidade: 2}},
+		})
+		require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
+		require.Empty(t, a.sender.msgs)
+	})
+	t.Run("ClienteSemEmailNaoNotifica", func(t *testing.T) {
+		a := novaApp(t)
+		a.cliente.Email = ""
+		servico := fxServico(true)
+		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+		a.trava(os)
+		a.leitura(os)
+		a.salva()
+		a.catalogo.EXPECT().Servico(gomock.Any(), servico.UUID).Return(servico, nil)
+		_, err := a.svc.RegistrarReparoAdicional(context.Background(), os.UUID, dto.RegistrarReparoAdicionalRequest{
+			Descricao: "Disco empenado", Servicos: []dto.ItemServicoRequest{{ServicoUuid: servico.UUID}},
+		})
+		require.NoError(t, err)
+		require.Empty(t, a.sender.msgs)
+	})
 }
 
 func TestAutorizarReparoAdicional(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	peca := fxPeca(5, 0)
-	reparo := fxReparo(c.os.ID, ordemservico.ReparoPendente)
-	autorizado := reparo
-	autorizado.Status = string(ordemservico.ReparoAutorizado)
-	itemBase := fxItemPeca(c.os.ID, peca, 1)
-	itemReparo := fxDoReparo(fxItemPeca(c.os.ID, peca, 2), reparo)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{itemBase, itemReparo}, []db.ReparoAdicional{reparo})
-	estados := fxCapturaEstado(c.store)
-	historico := fxCapturaHistorico(c.store)
-	c.travaOS()
-	c.store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), db.UpdateReparoAdicionalStatusParams{
-		ID:     reparo.ID,
-		Status: string(ordemservico.ReparoAutorizado),
-	}).Return(autorizado, nil)
-	depois := peca
-	depois.QuantidadeEstoque = 3
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), db.BaixarEstoquePecaParams{ID: peca.ID, Quantidade: 2}).Times(1).Return(depois, nil)
-	c.store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, nil)
+	reparo := fxReparo(ordemservico.ReparoPendente)
+	os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+	os.Itens = []ordemservico.Item{fxItemPeca(peca, 1), fxDoReparo(fxItemPeca(peca, 2), reparo)}
+	os.Reparos = []ordemservico.ReparoAdicional{reparo}
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
+	a.pecas.EXPECT().AplicarMovimento(gomock.Any(), peca, gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ *estoque.Peca, mov estoque.MovimentoEstoque) error {
+			require.Equal(t, int32(-2), mov.Quantidade, "só as peças do reparo")
+			return nil
+		})
 
-	_, err := c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
+	_, err := a.svc.AutorizarReparoAdicional(context.Background(), os.UUID, reparo.UUID, a.cliente.Documento)
 	require.NoError(t, err)
-	require.Equal(t, int64(3*2500), (*estados)[0].ValorTotalCentavos)
-	require.Contains(t, (*historico)[0].Observacao, "autorizado")
-	require.Equal(t, (*historico)[0].StatusAnterior, (*historico)[0].StatusNovo)
-	require.Empty(t, c.sender.msgs)
+	salvo := (*salvos)[0]
+	require.Equal(t, ordemservico.ReparoAutorizado, salvo.Reparos[0].Status)
+	require.Equal(t, int64(3*2500), salvo.ValorTotalCentavos)
+	historico := requireHistorico(t, salvo, "Reparo adicional autorizado pelo cliente: Disco empenado")
+	require.Equal(t, historico.StatusAnterior, historico.StatusNovo)
+	require.Empty(t, a.sender.msgs, "saldo 3 > mínimo 0")
 }
 
 func TestAutorizarReparoAdicionalSemEstoque(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
+	a := novaApp(t)
 	peca := fxPeca(0, 0)
-	reparo := fxReparo(c.os.ID, ordemservico.ReparoPendente)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxDoReparo(fxItemPeca(c.os.ID, peca, 2), reparo)}, []db.ReparoAdicional{reparo})
-	c.travaOS()
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
+	reparo := fxReparo(ordemservico.ReparoPendente)
+	os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+	os.Itens = []ordemservico.Item{fxDoReparo(fxItemPeca(peca, 2), reparo)}
+	os.Reparos = []ordemservico.ReparoAdicional{reparo}
+	a.trava(os)
+	a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(a.cliente, nil)
+	a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
 
-	_, err := c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
-	require.True(t, errors.Is(err, estoque.ErrEstoqueInsuficiente))
+	_, err := a.svc.AutorizarReparoAdicional(context.Background(), os.UUID, reparo.UUID, a.cliente.Documento)
+	require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
 	require.Contains(t, err.Error(), peca.Codigo)
-	require.Len(t, c.sender.msgs, 1)
-	require.Equal(t, "admin@oficina.com", c.sender.msgs[0].To)
-	require.Contains(t, c.sender.msgs[0].Body, peca.Codigo)
-}
-
-// Falha no envio do pedido de reposição não troca o erro devolvido.
-func TestIniciarExecucaoSemEstoquePedidoDeReposicaoFalha(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
-	c.sender.err = errors.New("smtp fora do ar")
-	fxExecTx(c.store)
-	c.leitura(nil, []db.ListItensPecaByOrdemServicoRow{fxItemPeca(c.os.ID, fxPeca(1, 0), 3)}, nil)
-	c.travaOS()
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
-
-	_, err := c.svc.IniciarExecucao(context.Background(), c.os.Uuid, 4)
-	require.True(t, errors.Is(err, estoque.ErrEstoqueInsuficiente))
-	require.Len(t, c.sender.msgs, 1)
+	require.Len(t, a.sender.msgs, 1)
+	require.Equal(t, "admin@oficina.com", a.sender.msgs[0].To)
+	require.Contains(t, a.sender.msgs[0].Body, peca.Codigo)
 }
 
 func TestRecusarReparoAdicional(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	fxExecTx(c.store)
-	reparo := fxReparo(c.os.ID, ordemservico.ReparoPendente)
-	c.leitura(nil, nil, []db.ReparoAdicional{reparo})
-	estados := fxCapturaEstado(c.store)
-	historico := fxCapturaHistorico(c.store)
-	c.travaOS()
-	c.store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), db.UpdateReparoAdicionalStatusParams{
-		ID:     reparo.ID,
-		Status: string(ordemservico.ReparoRecusado),
-	}).Return(reparo, nil)
-	c.store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Times(0)
+	a := novaApp(t)
+	reparo := fxReparo(ordemservico.ReparoPendente)
+	os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+	os.Reparos = []ordemservico.ReparoAdicional{reparo}
+	a.trava(os)
+	a.leitura(os)
+	salvos := a.salva()
+	a.pecas.EXPECT().AplicarMovimento(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
-	_, err := c.svc.RecusarReparoAdicional(context.Background(), c.os.Uuid, reparo.Uuid, c.cliente.Documento)
+	_, err := a.svc.RecusarReparoAdicional(context.Background(), os.UUID, reparo.UUID, a.cliente.Documento)
 	require.NoError(t, err)
-	require.Contains(t, (*historico)[0].Observacao, "recusado")
-	require.Equal(t, string(ordemservico.StatusEmExecucao), (*estados)[0].Status)
+	require.Equal(t, ordemservico.ReparoRecusado, (*salvos)[0].Reparos[0].Status)
+	requireHistorico(t, (*salvos)[0], "Reparo adicional recusado pelo cliente: Disco empenado")
 }
 
 func TestDecidirReparoAdicionalErros(t *testing.T) {
 	testCases := []struct {
 		name      string
 		status    ordemservico.Status
-		documento func(c *fxCenario) string
-		reparo    func(c *fxCenario) []db.ReparoAdicional
+		documento func(a *fxApp) string
+		reparos   []ordemservico.ReparoAdicional
 		osSumiu   bool
 		wantErr   error
 	}{
-		{
-			name:      "JaDecidido",
-			status:    ordemservico.StatusEmExecucao,
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			reparo: func(c *fxCenario) []db.ReparoAdicional {
-				return []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoAutorizado)}
-			},
-			wantErr: ordemservico.ErrReparoJaDecidido,
-		},
-		{
-			name:      "OSForaDeExecucao",
-			status:    ordemservico.StatusFinalizada,
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			reparo: func(c *fxCenario) []db.ReparoAdicional {
-				return []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoPendente)}
-			},
-			wantErr: ordemservico.ErrReparoForaDeExecucao,
-		},
-		{
-			name:      "ReparoNaoEncontrado",
-			status:    ordemservico.StatusEmExecucao,
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			reparo:    func(c *fxCenario) []db.ReparoAdicional { return nil },
-			wantErr:   service.ErrReparoNaoEncontrado,
-		},
-		{
-			name:      "DocumentoErrado",
-			status:    ordemservico.StatusEmExecucao,
-			documento: func(c *fxCenario) string { return util.RandomCPF() },
-			reparo: func(c *fxCenario) []db.ReparoAdicional {
-				return []db.ReparoAdicional{fxReparo(c.os.ID, ordemservico.ReparoPendente)}
-			},
-			wantErr: service.ErrOSNaoEncontrada,
-		},
-		{
-			name:      "OSNaoEncontrada",
-			status:    ordemservico.StatusEmExecucao,
-			documento: func(c *fxCenario) string { return c.cliente.Documento },
-			reparo:    func(c *fxCenario) []db.ReparoAdicional { return nil },
-			osSumiu:   true,
-			wantErr:   service.ErrOSNaoEncontrada,
-		},
+		{name: "JaDecidido", status: ordemservico.StatusEmExecucao, documento: func(a *fxApp) string { return a.cliente.Documento }, reparos: []ordemservico.ReparoAdicional{fxReparo(ordemservico.ReparoAutorizado)}, wantErr: ordemservico.ErrReparoJaDecidido},
+		{name: "OSForaDeExecucao", status: ordemservico.StatusFinalizada, documento: func(a *fxApp) string { return a.cliente.Documento }, reparos: []ordemservico.ReparoAdicional{fxReparo(ordemservico.ReparoPendente)}, wantErr: ordemservico.ErrReparoForaDeExecucao},
+		{name: "ReparoNaoEncontrado", status: ordemservico.StatusEmExecucao, documento: func(a *fxApp) string { return a.cliente.Documento }, wantErr: service.ErrReparoNaoEncontrado},
+		{name: "DocumentoErrado", status: ordemservico.StatusEmExecucao, documento: func(*fxApp) string { return util.RandomCPF() }, reparos: []ordemservico.ReparoAdicional{fxReparo(ordemservico.ReparoPendente)}, wantErr: service.ErrOSNaoEncontrada},
+		{name: "OSNaoEncontrada", status: ordemservico.StatusEmExecucao, documento: func(a *fxApp) string { return a.cliente.Documento }, osSumiu: true, wantErr: service.ErrOSNaoEncontrada},
 	}
 
 	for i := range testCases {
 		tc := testCases[i]
 		for _, autorizar := range []bool{true, false} {
 			t.Run(tc.name, func(t *testing.T) {
-				c := novoCenario(t, tc.status, ordemservico.OrcamentoAprovado)
-				fxExecTx(c.store)
-				reparos := tc.reparo(c)
-				c.leitura(nil, nil, reparos)
+				a := novaApp(t)
+				os := a.os(tc.status, ordemservico.OrcamentoAprovado)
+				os.Reparos = tc.reparos
 				if tc.osSumiu {
-					c.store.EXPECT().GetOrdemServicoForUpdate(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
+					a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
 				} else {
-					c.travaOS()
+					a.trava(os)
+					a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(a.cliente, nil)
 				}
-				c.store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), gomock.Any()).Times(0)
-				c.store.EXPECT().UpdateOrdemServicoEstado(gomock.Any(), gomock.Any()).Times(0)
+				a.osRepo.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
 
 				reparoUUID := uuid.New()
-				if len(reparos) > 0 {
-					reparoUUID = reparos[0].Uuid
+				if len(tc.reparos) > 0 {
+					reparoUUID = tc.reparos[0].UUID
 				}
 				var err error
 				if autorizar {
-					_, err = c.svc.AutorizarReparoAdicional(context.Background(), c.os.Uuid, reparoUUID, tc.documento(c))
+					_, err = a.svc.AutorizarReparoAdicional(context.Background(), os.UUID, reparoUUID, tc.documento(a))
 				} else {
-					_, err = c.svc.RecusarReparoAdicional(context.Background(), c.os.Uuid, reparoUUID, tc.documento(c))
+					_, err = a.svc.RecusarReparoAdicional(context.Background(), os.UUID, reparoUUID, tc.documento(a))
 				}
 				require.True(t, errors.Is(err, tc.wantErr), "got %v", err)
 			})
@@ -1151,117 +1072,133 @@ func TestDecidirReparoAdicionalErros(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestConsultarAndamento(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	c.os.ValorTotalCentavos = 12345
-	c.leitura(nil, nil, nil)
+	a := novaApp(t)
+	os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+	os.ValorTotalCentavos = 12345
+	a.leitura(os)
 
-	rsp, err := c.svc.ConsultarAndamento(context.Background(), c.os.Uuid, c.cliente.Documento)
+	rsp, err := a.svc.ConsultarAndamento(context.Background(), os.UUID, a.cliente.Documento)
 	require.NoError(t, err)
 	require.Equal(t, "Em execução", rsp.StatusDescricao)
-	require.Equal(t, c.veiculo.Placa, rsp.Veiculo.Placa)
+	require.Equal(t, a.veiculo.Placa, rsp.Veiculo.Placa)
 	require.Equal(t, int64(12345), rsp.Orcamento.TotalCentavos)
+	require.Len(t, rsp.Historico, 1)
 
-	_, err = c.svc.ConsultarAndamento(context.Background(), c.os.Uuid, util.RandomCNPJ())
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+	_, err = a.svc.ConsultarAndamento(context.Background(), os.UUID, util.RandomCNPJ())
+	require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
 }
 
 func TestConsultarAndamentoOSNaoEncontrada(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	c.store.EXPECT().GetOrdemServico(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
+	a := novaApp(t)
+	a.osRepo.EXPECT().Carregar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
 
-	_, err := c.svc.ConsultarAndamento(context.Background(), c.os.Uuid, c.cliente.Documento)
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+	_, err := a.svc.ConsultarAndamento(context.Background(), uuid.New(), a.cliente.Documento)
+	require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
 }
 
 func TestBuscarOrdemServicoErros(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	c.store.EXPECT().GetOrdemServico(gomock.Any(), gomock.Any()).Return(db.OrdemServico{}, sql.ErrNoRows)
-	_, err := c.svc.BuscarOrdemServico(context.Background(), c.os.Uuid)
-	require.True(t, errors.Is(err, service.ErrOSNaoEncontrada))
+	a := novaApp(t)
+	a.osRepo.EXPECT().Carregar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
+	_, err := a.svc.BuscarOrdemServico(context.Background(), uuid.New())
+	require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
 
-	c = novoCenario(t, ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-	c.store.EXPECT().GetOrdemServico(gomock.Any(), gomock.Any()).Return(c.os, nil)
-	c.store.EXPECT().GetClienteByID(gomock.Any(), gomock.Any()).Return(db.Cliente{}, sql.ErrConnDone)
-	_, err = c.svc.BuscarOrdemServico(context.Background(), c.os.Uuid)
-	require.ErrorIs(t, err, sql.ErrConnDone)
+	for _, falha := range []string{"cliente", "veiculo", "historico"} {
+		t.Run(falha, func(t *testing.T) {
+			a := novaApp(t)
+			os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
+			a.osRepo.EXPECT().Carregar(gomock.Any(), os.UUID).Return(os, nil)
+			switch falha {
+			case "cliente":
+				a.catalogo.EXPECT().ClientePorID(gomock.Any(), gomock.Any()).Return(readmodel.Cliente{}, sql.ErrConnDone)
+			case "veiculo":
+				a.catalogo.EXPECT().ClientePorID(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorID(gomock.Any(), gomock.Any()).Return(readmodel.Veiculo{}, sql.ErrConnDone)
+			case "historico":
+				a.catalogo.EXPECT().ClientePorID(gomock.Any(), gomock.Any()).Return(a.cliente, nil)
+				a.catalogo.EXPECT().VeiculoPorID(gomock.Any(), gomock.Any()).Return(a.veiculo, nil)
+				a.catalogo.EXPECT().HistoricoDaOS(gomock.Any(), gomock.Any()).Return(nil, sql.ErrConnDone)
+			}
+			_, err := a.svc.BuscarOrdemServico(context.Background(), os.UUID)
+			require.ErrorIs(t, err, sql.ErrConnDone)
+		})
+	}
+}
+
+// As listagens e o tempo médio leem o read model (SQL direto pelo Store).
+func novaAppComStore(t *testing.T) (*fxApp, *mockdb.MockStore) {
+	a := novaApp(t)
+	store := mockdb.NewMockStore(gomock.NewController(t))
+	a.svc = service.NewOrdemServicoService(a.uow, store, a.sender, fxConfig())
+	return a, store
 }
 
 func TestListarOrdensServico(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusRecebida, ordemservico.OrcamentoNaoEnviado)
+	a, store := novaAppComStore(t)
+	cliente := db.Cliente{ID: a.cliente.ID, Uuid: a.cliente.UUID, Nome: a.cliente.Nome}
 	row := db.ListOrdensServicoRow{
-		OrdemServico: c.os,
-		ClienteUuid:  c.cliente.Uuid,
-		ClienteNome:  c.cliente.Nome,
-		VeiculoUuid:  c.veiculo.Uuid,
-		VeiculoPlaca: c.veiculo.Placa,
+		OrdemServico: db.OrdemServico{ID: 1, Uuid: uuid.New(), Status: "RECEBIDA", OrcamentoStatus: "NAO_ENVIADO"},
+		ClienteUuid:  a.cliente.UUID,
+		ClienteNome:  a.cliente.Nome,
+		VeiculoUuid:  a.veiculo.UUID,
+		VeiculoPlaca: a.veiculo.Placa,
 	}
 
 	t.Run("SemFiltroDeCliente", func(t *testing.T) {
-		c.store.EXPECT().ListOrdensServico(gomock.Any(), db.ListOrdensServicoParams{
-			Status:       "RECEBIDA",
-			Limite:       10,
-			Deslocamento: 10,
-		}).Return([]db.ListOrdensServicoRow{row}, nil)
-
-		rsp, err := c.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{
+		store.EXPECT().ListOrdensServico(gomock.Any(), db.ListOrdensServicoParams{Status: "RECEBIDA", Limite: 10, Deslocamento: 10}).Return([]db.ListOrdensServicoRow{row}, nil)
+		rsp, err := a.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{
 			PaginacaoQuery: dto.PaginacaoQuery{Pagina: 2, Tamanho: 10},
 			Status:         "RECEBIDA",
 		})
 		require.NoError(t, err)
 		require.Len(t, rsp, 1)
 		require.Equal(t, "Recebida", rsp[0].StatusDescricao)
-		require.Equal(t, c.veiculo.Placa, rsp[0].VeiculoPlaca)
+		require.Equal(t, a.veiculo.Placa, rsp[0].VeiculoPlaca)
 	})
-
 	t.Run("ComCliente", func(t *testing.T) {
-		c.store.EXPECT().GetCliente(gomock.Any(), c.cliente.Uuid).Return(c.cliente, nil)
-		c.store.EXPECT().ListOrdensServico(gomock.Any(), gomock.Any()).
+		store.EXPECT().GetCliente(gomock.Any(), a.cliente.UUID).Return(cliente, nil)
+		store.EXPECT().ListOrdensServico(gomock.Any(), gomock.Any()).
 			DoAndReturn(func(_ context.Context, arg db.ListOrdensServicoParams) ([]db.ListOrdensServicoRow, error) {
 				require.True(t, arg.ClienteID.Valid)
-				require.Equal(t, c.cliente.ID, arg.ClienteID.Int64)
+				require.Equal(t, a.cliente.ID, arg.ClienteID.Int64)
 				return []db.ListOrdensServicoRow{}, nil
 			})
-
-		rsp, err := c.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{ClienteUuid: c.cliente.Uuid.String()})
+		rsp, err := a.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{ClienteUuid: a.cliente.UUID.String()})
 		require.NoError(t, err)
 		require.Empty(t, rsp)
 	})
-
 	t.Run("ClienteUUIDInvalido", func(t *testing.T) {
-		_, err := c.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{ClienteUuid: "abc"})
-		require.True(t, errors.Is(err, service.ErrClienteNaoEncontrado))
+		_, err := a.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{ClienteUuid: "abc"})
+		require.ErrorIs(t, err, service.ErrClienteNaoEncontrado)
 	})
-
 	t.Run("ClienteNaoEncontrado", func(t *testing.T) {
-		c.store.EXPECT().GetCliente(gomock.Any(), gomock.Any()).Return(db.Cliente{}, sql.ErrNoRows)
-		_, err := c.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{ClienteUuid: uuid.NewString()})
-		require.True(t, errors.Is(err, service.ErrClienteNaoEncontrado))
+		store.EXPECT().GetCliente(gomock.Any(), gomock.Any()).Return(db.Cliente{}, sql.ErrNoRows)
+		_, err := a.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{ClienteUuid: uuid.NewString()})
+		require.ErrorIs(t, err, service.ErrClienteNaoEncontrado)
 	})
-
 	t.Run("ErroNoBanco", func(t *testing.T) {
-		c.store.EXPECT().ListOrdensServico(gomock.Any(), gomock.Any()).Return(nil, sql.ErrConnDone)
-		_, err := c.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{})
+		store.EXPECT().ListOrdensServico(gomock.Any(), gomock.Any()).Return(nil, sql.ErrConnDone)
+		_, err := a.svc.ListarOrdensServico(context.Background(), dto.ListOrdensServicoQuery{})
 		require.ErrorIs(t, err, sql.ErrConnDone)
 	})
 }
 
 func TestTempoMedioExecucao(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusFinalizada, ordemservico.OrcamentoAprovado)
+	a, store := novaAppComStore(t)
 	servicoUUID := uuid.New()
 	inicio := time.Date(2026, 1, 1, 0, 0, 0, 0, time.Local)
 	fimExclusivo := time.Date(2026, 2, 1, 0, 0, 0, 0, time.Local)
 
-	c.store.EXPECT().GetTempoMedioExecucao(gomock.Any(), db.GetTempoMedioExecucaoParams{
+	store.EXPECT().GetTempoMedioExecucao(gomock.Any(), db.GetTempoMedioExecucaoParams{
 		DataInicio: sql.NullTime{Time: inicio, Valid: true},
 		DataFim:    sql.NullTime{Time: fimExclusivo, Valid: true},
 	}).Return(db.GetTempoMedioExecucaoRow{TotalOrdens: 2, MediaSegundos: 5400, MinimoSegundos: 1800, MaximoSegundos: 9000}, nil)
-	c.store.EXPECT().ListTempoMedioExecucaoPorServico(gomock.Any(), gomock.Any()).
+	store.EXPECT().ListTempoMedioExecucaoPorServico(gomock.Any(), gomock.Any()).
 		Return([]db.ListTempoMedioExecucaoPorServicoRow{
 			{ServicoUuid: servicoUUID, ServicoNome: "Troca de óleo", TotalOrdens: 1, MediaSegundos: 600},
 			{ServicoUuid: uuid.New(), ServicoNome: "Rápido", TotalOrdens: 1, MediaSegundos: 45},
 		}, nil)
 
-	rsp, err := c.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataInicio: "2026-01-01", DataFim: "2026-01-31"})
+	rsp, err := a.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataInicio: "2026-01-01", DataFim: "2026-01-31"})
 	require.NoError(t, err)
 	require.Equal(t, int64(2), rsp.TotalOrdens)
 	require.Equal(t, int64(5400), rsp.MediaSegundos)
@@ -1275,12 +1212,11 @@ func TestTempoMedioExecucao(t *testing.T) {
 }
 
 func TestTempoMedioExecucaoSemFiltro(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusFinalizada, ordemservico.OrcamentoAprovado)
-	c.store.EXPECT().GetTempoMedioExecucao(gomock.Any(), db.GetTempoMedioExecucaoParams{}).Return(db.GetTempoMedioExecucaoRow{}, nil)
-	c.store.EXPECT().ListTempoMedioExecucaoPorServico(gomock.Any(), db.ListTempoMedioExecucaoPorServicoParams{}).
-		Return([]db.ListTempoMedioExecucaoPorServicoRow{}, nil)
+	a, store := novaAppComStore(t)
+	store.EXPECT().GetTempoMedioExecucao(gomock.Any(), db.GetTempoMedioExecucaoParams{}).Return(db.GetTempoMedioExecucaoRow{}, nil)
+	store.EXPECT().ListTempoMedioExecucaoPorServico(gomock.Any(), db.ListTempoMedioExecucaoPorServicoParams{}).Return([]db.ListTempoMedioExecucaoPorServicoRow{}, nil)
 
-	rsp, err := c.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{})
+	rsp, err := a.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{})
 	require.NoError(t, err)
 	require.Equal(t, int64(0), rsp.TotalOrdens)
 	require.Equal(t, "0s", rsp.MediaFormatada)
@@ -1288,23 +1224,21 @@ func TestTempoMedioExecucaoSemFiltro(t *testing.T) {
 }
 
 func TestTempoMedioExecucaoErros(t *testing.T) {
-	c := novoCenario(t, ordemservico.StatusFinalizada, ordemservico.OrcamentoAprovado)
+	a, store := novaAppComStore(t)
 
-	_, err := c.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataInicio: "01/01/2026"})
-	require.True(t, errors.Is(err, service.ErrDataInvalida))
+	_, err := a.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataInicio: "01/01/2026"})
+	require.ErrorIs(t, err, service.ErrDataInvalida)
+	_, err = a.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataFim: "x"})
+	require.ErrorIs(t, err, service.ErrDataInvalida)
+	_, err = a.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataInicio: "2026-02-01", DataFim: "2026-01-01"})
+	require.ErrorIs(t, err, service.ErrIntervaloDatasInvalido)
 
-	_, err = c.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataFim: "2026-13-01"})
-	require.True(t, errors.Is(err, service.ErrDataInvalida))
-
-	_, err = c.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{DataInicio: "2026-03-01", DataFim: "2026-01-31"})
-	require.True(t, errors.Is(err, service.ErrIntervaloDatasInvalido))
-
-	c.store.EXPECT().GetTempoMedioExecucao(gomock.Any(), gomock.Any()).Return(db.GetTempoMedioExecucaoRow{}, sql.ErrConnDone)
-	_, err = c.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{})
+	store.EXPECT().GetTempoMedioExecucao(gomock.Any(), gomock.Any()).Return(db.GetTempoMedioExecucaoRow{}, sql.ErrConnDone)
+	_, err = a.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{})
 	require.ErrorIs(t, err, sql.ErrConnDone)
 
-	c.store.EXPECT().GetTempoMedioExecucao(gomock.Any(), gomock.Any()).Return(db.GetTempoMedioExecucaoRow{}, nil)
-	c.store.EXPECT().ListTempoMedioExecucaoPorServico(gomock.Any(), gomock.Any()).Return(nil, sql.ErrConnDone)
-	_, err = c.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{})
+	store.EXPECT().GetTempoMedioExecucao(gomock.Any(), gomock.Any()).Return(db.GetTempoMedioExecucaoRow{}, nil)
+	store.EXPECT().ListTempoMedioExecucaoPorServico(gomock.Any(), gomock.Any()).Return(nil, sql.ErrConnDone)
+	_, err = a.svc.TempoMedioExecucao(context.Background(), dto.TempoMedioQuery{})
 	require.ErrorIs(t, err, sql.ErrConnDone)
 }

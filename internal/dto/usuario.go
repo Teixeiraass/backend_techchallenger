@@ -3,7 +3,7 @@ package dto
 import (
 	"time"
 
-	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/google/uuid"
 )
 
@@ -27,14 +27,14 @@ type UsuarioResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func NewUsuarioResponse(usuario db.Usuario) UsuarioResponse {
+func NewUsuarioResponse(usuario readmodel.Usuario) UsuarioResponse {
 	return UsuarioResponse{
-		Uuid:      usuario.Uuid,
+		Uuid:      usuario.UUID,
 		Nome:      usuario.Nome,
 		Email:     usuario.Email,
 		Papel:     usuario.Papel,
 		Ativo:     usuario.Ativo,
-		CreatedAt: usuario.CreatedAt,
+		CreatedAt: usuario.CriadoEm,
 	}
 }
 

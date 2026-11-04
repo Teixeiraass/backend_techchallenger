@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/gin-gonic/gin"
 )
 
@@ -272,7 +273,7 @@ func (server *Server) ListarMovimentosEstoque(ctx *gin.Context) {
 
 	response := make([]dto.MovimentoEstoqueResponse, 0, len(movimentos))
 	for _, m := range movimentos {
-		response = append(response, dto.NewMovimentoEstoqueResponse(m))
+		response = append(response, dto.NewMovimentoEstoqueResponse(readmodel.DeMovimentoEstoque(m)))
 	}
 	ctx.JSON(http.StatusOK, response)
 }

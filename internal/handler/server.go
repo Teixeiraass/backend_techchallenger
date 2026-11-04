@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
+	"github.com/Teixeiraass/backend_techchallenger/internal/repository"
 	"github.com/Teixeiraass/backend_techchallenger/internal/routes"
 	"github.com/Teixeiraass/backend_techchallenger/internal/service"
 	"github.com/Teixeiraass/backend_techchallenger/notification"
@@ -31,6 +32,10 @@ func NewServer(config util.Config, store db.Store, sender notification.Sender) (
 		return nil, fmt.Errorf("cannot create token maker: %w", err)
 	}
 
+	// Os comandos da OS e do estoque passam pela unidade de trabalho e pelos
+	// repositórios (portas do domínio); as listagens leem o Store direto.
+	uow := repository.NewUnidadeDeTrabalho(store)
+
 	server := &Server{
 		config:              config,
 		store:               store,
@@ -39,8 +44,8 @@ func NewServer(config util.Config, store db.Store, sender notification.Sender) (
 		ClienteService:      service.NewClienteService(store),
 		VeiculoService:      service.NewVeiculoService(store),
 		ServicoService:      service.NewServicoService(store),
-		PecaService:         service.NewPecaService(store, sender, config),
-		OrdemServicoService: service.NewOrdemServicoService(store, sender, config),
+		PecaService:         service.NewPecaService(uow, store, sender, config),
+		OrdemServicoService: service.NewOrdemServicoService(uow, store, sender, config),
 	}
 
 	server.router = routes.Setup(server.tokenMaker, server.store, server)

@@ -53,7 +53,8 @@ type OrdemServico struct {
 	Itens                 []Item
 	Reparos               []ReparoAdicional
 
-	alteracoes Alteracoes
+	alteracoes       Alteracoes
+	statusAoCarregar Status
 }
 
 // Nova cria a OS no status inicial Recebida para o cliente e o veículo.

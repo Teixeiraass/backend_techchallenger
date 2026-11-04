@@ -40,7 +40,7 @@ func (s *clienteService) CriarCliente(ctx context.Context, req dto.CriarClienteR
 		Telefone:      req.Telefone,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
+		if IsUniqueViolation(err) {
 			return nil, ErrDocumentoDuplicado
 		}
 		return nil, err
@@ -93,7 +93,7 @@ func (s *clienteService) AtualizarCliente(ctx context.Context, clienteUUID uuid.
 func (s *clienteService) RemoverCliente(ctx context.Context, clienteUUID uuid.UUID) error {
 	_, err := s.store.DeleteCliente(ctx, clienteUUID)
 	if err != nil {
-		if isForeignKeyViolation(err) {
+		if IsForeignKeyViolation(err) {
 			return ErrClienteEmUso
 		}
 		return notFound(err, ErrClienteNaoEncontrado)

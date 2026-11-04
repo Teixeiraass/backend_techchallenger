@@ -9,6 +9,7 @@ import (
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/veiculo"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/google/uuid"
 )
 
@@ -51,13 +52,13 @@ func (s *veiculoService) CriarVeiculo(ctx context.Context, req dto.CriarVeiculoR
 		Ano:       req.Ano,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
+		if IsUniqueViolation(err) {
 			return nil, ErrPlacaDuplicada
 		}
 		return nil, err
 	}
 
-	response := dto.NewVeiculoResponse(v, dono.Uuid)
+	response := dto.NewVeiculoResponse(readmodel.DeVeiculo(v, dono.Uuid))
 	return &response, nil
 }
 
@@ -67,7 +68,7 @@ func (s *veiculoService) BuscarVeiculo(ctx context.Context, veiculoUUID uuid.UUI
 		return nil, notFound(err, ErrVeiculoNaoEncontrado)
 	}
 
-	response := dto.NewVeiculoResponse(row.Veiculo, row.ClienteUuid)
+	response := dto.NewVeiculoResponse(readmodel.DeVeiculo(row.Veiculo, row.ClienteUuid))
 	return &response, nil
 }
 
@@ -96,7 +97,7 @@ func (s *veiculoService) ListarVeiculos(ctx context.Context, query dto.ListVeicu
 
 	response := make([]dto.VeiculoResponse, 0, len(rows))
 	for _, row := range rows {
-		response = append(response, dto.NewVeiculoResponse(row.Veiculo, row.ClienteUuid))
+		response = append(response, dto.NewVeiculoResponse(readmodel.DeVeiculo(row.Veiculo, row.ClienteUuid)))
 	}
 	return response, nil
 }
@@ -123,20 +124,20 @@ func (s *veiculoService) AtualizarVeiculo(ctx context.Context, veiculoUUID uuid.
 		Ano:    req.Ano,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
+		if IsUniqueViolation(err) {
 			return nil, ErrPlacaDuplicada
 		}
 		return nil, notFound(err, ErrVeiculoNaoEncontrado)
 	}
 
-	response := dto.NewVeiculoResponse(v, atual.ClienteUuid)
+	response := dto.NewVeiculoResponse(readmodel.DeVeiculo(v, atual.ClienteUuid))
 	return &response, nil
 }
 
 func (s *veiculoService) RemoverVeiculo(ctx context.Context, veiculoUUID uuid.UUID) error {
 	_, err := s.store.DeleteVeiculo(ctx, veiculoUUID)
 	if err != nil {
-		if isForeignKeyViolation(err) {
+		if IsForeignKeyViolation(err) {
 			return ErrVeiculoEmUso
 		}
 		return notFound(err, ErrVeiculoNaoEncontrado)

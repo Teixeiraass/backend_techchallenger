@@ -6,6 +6,7 @@ import (
 	"errors"
 	"testing"
 
+	mockdb "github.com/Teixeiraass/backend_techchallenger/db/mock"
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
@@ -15,249 +16,301 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// fxEstoque é o serviço de peças ligado aos mocks das portas.
+type fxEstoque struct {
+	app   *fxApp
+	store *mockdb.MockStore
+	svc   service.PecaService
+}
+
+func novoEstoque(t *testing.T) *fxEstoque {
+	app := novaApp(t)
+	store := mockdb.NewMockStore(gomock.NewController(t))
+	return &fxEstoque{app: app, store: store, svc: service.NewPecaService(app.uow, store, app.sender, fxConfig())}
+}
+
 func TestCriarPeca(t *testing.T) {
 	ctx := context.Background()
 	req := dto.CriarPecaRequest{Codigo: " flt-1 ", Nome: " Filtro ", Tipo: "PECA", PrecoCentavos: 3500, QuantidadeEstoque: 10, EstoqueMinimo: 2}
 
-	t.Run("OKWithInitialStock", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		store.EXPECT().CreatePeca(gomock.Any(), db.CreatePecaParams{
-			Codigo: "FLT-1", Nome: "Filtro", Tipo: "PECA", Unidade: "UN", PrecoCentavos: 3500, QuantidadeEstoque: 10, EstoqueMinimo: 2,
-		}).Return(db.Peca{ID: 5, Codigo: "FLT-1", QuantidadeEstoque: 10}, nil)
-		store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).
-			DoAndReturn(func(_ context.Context, arg db.CreateMovimentoEstoqueParams) (db.MovimentoEstoque, error) {
-				require.Equal(t, int64(5), arg.PecaID)
-				require.Equal(t, "ENTRADA", arg.Tipo)
-				require.Equal(t, int32(10), arg.SaldoPosterior)
-				require.Equal(t, sql.NullInt64{Int64: 9, Valid: true}, arg.UsuarioID)
-				return db.MovimentoEstoque{}, nil
+	t.Run("OKComSaldoInicial", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, p *estoque.Peca) error {
+				require.Equal(t, "FLT-1", p.Codigo)
+				require.Equal(t, "Filtro", p.Nome)
+				require.Equal(t, "UN", p.Unidade)
+				require.Equal(t, int32(10), p.Saldo)
+				p.ID = 5
+				return nil
 			})
-		p, err := service.NewPecaService(store, &crudSender{}, crudConfig()).CriarPeca(ctx, req, 9)
+		e.app.pecas.EXPECT().RegistrarMovimento(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, mov estoque.MovimentoEstoque) error {
+				require.Equal(t, int64(5), mov.PecaID)
+				require.Equal(t, estoque.MovimentoEntrada, mov.Tipo)
+				require.Equal(t, int32(10), mov.Quantidade)
+				require.Equal(t, int32(10), mov.SaldoPosterior)
+				require.Equal(t, int64(9), mov.UsuarioID)
+				require.Equal(t, "Saldo inicial", mov.Observacao)
+				return nil
+			})
+		p, err := e.svc.CriarPeca(ctx, req, 9)
 		require.NoError(t, err)
 		require.Equal(t, "FLT-1", p.Codigo)
+		require.Equal(t, 1, e.app.transacoes)
 	})
-	t.Run("OKWithoutStockAndCustomUnit", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
+	t.Run("OKSemSaldoEUnidadePropria", func(t *testing.T) {
+		e := novoEstoque(t)
 		r := req
 		r.QuantidadeEstoque = 0
 		r.Unidade = " l "
 		r.Tipo = "INSUMO"
-		store.EXPECT().CreatePeca(gomock.Any(), gomock.Any()).
-			DoAndReturn(func(_ context.Context, arg db.CreatePecaParams) (db.Peca, error) {
-				require.Equal(t, "L", arg.Unidade)
-				return db.Peca{}, nil
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, p *estoque.Peca) error {
+				require.Equal(t, "L", p.Unidade)
+				require.Equal(t, estoque.TipoInsumo, p.Tipo)
+				return nil
 			})
-		_, err := service.NewPecaService(store, &crudSender{}, crudConfig()).CriarPeca(ctx, r, 0)
+		e.app.pecas.EXPECT().RegistrarMovimento(gomock.Any(), gomock.Any()).Times(0)
+		_, err := e.svc.CriarPeca(ctx, r, 0)
 		require.NoError(t, err)
 	})
-	t.Run("Validation", func(t *testing.T) {
+	t.Run("Validacao", func(t *testing.T) {
+		e := novoEstoque(t)
 		r := req
 		r.Tipo = "OUTRO"
-		_, err := service.NewPecaService(crudNewStore(t), &crudSender{}, crudConfig()).CriarPeca(ctx, r, 0)
+		_, err := e.svc.CriarPeca(ctx, r, 0)
 		require.ErrorIs(t, err, estoque.ErrTipoInvalido)
+		require.Zero(t, e.app.transacoes)
 	})
-	t.Run("DuplicateCode", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		store.EXPECT().CreatePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, crudUniqueErr)
-		_, err := service.NewPecaService(store, &crudSender{}, crudConfig()).CriarPeca(ctx, req, 0)
+	t.Run("CodigoDuplicado", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), gomock.Any()).Return(service.ErrCodigoPecaDuplicado)
+		_, err := e.svc.CriarPeca(ctx, req, 0)
 		require.ErrorIs(t, err, service.ErrCodigoPecaDuplicado)
 	})
-	t.Run("MovementError", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		store.EXPECT().CreatePeca(gomock.Any(), gomock.Any()).Return(db.Peca{ID: 1}, nil)
-		store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, sql.ErrConnDone)
-		_, err := service.NewPecaService(store, &crudSender{}, crudConfig()).CriarPeca(ctx, req, 0)
+	t.Run("ErroNoMovimento", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), gomock.Any()).Return(nil)
+		e.app.pecas.EXPECT().RegistrarMovimento(gomock.Any(), gomock.Any()).Return(sql.ErrConnDone)
+		_, err := e.svc.CriarPeca(ctx, req, 0)
 		require.ErrorIs(t, err, sql.ErrConnDone)
 	})
 }
 
-func TestBuscarListarAtualizarInativarPeca(t *testing.T) {
+func TestBuscarEListarPecas(t *testing.T) {
 	ctx := context.Background()
-	p := crudPeca(10, 2)
-	store := crudNewStore(t)
-	svc := service.NewPecaService(store, &crudSender{}, crudConfig())
+	p := fxPeca(10, 2)
 
-	store.EXPECT().GetPeca(gomock.Any(), p.Uuid).Return(p, nil)
-	got, err := svc.BuscarPeca(ctx, p.Uuid)
-	require.NoError(t, err)
-	require.Equal(t, p.Uuid, got.Uuid)
+	t.Run("Buscar", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().Carregar(gomock.Any(), p.UUID).Return(p, nil)
+		got, err := e.svc.BuscarPeca(ctx, p.UUID)
+		require.NoError(t, err)
+		require.Equal(t, p.Codigo, got.Codigo)
 
-	store.EXPECT().GetPeca(gomock.Any(), p.Uuid).Return(db.Peca{}, sql.ErrNoRows)
-	_, err = svc.BuscarPeca(ctx, p.Uuid)
-	require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+		e.app.pecas.EXPECT().Carregar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err = e.svc.BuscarPeca(ctx, uuid.New())
+		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	})
+	t.Run("Listar", func(t *testing.T) {
+		e := novoEstoque(t)
+		row := db.Peca{ID: 1, Uuid: uuid.New(), Codigo: "A", Tipo: "PECA", QuantidadeEstoque: 1, EstoqueMinimo: 2, Ativo: true}
+		e.store.EXPECT().ListPecas(gomock.Any(), db.ListPecasParams{ApenasAtivas: true, Tipo: "PECA", Busca: "a", Limite: 20}).Return([]db.Peca{row}, nil)
+		pecas, err := e.svc.ListarPecas(ctx, dto.ListPecasQuery{ApenasAtivas: true, Tipo: "PECA", Busca: "a"})
+		require.NoError(t, err)
+		require.Len(t, pecas, 1)
+		require.True(t, pecas[0].EstoqueBaixo())
 
-	store.EXPECT().ListPecas(gomock.Any(), db.ListPecasParams{ApenasAtivas: true, Tipo: "INSUMO", Busca: "ol", Limite: 20}).Return([]db.Peca{p}, nil)
-	list, err := svc.ListarPecas(ctx, dto.ListPecasQuery{ApenasAtivas: true, Tipo: "INSUMO", Busca: "ol"})
-	require.NoError(t, err)
-	require.Len(t, list, 1)
+		e.store.EXPECT().ListPecas(gomock.Any(), gomock.Any()).Return(nil, sql.ErrConnDone)
+		_, err = e.svc.ListarPecas(ctx, dto.ListPecasQuery{})
+		require.ErrorIs(t, err, sql.ErrConnDone)
+	})
+	t.Run("EstoqueBaixo", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.store.EXPECT().ListPecasEstoqueBaixo(gomock.Any()).Return([]db.Peca{{Codigo: "B"}}, nil)
+		pecas, err := e.svc.ListarEstoqueBaixo(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "B", pecas[0].Codigo)
 
-	store.EXPECT().ListPecasEstoqueBaixo(gomock.Any()).Return([]db.Peca{p}, nil)
-	baixo, err := svc.ListarEstoqueBaixo(ctx)
-	require.NoError(t, err)
-	require.Len(t, baixo, 1)
+		e.store.EXPECT().ListPecasEstoqueBaixo(gomock.Any()).Return(nil, sql.ErrConnDone)
+		_, err = e.svc.ListarEstoqueBaixo(ctx)
+		require.ErrorIs(t, err, sql.ErrConnDone)
+	})
+}
 
-	upd := dto.AtualizarPecaRequest{Codigo: "abc", Nome: "N", Tipo: "PECA", PrecoCentavos: 10, EstoqueMinimo: 1, Ativo: crudBool(true)}
-	store.EXPECT().UpdatePeca(gomock.Any(), db.UpdatePecaParams{
-		Uuid: p.Uuid, Codigo: "ABC", Nome: "N", Tipo: "PECA", Unidade: "UN", PrecoCentavos: 10, EstoqueMinimo: 1, Ativo: true,
-	}).Return(p, nil)
-	_, err = svc.AtualizarPeca(ctx, p.Uuid, upd)
-	require.NoError(t, err)
+func TestAtualizarEInativarPeca(t *testing.T) {
+	ctx := context.Background()
+	ativo := true
+	req := dto.AtualizarPecaRequest{Codigo: "flt-2", Nome: "Filtro 2", Tipo: "PECA", Unidade: "cx", PrecoCentavos: 4000, EstoqueMinimo: 3, Ativo: &ativo}
 
-	updUnit := upd
-	updUnit.Unidade = "kg"
-	store.EXPECT().UpdatePeca(gomock.Any(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, arg db.UpdatePecaParams) (db.Peca, error) {
-			require.Equal(t, "KG", arg.Unidade)
-			return p, nil
-		})
-	_, err = svc.AtualizarPeca(ctx, p.Uuid, updUnit)
-	require.NoError(t, err)
-
-	bad := upd
-	bad.EstoqueMinimo = -1
-	_, err = svc.AtualizarPeca(ctx, p.Uuid, bad)
-	require.ErrorIs(t, err, estoque.ErrEstoqueMinimoInvalido)
-
-	store.EXPECT().UpdatePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, crudUniqueErr)
-	_, err = svc.AtualizarPeca(ctx, p.Uuid, upd)
-	require.ErrorIs(t, err, service.ErrCodigoPecaDuplicado)
-
-	store.EXPECT().UpdatePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
-	_, err = svc.AtualizarPeca(ctx, p.Uuid, upd)
-	require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
-
-	store.EXPECT().InativarPeca(gomock.Any(), p.Uuid).Return(p, nil)
-	_, err = svc.InativarPeca(ctx, p.Uuid)
-	require.NoError(t, err)
-
-	store.EXPECT().InativarPeca(gomock.Any(), p.Uuid).Return(db.Peca{}, sql.ErrNoRows)
-	_, err = svc.InativarPeca(ctx, p.Uuid)
-	require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	t.Run("AtualizarOK", func(t *testing.T) {
+		e := novoEstoque(t)
+		p := fxPeca(10, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), p).Return(nil)
+		got, err := e.svc.AtualizarPeca(ctx, p.UUID, req)
+		require.NoError(t, err)
+		require.Equal(t, "FLT-2", got.Codigo)
+		require.Equal(t, "CX", got.Unidade)
+		require.Equal(t, int32(3), got.EstoqueMinimo)
+		require.Equal(t, int32(10), got.Saldo, "o saldo não muda pelo cadastro")
+	})
+	t.Run("AtualizarValidacao", func(t *testing.T) {
+		e := novoEstoque(t)
+		p := fxPeca(10, 2)
+		invalida := req
+		invalida.Tipo = "X"
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), gomock.Any()).Times(0)
+		_, err := e.svc.AtualizarPeca(ctx, p.UUID, invalida)
+		require.ErrorIs(t, err, estoque.ErrTipoInvalido)
+	})
+	t.Run("AtualizarNaoEncontrada", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err := e.svc.AtualizarPeca(ctx, uuid.New(), req)
+		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	})
+	t.Run("AtualizarCodigoDuplicado", func(t *testing.T) {
+		e := novoEstoque(t)
+		p := fxPeca(10, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), gomock.Any()).Return(service.ErrCodigoPecaDuplicado)
+		_, err := e.svc.AtualizarPeca(ctx, p.UUID, req)
+		require.ErrorIs(t, err, service.ErrCodigoPecaDuplicado)
+	})
+	t.Run("InativarOK", func(t *testing.T) {
+		e := novoEstoque(t)
+		p := fxPeca(10, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().Salvar(gomock.Any(), p).Return(nil)
+		got, err := e.svc.InativarPeca(ctx, p.UUID)
+		require.NoError(t, err)
+		require.False(t, got.Ativa)
+	})
+	t.Run("InativarNaoEncontrada", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err := e.svc.InativarPeca(ctx, uuid.New())
+		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	})
 }
 
 func TestReporEstoque(t *testing.T) {
 	ctx := context.Background()
-	p := crudPeca(3, 2)
-	req := dto.ReporEstoqueRequest{Quantidade: 7, Observacao: "NF 1"}
 
 	t.Run("OK", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		depois := p
-		depois.QuantidadeEstoque = 10
-		store.EXPECT().GetPecaForUpdate(gomock.Any(), p.Uuid).Return(p, nil)
-		store.EXPECT().ReporEstoquePeca(gomock.Any(), db.ReporEstoquePecaParams{ID: p.ID, Quantidade: 7}).Return(depois, nil)
-		store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).
-			DoAndReturn(func(_ context.Context, arg db.CreateMovimentoEstoqueParams) (db.MovimentoEstoque, error) {
-				require.Equal(t, "ENTRADA", arg.Tipo)
-				require.Equal(t, int32(3), arg.SaldoAnterior)
-				require.Equal(t, int32(10), arg.SaldoPosterior)
-				require.Equal(t, "NF 1", arg.Observacao)
-				return db.MovimentoEstoque{}, nil
+		e := novoEstoque(t)
+		p := fxPeca(1, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().AplicarMovimento(gomock.Any(), p, gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ *estoque.Peca, mov estoque.MovimentoEstoque) error {
+				require.Equal(t, estoque.MovimentoEntrada, mov.Tipo)
+				require.Equal(t, int32(5), mov.Quantidade)
+				require.Equal(t, int32(1), mov.SaldoAnterior)
+				require.Equal(t, int32(6), mov.SaldoPosterior)
+				require.Equal(t, int64(3), mov.UsuarioID)
+				require.Equal(t, "compra", mov.Observacao)
+				return nil
 			})
-		got, err := service.NewPecaService(store, &crudSender{}, crudConfig()).ReporEstoque(ctx, p.Uuid, req, 1)
+		got, err := e.svc.ReporEstoque(ctx, p.UUID, dto.ReporEstoqueRequest{Quantidade: 5, Observacao: "compra"}, 3)
 		require.NoError(t, err)
-		require.Equal(t, int32(10), got.QuantidadeEstoque)
+		require.Equal(t, int32(6), got.Saldo)
+		require.Empty(t, e.app.sender.msgs)
 	})
-	t.Run("InvalidQuantity", func(t *testing.T) {
-		_, err := service.NewPecaService(crudNewStore(t), &crudSender{}, crudConfig()).ReporEstoque(ctx, p.Uuid, dto.ReporEstoqueRequest{Quantidade: 0}, 1)
+	t.Run("QuantidadeInvalida", func(t *testing.T) {
+		e := novoEstoque(t)
+		_, err := e.svc.ReporEstoque(ctx, uuid.New(), dto.ReporEstoqueRequest{Quantidade: 0}, 3)
 		require.ErrorIs(t, err, estoque.ErrQuantidadeInvalida)
+		require.Zero(t, e.app.transacoes)
 	})
-	t.Run("NotFound", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		store.EXPECT().GetPecaForUpdate(gomock.Any(), p.Uuid).Return(db.Peca{}, sql.ErrNoRows)
-		_, err := service.NewPecaService(store, &crudSender{}, crudConfig()).ReporEstoque(ctx, p.Uuid, req, 1)
+	t.Run("NaoEncontrada", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err := e.svc.ReporEstoque(ctx, uuid.New(), dto.ReporEstoqueRequest{Quantidade: 5}, 3)
 		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
 	})
-	t.Run("UpdateError", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		store.EXPECT().GetPecaForUpdate(gomock.Any(), p.Uuid).Return(p, nil)
-		store.EXPECT().ReporEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrConnDone)
-		_, err := service.NewPecaService(store, &crudSender{}, crudConfig()).ReporEstoque(ctx, p.Uuid, req, 1)
+	t.Run("ErroNoBanco", func(t *testing.T) {
+		e := novoEstoque(t)
+		p := fxPeca(1, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().AplicarMovimento(gomock.Any(), gomock.Any(), gomock.Any()).Return(sql.ErrConnDone)
+		_, err := e.svc.ReporEstoque(ctx, p.UUID, dto.ReporEstoqueRequest{Quantidade: 5}, 3)
 		require.ErrorIs(t, err, sql.ErrConnDone)
 	})
 }
 
 func TestAjustarEstoque(t *testing.T) {
 	ctx := context.Background()
-	p := crudPeca(10, 4)
+	quantidade := func(v int32) *int32 { return &v }
 
-	t.Run("OKAboveMinimum", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		sender := &crudSender{}
-		depois := p
-		depois.QuantidadeEstoque = 8
-		store.EXPECT().GetPecaForUpdate(gomock.Any(), p.Uuid).Return(p, nil)
-		store.EXPECT().AjustarEstoquePeca(gomock.Any(), db.AjustarEstoquePecaParams{ID: p.ID, Quantidade: 8}).Return(depois, nil)
-		store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).
-			DoAndReturn(func(_ context.Context, arg db.CreateMovimentoEstoqueParams) (db.MovimentoEstoque, error) {
-				require.Equal(t, "AJUSTE", arg.Tipo)
-				require.Equal(t, int32(-2), arg.Quantidade)
-				return db.MovimentoEstoque{}, nil
+	t.Run("OKSemPedidoDeReposicao", func(t *testing.T) {
+		e := novoEstoque(t)
+		p := fxPeca(10, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().AplicarMovimento(gomock.Any(), p, gomock.Any()).
+			DoAndReturn(func(_ context.Context, _ *estoque.Peca, mov estoque.MovimentoEstoque) error {
+				require.Equal(t, estoque.MovimentoAjuste, mov.Tipo)
+				require.Equal(t, int32(-3), mov.Quantidade)
+				require.Equal(t, int32(7), mov.SaldoPosterior)
+				return nil
 			})
-		_, err := service.NewPecaService(store, sender, crudConfig()).AjustarEstoque(ctx, p.Uuid, dto.AjustarEstoqueRequest{Quantidade: crudInt32(8), Observacao: "inv"}, 1)
+		got, err := e.svc.AjustarEstoque(ctx, p.UUID, dto.AjustarEstoqueRequest{Quantidade: quantidade(7), Observacao: "inventário"}, 3)
 		require.NoError(t, err)
-		require.Empty(t, sender.msgs)
+		require.Equal(t, int32(7), got.Saldo)
+		require.Empty(t, e.app.sender.msgs)
 	})
-	t.Run("LowStockNotifiesAdmin", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		sender := &crudSender{err: errors.New("smtp down")} // falha de envio não quebra o ajuste
-		depois := p
-		depois.QuantidadeEstoque = 1
-		store.EXPECT().GetPecaForUpdate(gomock.Any(), p.Uuid).Return(p, nil)
-		store.EXPECT().AjustarEstoquePeca(gomock.Any(), gomock.Any()).Return(depois, nil)
-		store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, nil)
-		got, err := service.NewPecaService(store, sender, crudConfig()).AjustarEstoque(ctx, p.Uuid, dto.AjustarEstoqueRequest{Quantidade: crudInt32(1)}, 1)
+	t.Run("OKComPedidoDeReposicao", func(t *testing.T) {
+		e := novoEstoque(t)
+		p := fxPeca(10, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().AplicarMovimento(gomock.Any(), p, gomock.Any()).Return(nil)
+		got, err := e.svc.AjustarEstoque(ctx, p.UUID, dto.AjustarEstoqueRequest{Quantidade: quantidade(1)}, 3)
 		require.NoError(t, err)
-		require.Equal(t, int32(1), got.QuantidadeEstoque)
-		require.Len(t, sender.msgs, 1)
-		require.Equal(t, "admin@oficina.com", sender.msgs[0].To)
-		require.Contains(t, sender.msgs[0].Body, p.Codigo)
+		require.True(t, got.EstoqueBaixo())
+		require.Len(t, e.app.sender.msgs, 1)
+		require.Equal(t, "admin@oficina.com", e.app.sender.msgs[0].To)
+		require.Contains(t, e.app.sender.msgs[0].Body, p.Codigo)
 	})
-	t.Run("Negative", func(t *testing.T) {
-		_, err := service.NewPecaService(crudNewStore(t), &crudSender{}, crudConfig()).AjustarEstoque(ctx, p.Uuid, dto.AjustarEstoqueRequest{Quantidade: crudInt32(-1)}, 1)
+	t.Run("NotificacaoFalhaNaoDesfaz", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.sender.err = errors.New("smtp fora do ar")
+		p := fxPeca(10, 2)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
+		e.app.pecas.EXPECT().AplicarMovimento(gomock.Any(), p, gomock.Any()).Return(nil)
+		_, err := e.svc.AjustarEstoque(ctx, p.UUID, dto.AjustarEstoqueRequest{Quantidade: quantidade(0)}, 3)
+		require.NoError(t, err)
+	})
+	t.Run("SaldoNegativo", func(t *testing.T) {
+		e := novoEstoque(t)
+		_, err := e.svc.AjustarEstoque(ctx, uuid.New(), dto.AjustarEstoqueRequest{Quantidade: quantidade(-1)}, 3)
 		require.ErrorIs(t, err, estoque.ErrSaldoNegativo)
 	})
-	t.Run("NotFound", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		store.EXPECT().GetPecaForUpdate(gomock.Any(), p.Uuid).Return(db.Peca{}, sql.ErrNoRows)
-		_, err := service.NewPecaService(store, &crudSender{}, crudConfig()).AjustarEstoque(ctx, p.Uuid, dto.AjustarEstoqueRequest{Quantidade: crudInt32(1)}, 1)
+	t.Run("NaoEncontrada", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err := e.svc.AjustarEstoque(ctx, uuid.New(), dto.AjustarEstoqueRequest{Quantidade: quantidade(1)}, 3)
 		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
-	})
-	t.Run("UpdateError", func(t *testing.T) {
-		store := crudNewStore(t)
-		crudStubTx(store)
-		store.EXPECT().GetPecaForUpdate(gomock.Any(), p.Uuid).Return(p, nil)
-		store.EXPECT().AjustarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrConnDone)
-		_, err := service.NewPecaService(store, &crudSender{}, crudConfig()).AjustarEstoque(ctx, p.Uuid, dto.AjustarEstoqueRequest{Quantidade: crudInt32(1)}, 1)
-		require.ErrorIs(t, err, sql.ErrConnDone)
 	})
 }
 
 func TestListarMovimentos(t *testing.T) {
 	ctx := context.Background()
-	p := crudPeca(1, 0)
-	store := crudNewStore(t)
-	svc := service.NewPecaService(store, &crudSender{}, crudConfig())
+	p := fxPeca(10, 2)
 
-	store.EXPECT().GetPeca(gomock.Any(), p.Uuid).Return(p, nil)
-	store.EXPECT().ListMovimentosEstoqueByPeca(gomock.Any(), db.ListMovimentosEstoqueByPecaParams{PecaID: p.ID, Limit: 5, Offset: 5}).
-		Return([]db.MovimentoEstoque{{}, {}}, nil)
-	movs, err := svc.ListarMovimentos(ctx, p.Uuid, dto.PaginacaoQuery{Pagina: 2, Tamanho: 5})
-	require.NoError(t, err)
-	require.Len(t, movs, 2)
-
-	id := uuid.New()
-	store.EXPECT().GetPeca(gomock.Any(), id).Return(db.Peca{}, sql.ErrNoRows)
-	_, err = svc.ListarMovimentos(ctx, id, dto.PaginacaoQuery{})
-	require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	t.Run("OK", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().Carregar(gomock.Any(), p.UUID).Return(p, nil)
+		e.store.EXPECT().ListMovimentosEstoqueByPeca(gomock.Any(), db.ListMovimentosEstoqueByPecaParams{PecaID: p.ID, Limit: 20}).Return([]db.MovimentoEstoque{{PecaID: p.ID}}, nil)
+		movs, err := e.svc.ListarMovimentos(ctx, p.UUID, dto.PaginacaoQuery{})
+		require.NoError(t, err)
+		require.Len(t, movs, 1)
+	})
+	t.Run("NaoEncontrada", func(t *testing.T) {
+		e := novoEstoque(t)
+		e.app.pecas.EXPECT().Carregar(gomock.Any(), gomock.Any()).Return(nil, service.ErrPecaNaoEncontrada)
+		_, err := e.svc.ListarMovimentos(ctx, uuid.New(), dto.PaginacaoQuery{})
+		require.ErrorIs(t, err, service.ErrPecaNaoEncontrada)
+	})
 }
