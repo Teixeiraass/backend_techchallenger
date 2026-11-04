@@ -3,7 +3,6 @@ package service_test
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"testing"
 
 	mockdb "github.com/Teixeiraass/backend_techchallenger/db/mock"
@@ -26,7 +25,7 @@ type fxEstoque struct {
 func novoEstoque(t *testing.T) *fxEstoque {
 	app := novaApp(t)
 	store := mockdb.NewMockStore(gomock.NewController(t))
-	return &fxEstoque{app: app, store: store, svc: service.NewPecaService(app.uow, store, app.sender, fxConfig())}
+	return &fxEstoque{app: app, store: store, svc: service.NewPecaService(app.uow, store, app.eventos)}
 }
 
 func TestCriarPeca(t *testing.T) {
@@ -217,7 +216,8 @@ func TestReporEstoque(t *testing.T) {
 		got, err := e.svc.ReporEstoque(ctx, p.UUID, dto.ReporEstoqueRequest{Quantidade: 5, Observacao: "compra"}, 3)
 		require.NoError(t, err)
 		require.Equal(t, int32(6), got.Saldo)
-		require.Empty(t, e.app.sender.msgs)
+		require.Equal(t, 1, e.app.eventos.publicacoes)
+		require.Empty(t, e.app.eventos.eventos, "reposição não gera evento")
 	})
 	t.Run("QuantidadeInvalida", func(t *testing.T) {
 		e := novoEstoque(t)
@@ -259,7 +259,7 @@ func TestAjustarEstoque(t *testing.T) {
 		got, err := e.svc.AjustarEstoque(ctx, p.UUID, dto.AjustarEstoqueRequest{Quantidade: quantidade(7), Observacao: "inventário"}, 3)
 		require.NoError(t, err)
 		require.Equal(t, int32(7), got.Saldo)
-		require.Empty(t, e.app.sender.msgs)
+		require.Empty(t, e.app.eventos.eventos)
 	})
 	t.Run("OKComPedidoDeReposicao", func(t *testing.T) {
 		e := novoEstoque(t)
@@ -269,18 +269,10 @@ func TestAjustarEstoque(t *testing.T) {
 		got, err := e.svc.AjustarEstoque(ctx, p.UUID, dto.AjustarEstoqueRequest{Quantidade: quantidade(1)}, 3)
 		require.NoError(t, err)
 		require.True(t, got.EstoqueBaixo())
-		require.Len(t, e.app.sender.msgs, 1)
-		require.Equal(t, "admin@oficina.com", e.app.sender.msgs[0].To)
-		require.Contains(t, e.app.sender.msgs[0].Body, p.Codigo)
-	})
-	t.Run("NotificacaoFalhaNaoDesfaz", func(t *testing.T) {
-		e := novoEstoque(t)
-		e.app.sender.err = errors.New("smtp fora do ar")
-		p := fxPeca(10, 2)
-		e.app.pecas.EXPECT().CarregarParaAtualizar(gomock.Any(), p.UUID).Return(p, nil)
-		e.app.pecas.EXPECT().AplicarMovimento(gomock.Any(), p, gomock.Any()).Return(nil)
-		_, err := e.svc.AjustarEstoque(ctx, p.UUID, dto.AjustarEstoqueRequest{Quantidade: quantidade(0)}, 3)
-		require.NoError(t, err)
+		// "Estoque baixo detectado" publicado depois do commit: a política pede a reposição.
+		require.Equal(t, []string{estoque.NomeEstoqueBaixoDetectado}, e.app.eventos.nomes())
+		require.Equal(t, p.Codigo, e.app.eventos.eventos[0].(estoque.EstoqueBaixoDetectado).Codigo)
+		require.Empty(t, got.Eventos(), "eventos limpos depois de publicados")
 	})
 	t.Run("SaldoNegativo", func(t *testing.T) {
 		e := novoEstoque(t)

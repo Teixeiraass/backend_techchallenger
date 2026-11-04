@@ -6,7 +6,9 @@ import (
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	_ "github.com/Teixeiraass/backend_techchallenger/docs"
+	"github.com/Teixeiraass/backend_techchallenger/internal/eventos"
 	"github.com/Teixeiraass/backend_techchallenger/internal/handler"
+	"github.com/Teixeiraass/backend_techchallenger/internal/service"
 	"github.com/Teixeiraass/backend_techchallenger/notification"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	_ "github.com/lib/pq"
@@ -42,10 +44,16 @@ func main() {
 
 	store := db.NewStore(conn)
 
-	server, err := handler.NewServer(config, store, notification.NewLogSender())
+	// Eventos de domínio: os serviços publicam depois do commit e as políticas
+	// do event storming reagem como handlers (notificar o cliente, pedir
+	// reposição ao administrador). O envio de e-mail fica atrás da porta
+	// notification.Sender.
+	despachante := eventos.NovoDespachante()
+	server, err := handler.NewServer(config, store, despachante)
 	if err != nil {
 		log.Fatal("cannot create server: ", err)
 	}
+	service.AssinarPoliticas(despachante, service.NovasPoliticas(server.Catalogo(), notification.NewLogSender(), config))
 
 	err = server.Start(config.ServerAddress)
 	if err != nil {

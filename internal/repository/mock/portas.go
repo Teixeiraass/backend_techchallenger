@@ -8,6 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
+	domain "github.com/Teixeiraass/backend_techchallenger/internal/domain"
 	estoque "github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	ordemservico "github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
 	readmodel "github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
@@ -130,6 +131,41 @@ func (m *MockRepositorios) Pecas() estoque.Repositorio {
 func (mr *MockRepositoriosMockRecorder) Pecas() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pecas", reflect.TypeOf((*MockRepositorios)(nil).Pecas))
+}
+
+// MockPublicador is a mock of Publicador interface.
+type MockPublicador struct {
+	ctrl     *gomock.Controller
+	recorder *MockPublicadorMockRecorder
+}
+
+// MockPublicadorMockRecorder is the mock recorder for MockPublicador.
+type MockPublicadorMockRecorder struct {
+	mock *MockPublicador
+}
+
+// NewMockPublicador creates a new mock instance.
+func NewMockPublicador(ctrl *gomock.Controller) *MockPublicador {
+	mock := &MockPublicador{ctrl: ctrl}
+	mock.recorder = &MockPublicadorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPublicador) EXPECT() *MockPublicadorMockRecorder {
+	return m.recorder
+}
+
+// Publicar mocks base method.
+func (m *MockPublicador) Publicar(ctx context.Context, eventos []domain.Evento) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Publicar", ctx, eventos)
+}
+
+// Publicar indicates an expected call of Publicar.
+func (mr *MockPublicadorMockRecorder) Publicar(ctx, eventos interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publicar", reflect.TypeOf((*MockPublicador)(nil).Publicar), ctx, eventos)
 }
 
 // MockCatalogo is a mock of Catalogo interface.

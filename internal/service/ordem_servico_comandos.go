@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Teixeiraass/backend_techchallenger/internal/domain"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/cliente"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
@@ -32,6 +33,7 @@ func (s *ordemServicoService) AbrirOrdemServico(ctx context.Context, req dto.Abr
 	}
 
 	var osUUID uuid.UUID
+	var os ordemservico.OrdemServico
 	err = s.uow.Executar(ctx, func(r Repositorios) error {
 		dono, err := r.Catalogo().ClientePorDocumento(ctx, documento.Numero())
 		if err != nil {
@@ -45,7 +47,7 @@ func (s *ordemServicoService) AbrirOrdemServico(ctx context.Context, req dto.Abr
 			return ErrVeiculoDeOutroCliente
 		}
 
-		os := ordemservico.Nova(dono.ID, v.ID, req.DescricaoProblema)
+		os = ordemservico.Nova(dono.ID, v.ID, req.DescricaoProblema)
 		os.AnotarHistorico(usuarioID, "OS aberta")
 		for _, item := range req.Servicos {
 			servico, err := r.Catalogo().Servico(ctx, item.ServicoUuid)
@@ -74,6 +76,7 @@ func (s *ordemServicoService) AbrirOrdemServico(ctx context.Context, req dto.Abr
 	if err != nil {
 		return nil, err
 	}
+	s.publicar(ctx, &os, nil)
 
 	return s.BuscarOrdemServico(ctx, osUUID)
 }
@@ -160,19 +163,17 @@ func (s *ordemServicoService) EnviarOrcamento(ctx context.Context, osUUID uuid.U
 	if err != nil {
 		return nil, err
 	}
-
-	// Política: ao enviar o orçamento, o cliente é notificado.
-	s.notificarCliente(ctx, os.ClienteID, "Orçamento disponível para aprovação", fmt.Sprintf(
-		"O orçamento da sua ordem de serviço é de %s. Aprove ou rejeite pelo link de acompanhamento: /api/v1/ordens-servico/%s/andamento",
-		formatarDinheiro(os.ValorTotalCentavos), osUUID,
-	))
+	// Depois do commit: "Orçamento enviado ao cliente" dispara a notificação.
+	s.publicar(ctx, os, nil)
 
 	return s.BuscarOrdemServico(ctx, osUUID)
 }
 
 // AprovarOrcamento grava a aprovação do cliente e, em seguida, inicia a
-// execução (política "ao aprovar, iniciar execução"). São duas transações de
-// propósito: a aprovação fica registrada mesmo quando a execução não pode
+// execução. Esta é a política "ao aprovar o orçamento, iniciar a execução"
+// do event storming, mantida síncrona de propósito: faz parte da mesma
+// requisição do cliente, que precisa receber o estado final. São duas
+// transações: a aprovação fica registrada mesmo quando a execução não pode
 // começar (falta de peça, falha transitória). Por isso a operação é
 // idempotente: repetir a aprovação devolve o estado atual com 200, nunca 409.
 //   - aprovação gravada e OS ainda Aguardando aprovação: tenta iniciar a
@@ -182,8 +183,10 @@ func (s *ordemServicoService) EnviarOrcamento(ctx context.Context, osUUID uuid.U
 func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
 	var jaAprovada bool
 	var statusAtual ordemservico.Status
+	var os *ordemservico.OrdemServico
 	err := s.uow.Executar(ctx, func(r Repositorios) error {
-		os, err := r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
+		var err error
+		os, err = r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
 		if err != nil {
 			return err
 		}
@@ -206,6 +209,7 @@ func (s *ordemServicoService) AprovarOrcamento(ctx context.Context, osUUID uuid.
 	if err != nil {
 		return nil, err
 	}
+	s.publicar(ctx, os, nil)
 
 	if jaAprovada && statusAtual != ordemservico.StatusAguardandoAprovacao {
 		response, err := s.BuscarOrdemServico(ctx, osUUID)
@@ -244,26 +248,25 @@ func (s *ordemServicoService) RejeitarOrcamento(ctx context.Context, osUUID uuid
 // IniciarExecucao muda a OS para Em execução e baixa o estoque das peças na
 // mesma transação: se uma peça não tiver saldo, nada é gravado.
 func (s *ordemServicoService) IniciarExecucao(ctx context.Context, osUUID uuid.UUID, usuarioID int64) (*dto.OrdemServicoResponse, error) {
-	var pecasEstoqueBaixo []estoque.Peca
+	var eventosEstoque []domain.Evento
 	response, err := s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
 		if err := os.IniciarExecucao(s.now()); err != nil {
 			return err
 		}
 		var err error
-		pecasEstoqueBaixo, err = baixarEstoque(ctx, r.Pecas(), os.ID, os.PecasParaBaixaNaExecucao(), usuarioID)
+		eventosEstoque, err = baixarEstoque(ctx, r.Pecas(), os.ID, os.PecasParaBaixaNaExecucao(), usuarioID)
 		if err != nil {
 			return err
 		}
 		os.AnotarHistorico(usuarioID, "Execução iniciada e estoque baixado")
 		return nil
-	})
+	}, func() []domain.Evento { return eventosEstoque })
 	if err != nil {
-		// Política: sem saldo, o administrador recebe o pedido de reposição.
-		pedirReposicaoFaltante(ctx, s.sender, s.config.AdminNotificationTo, osUUID, err)
+		// A transação foi desfeita; "Estoque insuficiente detectado" ainda é
+		// publicado para a política de reposição avisar o administrador.
+		s.publicarFaltaDePeca(ctx, err)
 		return nil, err
 	}
-
-	notificarEstoqueBaixo(ctx, s.sender, s.config.AdminNotificationTo, pecasEstoqueBaixo)
 	return response, nil
 }
 
@@ -289,10 +292,8 @@ func (s *ordemServicoService) FinalizarOrdemServico(ctx context.Context, osUUID 
 	if err != nil {
 		return nil, err
 	}
-
-	// Política: ao finalizar, o cliente é avisado de que o veículo está pronto.
-	s.notificarCliente(ctx, os.ClienteID, "Seu veículo está pronto",
-		fmt.Sprintf("A ordem de serviço %s foi finalizada. O veículo já pode ser retirado.", osUUID))
+	// Depois do commit: "OS finalizada" dispara o aviso de veículo pronto.
+	s.publicar(ctx, os, nil)
 
 	return s.BuscarOrdemServico(ctx, osUUID)
 }
@@ -351,17 +352,15 @@ func (s *ordemServicoService) RegistrarReparoAdicional(ctx context.Context, osUU
 		if _, err := os.RegistrarReparo(req.Descricao, servicos, pecas); err != nil {
 			return err
 		}
+		// Sem mudança de status: a linha do histórico leva o nome do evento.
+		os.AnotarHistorico(0, ordemservico.NomeReparoAdicionalIdentificado+": "+req.Descricao)
 		return r.OrdemServico().Salvar(ctx, os)
 	})
 	if err != nil {
 		return nil, err
 	}
-
-	// Política: ao identificar o reparo, o cliente é chamado a decidir.
-	s.notificarCliente(ctx, os.ClienteID, "Reparo adicional aguardando autorização", fmt.Sprintf(
-		"Durante a execução encontramos outro problema: %s. Autorize ou recuse pelo link de acompanhamento: /api/v1/ordens-servico/%s/andamento",
-		req.Descricao, osUUID,
-	))
+	// Depois do commit: "Reparo adicional identificado" chama o cliente a decidir.
+	s.publicar(ctx, os, nil)
 
 	return s.BuscarOrdemServico(ctx, osUUID)
 }
@@ -369,7 +368,7 @@ func (s *ordemServicoService) RegistrarReparoAdicional(ctx context.Context, osUU
 // AutorizarReparoAdicional inclui os itens do reparo no orçamento e baixa o
 // estoque das peças dele (a OS já está em execução).
 func (s *ordemServicoService) AutorizarReparoAdicional(ctx context.Context, osUUID uuid.UUID, reparoUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
-	var pecasEstoqueBaixo []estoque.Peca
+	var eventosEstoque []domain.Evento
 	response, err := s.executar(ctx, osUUID, func(r Repositorios, os *ordemservico.OrdemServico) error {
 		if err := validarTitular(ctx, r.Catalogo(), os.ClienteID, documento); err != nil {
 			return err
@@ -381,19 +380,17 @@ func (s *ordemServicoService) AutorizarReparoAdicional(ctx context.Context, osUU
 		if err != nil {
 			return err
 		}
-		pecasEstoqueBaixo, err = baixarEstoque(ctx, r.Pecas(), os.ID, os.PecasDoReparo(reparoUUID), 0)
+		eventosEstoque, err = baixarEstoque(ctx, r.Pecas(), os.ID, os.PecasDoReparo(reparoUUID), 0)
 		if err != nil {
 			return err
 		}
 		os.AnotarHistorico(0, "Reparo adicional autorizado pelo cliente: "+reparo.Descricao)
 		return nil
-	})
+	}, func() []domain.Evento { return eventosEstoque })
 	if err != nil {
-		pedirReposicaoFaltante(ctx, s.sender, s.config.AdminNotificationTo, osUUID, err)
+		s.publicarFaltaDePeca(ctx, err)
 		return nil, err
 	}
-
-	notificarEstoqueBaixo(ctx, s.sender, s.config.AdminNotificationTo, pecasEstoqueBaixo)
 	return response, nil
 }
 
@@ -418,12 +415,16 @@ func (s *ordemServicoService) RecusarReparoAdicional(ctx context.Context, osUUID
 // Esqueleto comum dos comandos
 // ---------------------------------------------------------------------------
 
-// executar roda um comando sobre o agregado travado e salva o resultado pelo
-// repositório. O comando anota o histórico quando há mudança de status ou
-// decisão do cliente; alterações de itens não deixam linha no histórico.
-func (s *ordemServicoService) executar(ctx context.Context, osUUID uuid.UUID, comando func(Repositorios, *ordemservico.OrdemServico) error) (*dto.OrdemServicoResponse, error) {
+// executar roda um comando sobre o agregado travado, salva o resultado pelo
+// repositório e, depois do commit, publica os eventos da raiz (mais os
+// extras, como os de estoque). O comando anota o histórico quando há
+// mudança de status ou decisão do cliente; alterações de itens não deixam
+// linha no histórico.
+func (s *ordemServicoService) executar(ctx context.Context, osUUID uuid.UUID, comando func(Repositorios, *ordemservico.OrdemServico) error, extras ...func() []domain.Evento) (*dto.OrdemServicoResponse, error) {
+	var os *ordemservico.OrdemServico
 	err := s.uow.Executar(ctx, func(r Repositorios) error {
-		os, err := r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
+		var err error
+		os, err = r.OrdemServico().CarregarParaAtualizar(ctx, osUUID)
 		if err != nil {
 			return err
 		}
@@ -435,5 +436,10 @@ func (s *ordemServicoService) executar(ctx context.Context, osUUID uuid.UUID, co
 	if err != nil {
 		return nil, err
 	}
+	var deEstoque []domain.Evento
+	for _, lista := range extras {
+		deEstoque = append(deEstoque, lista()...)
+	}
+	s.publicar(ctx, os, deEstoque)
 	return s.BuscarOrdemServico(ctx, osUUID)
 }

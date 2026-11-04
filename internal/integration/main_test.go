@@ -11,14 +11,20 @@ import (
 	"testing"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
+	"github.com/Teixeiraass/backend_techchallenger/internal/eventos"
 	"github.com/Teixeiraass/backend_techchallenger/internal/handler"
+	"github.com/Teixeiraass/backend_techchallenger/internal/service"
 	"github.com/Teixeiraass/backend_techchallenger/notification"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
-var testRouter *gin.Engine
+var (
+	testRouter      *gin.Engine
+	testDespachante *eventos.Despachante
+	testStore       db.Store
+)
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -46,11 +52,16 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 
-	server, err := handler.NewServer(config, db.NewStore(conn), notification.NewNoopSender())
+	// As políticas reais (notificação, reposição) ficam assinadas com um
+	// sender que só registra; os testes de eventos assinam handlers próprios.
+	testDespachante = eventos.NovoDespachante()
+	server, err := handler.NewServer(config, db.NewStore(conn), testDespachante)
 	if err != nil {
 		log.Fatal("cannot create server:", err)
 	}
+	service.AssinarPoliticas(testDespachante, service.NovasPoliticas(server.Catalogo(), notification.NewNoopSender(), config))
 	testRouter = server.Router()
+	testStore = db.NewStore(conn)
 
 	os.Exit(m.Run())
 }

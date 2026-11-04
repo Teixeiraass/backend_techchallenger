@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
+	"github.com/Teixeiraass/backend_techchallenger/internal/eventos"
 	"github.com/Teixeiraass/backend_techchallenger/internal/repository"
 	"github.com/Teixeiraass/backend_techchallenger/internal/routes"
 	"github.com/Teixeiraass/backend_techchallenger/internal/service"
-	"github.com/Teixeiraass/backend_techchallenger/notification"
 	"github.com/Teixeiraass/backend_techchallenger/token"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/gin-gonic/gin"
@@ -18,6 +18,8 @@ type Server struct {
 	store               db.Store
 	tokenMaker          token.Maker
 	router              *gin.Engine
+	uow                 service.UnidadeDeTrabalho
+	despachante         *eventos.Despachante
 	UsuarioService      service.UsuarioService
 	ClienteService      service.ClienteService
 	VeiculoService      service.VeiculoService
@@ -26,7 +28,10 @@ type Server struct {
 	OrdemServicoService service.OrdemServicoService
 }
 
-func NewServer(config util.Config, store db.Store, sender notification.Sender) (*Server, error) {
+// NewServer monta as dependências: a unidade de trabalho e os repositórios
+// (portas do domínio), o despachante de eventos (as políticas são assinadas
+// em cmd/server/main.go) e os serviços.
+func NewServer(config util.Config, store db.Store, despachante *eventos.Despachante) (*Server, error) {
 	tokenMaker, err := token.NewMaker(config.TokenType, config.TokenSymmetricKey)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create token maker: %w", err)
@@ -44,8 +49,10 @@ func NewServer(config util.Config, store db.Store, sender notification.Sender) (
 		ClienteService:      service.NewClienteService(store),
 		VeiculoService:      service.NewVeiculoService(store),
 		ServicoService:      service.NewServicoService(store),
-		PecaService:         service.NewPecaService(uow, store, sender, config),
-		OrdemServicoService: service.NewOrdemServicoService(uow, store, sender, config),
+		PecaService:         service.NewPecaService(uow, store, despachante),
+		OrdemServicoService: service.NewOrdemServicoService(uow, store, despachante),
+		uow:                 uow,
+		despachante:         despachante,
 	}
 
 	server.router = routes.Setup(server.tokenMaker, server.store, server)
@@ -60,4 +67,9 @@ func (server *Server) Start(address string) error {
 // Router exposes the gin engine (used by the integration tests).
 func (server *Server) Router() *gin.Engine {
 	return server.router
+}
+
+// Catalogo expõe a leitura de cadastro para as políticas de notificação.
+func (server *Server) Catalogo() service.Catalogo {
+	return server.uow.Leitura().Catalogo()
 }

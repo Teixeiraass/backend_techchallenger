@@ -6,7 +6,7 @@ import (
 	"time"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
-	"github.com/Teixeiraass/backend_techchallenger/notification"
+	"github.com/Teixeiraass/backend_techchallenger/internal/eventos"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -18,7 +18,7 @@ func newTestServer(t *testing.T, store db.Store) *Server {
 		AccessTokenDuration: time.Minute,
 	}
 
-	server, err := NewServer(config, store, notification.NewNoopSender())
+	server, err := NewServer(config, store, eventos.NovoDespachante())
 	require.NoError(t, err)
 
 	return server

@@ -72,6 +72,10 @@ func TestAbrirOrdemServicoComItens(t *testing.T) {
 	require.Equal(t, ordemservico.Status(""), historico.StatusAnterior)
 	require.Equal(t, int64(7), historico.UsuarioID)
 	require.Equal(t, 1, a.transacoes)
+
+	// "OS recebida" sai com o UUID gerado ao salvar.
+	require.Equal(t, []string{ordemservico.NomeOSRecebida}, a.eventos.nomes())
+	require.Equal(t, salvo.UUID, a.eventos.eventos[0].(ordemservico.OSRecebida).OSUUID)
 }
 
 func TestAbrirOrdemServicoErros(t *testing.T) {
@@ -358,6 +362,7 @@ func TestIniciarDiagnostico(t *testing.T) {
 	require.Equal(t, ordemservico.StatusRecebida, historico.StatusAnterior)
 	require.Equal(t, ordemservico.StatusEmDiagnostico, historico.StatusNovo)
 	require.Equal(t, int64(3), historico.UsuarioID)
+	require.Equal(t, []string{ordemservico.NomeDiagnosticoIniciado}, a.eventos.nomes())
 }
 
 func TestIniciarDiagnosticoErros(t *testing.T) {
@@ -395,10 +400,13 @@ func TestEnviarOrcamento(t *testing.T) {
 	require.NotNil(t, salvo.OrcamentoEnviadoEm)
 	requireHistorico(t, salvo, "Orçamento enviado ao cliente")
 
-	// Política: o cliente é notificado depois do commit.
-	require.Len(t, a.sender.msgs, 1)
-	require.Equal(t, a.cliente.Email, a.sender.msgs[0].To)
-	require.Contains(t, a.sender.msgs[0].Body, "R$ 150,00")
+	// Depois do commit: "Orçamento enviado ao cliente" é publicado com o valor.
+	require.Equal(t, []string{ordemservico.NomeOrcamentoEnviadoAoCliente}, a.eventos.nomes())
+	enviado := a.eventos.eventos[0].(ordemservico.OrcamentoEnviadoAoCliente)
+	require.Equal(t, os.UUID, enviado.OSUUID)
+	require.Equal(t, a.cliente.ID, enviado.ClienteID)
+	require.Equal(t, int64(15000), enviado.ValorTotalCentavos)
+	require.Equal(t, 1, a.eventos.publicacoes)
 }
 
 func TestEnviarOrcamentoErros(t *testing.T) {
@@ -408,7 +416,7 @@ func TestEnviarOrcamentoErros(t *testing.T) {
 		a.trava(os)
 		_, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
 		require.ErrorIs(t, err, ordemservico.ErrOrcamentoSemItens)
-		require.Empty(t, a.sender.msgs)
+		require.Zero(t, a.eventos.publicacoes, "sem commit, nada é publicado")
 	})
 	t.Run("TransicaoInvalida", func(t *testing.T) {
 		a := novaApp(t)
@@ -426,50 +434,21 @@ func TestEnviarOrcamentoErros(t *testing.T) {
 	})
 }
 
-func TestEnviarOrcamentoNotificacaoFalhaNaoDesfaz(t *testing.T) {
-	a := novaApp(t)
-	a.sender.err = errors.New("smtp fora do ar")
-	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1)}
-	a.trava(os)
-	a.leitura(os)
-	a.salva()
-
-	rsp, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
-	require.NoError(t, err)
-	require.NotNil(t, rsp)
-	require.Equal(t, a.cliente.Email, a.sender.msgs[0].To)
-}
-
-// A notificação é por e-mail (linguagem ubíqua §1.2): cliente sem e-mail não
-// recebe aviso, e o envio do orçamento continua válido.
-func TestEnviarOrcamentoClienteSemEmailNaoNotifica(t *testing.T) {
-	a := novaApp(t)
-	a.cliente.Email = ""
-	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
-	os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1)}
-	a.trava(os)
-	a.leitura(os)
-	a.salva()
-
-	rsp, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
-	require.NoError(t, err)
-	require.NotNil(t, rsp)
-	require.Empty(t, a.sender.msgs)
-}
-
-func TestEnviarOrcamentoClienteNaoCarregadoNaoNotifica(t *testing.T) {
+// Os eventos saem depois do commit, antes da leitura da resposta: mesmo que
+// a resposta falhe, a OS já foi salva e o evento já foi publicado.
+func TestEnviarOrcamentoPublicaDepoisDoCommit(t *testing.T) {
 	a := novaApp(t)
 	os := a.os(ordemservico.StatusEmDiagnostico, ordemservico.OrcamentoNaoEnviado)
 	os.Itens = []ordemservico.Item{fxItemServico(fxServico(true), 1)}
 	a.trava(os)
 	a.salva()
 	a.osRepo.EXPECT().Carregar(gomock.Any(), os.UUID).Return(os, nil)
-	a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Times(2).Return(readmodel.Cliente{}, sql.ErrConnDone)
+	a.catalogo.EXPECT().ClientePorID(gomock.Any(), a.cliente.ID).Return(readmodel.Cliente{}, sql.ErrConnDone)
 
 	_, err := a.svc.EnviarOrcamento(context.Background(), os.UUID, dto.EnviarOrcamentoRequest{}, 2)
 	require.ErrorIs(t, err, sql.ErrConnDone, "a resposta falha, mas a OS já foi salva")
-	require.Empty(t, a.sender.msgs)
+	require.Equal(t, []string{ordemservico.NomeOrcamentoEnviadoAoCliente}, a.eventos.nomes())
+	require.Empty(t, os.Eventos(), "eventos limpos depois de publicados")
 }
 
 // ---------------------------------------------------------------------------
@@ -510,10 +489,16 @@ func TestAprovarOrcamentoIniciaExecucaoEBaixaEstoque(t *testing.T) {
 	requireHistorico(t, (*salvos)[1], "Execução iniciada e estoque baixado")
 	require.Equal(t, 2, a.transacoes)
 
-	// saldo 1 <= mínimo 2: pedido de reposição para o administrador
-	require.Len(t, a.sender.msgs, 1)
-	require.Equal(t, "admin@oficina.com", a.sender.msgs[0].To)
-	require.Contains(t, a.sender.msgs[0].Body, peca.Codigo)
+	// Uma publicação por transação: aprovação; execução + baixa (saldo 1 <=
+	// mínimo 2 também detecta estoque baixo, que dispara o pedido de reposição).
+	require.Equal(t, 2, a.eventos.publicacoes)
+	require.Equal(t, []string{
+		ordemservico.NomeOrcamentoAprovado,
+		ordemservico.NomeExecucaoIniciada, estoque.NomeEstoqueBaixado, estoque.NomeEstoqueBaixoDetectado,
+	}, a.eventos.nomes())
+	baixado := a.eventos.eventos[2].(estoque.EstoqueBaixado)
+	require.Equal(t, peca.Codigo, baixado.Codigo)
+	require.Equal(t, os.ID, baixado.OrdemServicoID)
 }
 
 func TestAprovarOrcamentoEstoqueInsuficienteMantemAprovacao(t *testing.T) {
@@ -533,11 +518,13 @@ func TestAprovarOrcamentoEstoqueInsuficienteMantemAprovacao(t *testing.T) {
 	require.Len(t, *salvos, 1, "só a aprovação é gravada")
 	require.Equal(t, ordemservico.OrcamentoAprovado, (*salvos)[0].StatusOrcamento)
 
-	// Falta de saldo gera pedido de reposição, senão a OS fica parada.
-	require.Len(t, a.sender.msgs, 1)
-	require.Equal(t, "admin@oficina.com", a.sender.msgs[0].To)
-	require.Contains(t, a.sender.msgs[0].Body, peca.Codigo)
-	require.Contains(t, a.sender.msgs[0].Body, os.UUID.String())
+	// A execução foi desfeita, mas "Estoque insuficiente detectado" é publicado
+	// mesmo assim: sem o pedido de reposição a OS ficaria parada.
+	require.Equal(t, []string{ordemservico.NomeOrcamentoAprovado, estoque.NomeEstoqueInsuficienteDetectado}, a.eventos.nomes())
+	insuficiente := a.eventos.eventos[1].(estoque.EstoqueInsuficienteDetectado)
+	require.Equal(t, peca.Codigo, insuficiente.Codigo)
+	require.Equal(t, os.ID, insuficiente.OrdemServicoID)
+	require.Equal(t, int32(2), insuficiente.Necessario)
 }
 
 // O saldo acabou entre a leitura e a gravação: o UPDATE condicional do
@@ -554,7 +541,10 @@ func TestIniciarExecucaoConcorrenciaNaBaixa(t *testing.T) {
 
 	_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
 	require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
-	require.Len(t, a.sender.msgs, 1, "pedido de reposição")
+	// O agregado aceitou a baixa (saldo 5 em memória); o banco recusou. Os
+	// eventos da peça (baixa registrada em memória) vão para a política mesmo
+	// assim, para o administrador saber da falta.
+	require.Equal(t, 1, a.eventos.publicacoes)
 }
 
 // Repetir a aprovação com a execução ainda não iniciada (aprovação gravada,
@@ -572,11 +562,13 @@ func TestAprovarOrcamentoRepetidaTentaIniciarExecucao(t *testing.T) {
 	rsp, err := a.svc.AprovarOrcamento(context.Background(), os.UUID, a.cliente.Documento)
 	require.NoError(t, err)
 	require.Empty(t, rsp.Aviso)
-	// Só a execução é gravada: a aprovação não entra de novo no histórico.
+	// Só a execução é gravada: a aprovação não entra de novo no histórico nem
+	// gera evento de novo.
 	require.Len(t, *salvos, 1)
 	require.Equal(t, ordemservico.StatusEmExecucao, (*salvos)[0].Status)
 	require.Len(t, (*salvos)[0].Alteracoes().Historico, 1)
 	require.Equal(t, ordemservico.StatusEmExecucao, (*salvos)[0].Alteracoes().Historico[0].StatusNovo)
+	require.Equal(t, []string{ordemservico.NomeExecucaoIniciada, estoque.NomeEstoqueBaixado}, a.eventos.nomes())
 }
 
 func TestAprovarOrcamentoRepetidaComExecucaoIniciada(t *testing.T) {
@@ -593,6 +585,7 @@ func TestAprovarOrcamentoRepetidaComExecucaoIniciada(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "Orçamento já aprovado", rsp.Aviso)
 			require.Equal(t, string(status), rsp.Status)
+			require.Empty(t, a.eventos.eventos, "nada aconteceu, nenhum evento")
 		})
 	}
 }
@@ -643,6 +636,7 @@ func TestRejeitarOrcamento(t *testing.T) {
 	require.Equal(t, ordemservico.StatusEmDiagnostico, (*salvos)[0].Status)
 	require.Equal(t, ordemservico.OrcamentoRejeitado, (*salvos)[0].StatusOrcamento)
 	requireHistorico(t, (*salvos)[0], "Orçamento rejeitado pelo cliente")
+	require.Equal(t, []string{ordemservico.NomeOrcamentoRejeitado}, a.eventos.nomes())
 }
 
 func TestRejeitarOrcamentoErros(t *testing.T) {
@@ -681,7 +675,7 @@ func TestIniciarExecucaoSemPecas(t *testing.T) {
 	_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
 	require.NoError(t, err)
 	require.Equal(t, ordemservico.StatusEmExecucao, (*salvos)[0].Status)
-	require.Empty(t, a.sender.msgs)
+	require.Equal(t, []string{ordemservico.NomeExecucaoIniciada}, a.eventos.nomes())
 }
 
 func TestIniciarExecucaoErros(t *testing.T) {
@@ -707,7 +701,7 @@ func TestIniciarExecucaoErros(t *testing.T) {
 		a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(nil, sql.ErrConnDone)
 		_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
 		require.ErrorIs(t, err, sql.ErrConnDone)
-		require.Empty(t, a.sender.msgs)
+		require.Zero(t, a.eventos.publicacoes)
 	})
 	t.Run("ErroNoBancoNaBaixa", func(t *testing.T) {
 		a := novaApp(t)
@@ -719,23 +713,24 @@ func TestIniciarExecucaoErros(t *testing.T) {
 		a.pecas.EXPECT().AplicarMovimento(gomock.Any(), peca, gomock.Any()).Return(sql.ErrConnDone)
 		_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
 		require.ErrorIs(t, err, sql.ErrConnDone)
-		require.Empty(t, a.sender.msgs)
+		require.Zero(t, a.eventos.publicacoes, "erro de banco não é falta de peça: nada é publicado")
 	})
 }
 
-// Falha no envio do pedido de reposição não troca o erro devolvido.
-func TestIniciarExecucaoSemEstoquePedidoDeReposicaoFalha(t *testing.T) {
+// Sem saldo em memória: o agregado recusa, a transação é desfeita e só o
+// evento de estoque insuficiente é publicado.
+func TestIniciarExecucaoSemEstoquePublicaFalta(t *testing.T) {
 	a := novaApp(t)
-	a.sender.err = errors.New("smtp fora do ar")
 	peca := fxPeca(1, 0)
 	os := a.os(ordemservico.StatusAguardandoAprovacao, ordemservico.OrcamentoAprovado)
 	os.Itens = []ordemservico.Item{fxItemPeca(peca, 3)}
 	a.trava(os)
 	a.pecas.EXPECT().CarregarPorID(gomock.Any(), peca.ID).Return(peca, nil)
+	a.pecas.EXPECT().AplicarMovimento(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 	_, err := a.svc.IniciarExecucao(context.Background(), os.UUID, 4)
 	require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
-	require.Len(t, a.sender.msgs, 1)
+	require.Equal(t, []string{estoque.NomeEstoqueInsuficienteDetectado}, a.eventos.nomes())
 }
 
 func TestFinalizarOrdemServico(t *testing.T) {
@@ -753,8 +748,8 @@ func TestFinalizarOrdemServico(t *testing.T) {
 	require.Equal(t, ordemservico.StatusFinalizada, (*salvos)[0].Status)
 	require.NotNil(t, (*salvos)[0].FinalizadaEm)
 	require.Contains(t, (*salvos)[0].Alteracoes().Historico[0].Observacao, "1h 30min")
-	require.Len(t, a.sender.msgs, 1)
-	require.Equal(t, a.cliente.Email, a.sender.msgs[0].To)
+	require.Equal(t, []string{ordemservico.NomeOSFinalizada}, a.eventos.nomes())
+	require.Equal(t, 90*time.Minute, a.eventos.eventos[0].(ordemservico.OSFinalizada).TempoExecucao.Round(time.Minute))
 }
 
 func TestFinalizarOrdemServicoErros(t *testing.T) {
@@ -765,35 +760,13 @@ func TestFinalizarOrdemServicoErros(t *testing.T) {
 		a.trava(os)
 		_, err := a.svc.FinalizarOrdemServico(context.Background(), os.UUID, 5)
 		require.ErrorIs(t, err, ordemservico.ErrReparoPendente)
-		require.Empty(t, a.sender.msgs)
+		require.Zero(t, a.eventos.publicacoes)
 	})
 	t.Run("OSNaoEncontrada", func(t *testing.T) {
 		a := novaApp(t)
 		a.osRepo.EXPECT().CarregarParaAtualizar(gomock.Any(), gomock.Any()).Return(nil, service.ErrOSNaoEncontrada)
 		_, err := a.svc.FinalizarOrdemServico(context.Background(), uuid.New(), 5)
 		require.ErrorIs(t, err, service.ErrOSNaoEncontrada)
-	})
-	t.Run("SemEmailNaoNotifica", func(t *testing.T) {
-		a := novaApp(t)
-		a.cliente.Email = ""
-		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-		a.trava(os)
-		a.leitura(os)
-		a.salva()
-		_, err := a.svc.FinalizarOrdemServico(context.Background(), os.UUID, 5)
-		require.NoError(t, err)
-		require.Empty(t, a.sender.msgs)
-	})
-	t.Run("NotificacaoFalhaNaoDesfaz", func(t *testing.T) {
-		a := novaApp(t)
-		a.sender.err = errors.New("smtp fora do ar")
-		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-		a.trava(os)
-		a.leitura(os)
-		a.salva()
-		rsp, err := a.svc.FinalizarOrdemServico(context.Background(), os.UUID, 5)
-		require.NoError(t, err)
-		require.Equal(t, string(ordemservico.StatusFinalizada), rsp.Status)
 	})
 }
 
@@ -830,6 +803,7 @@ func TestEntregarVeiculo(t *testing.T) {
 			require.Equal(t, ordemservico.StatusEntregue, (*salvos)[0].Status)
 			require.NotNil(t, (*salvos)[0].EntregueEm)
 			requireHistorico(t, (*salvos)[0], tc.observacao)
+			require.Equal(t, []string{ordemservico.NomeVeiculoEntregue}, a.eventos.nomes())
 		})
 	}
 
@@ -872,11 +846,13 @@ func TestRegistrarReparoAdicional(t *testing.T) {
 	require.Equal(t, "Disco empenado", salvo.Reparos[1].Descricao)
 	require.Len(t, salvo.Itens, 4)
 	require.Equal(t, int64(7500), salvo.ValorTotalCentavos, "reparo pendente fica fora do orçamento")
-	require.Empty(t, salvo.Alteracoes().Historico)
+	// Sem mudança de status, a linha do histórico leva o nome do evento.
+	historico := requireHistorico(t, salvo, ordemservico.NomeReparoAdicionalIdentificado+": Disco empenado")
+	require.Equal(t, historico.StatusAnterior, historico.StatusNovo)
 
-	// Política: o cliente é chamado a decidir.
-	require.Len(t, a.sender.msgs, 1)
-	require.Contains(t, a.sender.msgs[0].Body, "Disco empenado")
+	// Depois do commit: "Reparo adicional identificado" chama o cliente a decidir.
+	require.Equal(t, []string{ordemservico.NomeReparoAdicionalIdentificado}, a.eventos.nomes())
+	require.Equal(t, "Disco empenado", a.eventos.eventos[0].(ordemservico.ReparoAdicionalIdentificado).Descricao)
 }
 
 func TestRegistrarReparoAdicionalErros(t *testing.T) {
@@ -938,22 +914,7 @@ func TestRegistrarReparoAdicionalErros(t *testing.T) {
 			Descricao: "x", Pecas: []dto.ItemPecaRequest{{PecaUuid: peca.UUID, Quantidade: 2}},
 		})
 		require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
-		require.Empty(t, a.sender.msgs)
-	})
-	t.Run("ClienteSemEmailNaoNotifica", func(t *testing.T) {
-		a := novaApp(t)
-		a.cliente.Email = ""
-		servico := fxServico(true)
-		os := a.os(ordemservico.StatusEmExecucao, ordemservico.OrcamentoAprovado)
-		a.trava(os)
-		a.leitura(os)
-		a.salva()
-		a.catalogo.EXPECT().Servico(gomock.Any(), servico.UUID).Return(servico, nil)
-		_, err := a.svc.RegistrarReparoAdicional(context.Background(), os.UUID, dto.RegistrarReparoAdicionalRequest{
-			Descricao: "Disco empenado", Servicos: []dto.ItemServicoRequest{{ServicoUuid: servico.UUID}},
-		})
-		require.NoError(t, err)
-		require.Empty(t, a.sender.msgs)
+		require.Zero(t, a.eventos.publicacoes, "a raiz recusou antes do commit: nada é publicado")
 	})
 }
 
@@ -981,7 +942,7 @@ func TestAutorizarReparoAdicional(t *testing.T) {
 	require.Equal(t, int64(3*2500), salvo.ValorTotalCentavos)
 	historico := requireHistorico(t, salvo, "Reparo adicional autorizado pelo cliente: Disco empenado")
 	require.Equal(t, historico.StatusAnterior, historico.StatusNovo)
-	require.Empty(t, a.sender.msgs, "saldo 3 > mínimo 0")
+	require.Equal(t, []string{ordemservico.NomeReparoAdicionalAutorizado, estoque.NomeEstoqueBaixado}, a.eventos.nomes(), "saldo 3 > mínimo 0: sem estoque baixo")
 }
 
 func TestAutorizarReparoAdicionalSemEstoque(t *testing.T) {
@@ -999,9 +960,7 @@ func TestAutorizarReparoAdicionalSemEstoque(t *testing.T) {
 	_, err := a.svc.AutorizarReparoAdicional(context.Background(), os.UUID, reparo.UUID, a.cliente.Documento)
 	require.ErrorIs(t, err, estoque.ErrEstoqueInsuficiente)
 	require.Contains(t, err.Error(), peca.Codigo)
-	require.Len(t, a.sender.msgs, 1)
-	require.Equal(t, "admin@oficina.com", a.sender.msgs[0].To)
-	require.Contains(t, a.sender.msgs[0].Body, peca.Codigo)
+	require.Equal(t, []string{estoque.NomeEstoqueInsuficienteDetectado}, a.eventos.nomes())
 }
 
 func TestRecusarReparoAdicional(t *testing.T) {
@@ -1018,6 +977,7 @@ func TestRecusarReparoAdicional(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ordemservico.ReparoRecusado, (*salvos)[0].Reparos[0].Status)
 	requireHistorico(t, (*salvos)[0], "Reparo adicional recusado pelo cliente: Disco empenado")
+	require.Equal(t, []string{ordemservico.NomeReparoAdicionalRecusado}, a.eventos.nomes())
 }
 
 func TestDecidirReparoAdicionalErros(t *testing.T) {
@@ -1128,7 +1088,7 @@ func TestBuscarOrdemServicoErros(t *testing.T) {
 func novaAppComStore(t *testing.T) (*fxApp, *mockdb.MockStore) {
 	a := novaApp(t)
 	store := mockdb.NewMockStore(gomock.NewController(t))
-	a.svc = service.NewOrdemServicoService(a.uow, store, a.sender, fxConfig())
+	a.svc = service.NewOrdemServicoService(a.uow, store, a.eventos)
 	return a, store
 }
 

@@ -205,3 +205,56 @@ func TestPecaReporEAjustar(t *testing.T) {
 	_, err = p.Ajustar(-1, 2, "")
 	require.ErrorIs(t, err, ErrSaldoNegativo)
 }
+
+func nomesDosEventos(p *Peca) []string {
+	nomes := make([]string, 0)
+	for _, e := range p.Eventos() {
+		nomes = append(nomes, e.Nome())
+	}
+	return nomes
+}
+
+func TestPecaEventos(t *testing.T) {
+	p, _, err := NovaPeca(cadastroPeca(), 5)
+	require.NoError(t, err)
+	p.ID = 9
+	require.Empty(t, p.Eventos())
+
+	_, err = p.Baixar(2, 77, 3)
+	require.NoError(t, err)
+	require.Equal(t, []string{NomeEstoqueBaixado}, nomesDosEventos(p))
+	baixado := p.Eventos()[0].(EstoqueBaixado)
+	require.Equal(t, int64(9), baixado.PecaID)
+	require.Equal(t, "FLT-01", baixado.Codigo)
+	require.Equal(t, int64(77), baixado.OrdemServicoID)
+	require.Equal(t, int32(2), baixado.Quantidade)
+	require.Equal(t, int32(3), baixado.Saldo)
+	require.NotZero(t, baixado.OcorridoEm())
+
+	// Saldo 1 <= mínimo 2: além da baixa, o estoque baixo é detectado.
+	p.LimparEventos()
+	_, err = p.Baixar(2, 77, 3)
+	require.NoError(t, err)
+	require.Equal(t, []string{NomeEstoqueBaixado, NomeEstoqueBaixoDetectado}, nomesDosEventos(p))
+	require.Equal(t, int32(1), p.Eventos()[1].(EstoqueBaixoDetectado).Saldo)
+
+	// Sem saldo: o evento de estoque insuficiente é registrado junto com o erro.
+	p.LimparEventos()
+	_, err = p.Baixar(5, 78, 3)
+	require.ErrorIs(t, err, ErrEstoqueInsuficiente)
+	require.Equal(t, []string{NomeEstoqueInsuficienteDetectado}, nomesDosEventos(p))
+	insuficiente := p.Eventos()[0].(EstoqueInsuficienteDetectado)
+	require.Equal(t, int64(78), insuficiente.OrdemServicoID)
+	require.Equal(t, int32(5), insuficiente.Necessario)
+	require.Equal(t, int32(1), insuficiente.Saldo)
+
+	// Ajuste para o mínimo detecta estoque baixo; reposição não gera evento.
+	p.LimparEventos()
+	_, err = p.Ajustar(2, 1, "")
+	require.NoError(t, err)
+	require.Equal(t, []string{NomeEstoqueBaixoDetectado}, nomesDosEventos(p))
+	p.LimparEventos()
+	_, err = p.Repor(10, 1, "")
+	require.NoError(t, err)
+	require.Empty(t, p.Eventos())
+}
