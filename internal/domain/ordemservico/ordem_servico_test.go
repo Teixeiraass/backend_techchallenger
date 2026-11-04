@@ -564,3 +564,69 @@ func TestReconstituirEHistorico(t *testing.T) {
 	require.Equal(t, Status(""), nova.Alteracoes().Historico[0].StatusAnterior)
 	require.Equal(t, StatusRecebida, nova.Alteracoes().Historico[0].StatusNovo)
 }
+
+func nomesDosEventos(os *OrdemServico) []string {
+	nomes := make([]string, 0)
+	for _, e := range os.Eventos() {
+		nomes = append(nomes, e.Nome())
+	}
+	return nomes
+}
+
+// Cada comando registra o evento pivotal da linguagem ubíqua; os eventos
+// levam o UUID da OS mesmo quando ela só ganhou identidade ao ser salva.
+func TestEventosDoCicloDeVida(t *testing.T) {
+	os := osNoStatus(t, StatusEntregue)
+	require.Equal(t, []string{
+		NomeOSRecebida, NomeDiagnosticoIniciado, NomeOrcamentoEnviadoAoCliente, NomeOrcamentoAprovado,
+		NomeExecucaoIniciada, NomeOSFinalizada, NomeVeiculoEntregue,
+	}, nomesDosEventos(&os))
+
+	os.UUID = uuid.New()
+	for _, e := range os.Eventos() {
+		require.NotZero(t, e.OcorridoEm())
+		switch ev := e.(type) {
+		case OSRecebida:
+			require.Equal(t, os.UUID, ev.OSUUID)
+			require.Equal(t, int64(10), ev.ClienteID)
+		case OrcamentoEnviadoAoCliente:
+			require.Equal(t, os.UUID, ev.OSUUID)
+			require.Equal(t, int64(15000), ev.ValorTotalCentavos)
+		case OSFinalizada:
+			require.Equal(t, 90*time.Minute, ev.TempoExecucao)
+		}
+	}
+
+	os.LimparEventos()
+	require.Empty(t, os.Eventos())
+
+	// Aprovação repetida (idempotente) não registra evento de novo.
+	require.NoError(t, os.AprovarOrcamento(agora))
+	require.Empty(t, os.Eventos())
+}
+
+func TestEventosDeRejeicaoEReparo(t *testing.T) {
+	os := osNoStatus(t, StatusAguardandoAprovacao)
+	os.LimparEventos()
+	require.NoError(t, os.RejeitarOrcamento(agora))
+	require.Equal(t, []string{NomeOrcamentoRejeitado}, nomesDosEventos(&os))
+	require.IsType(t, OrcamentoRejeitadoPeloCliente{}, os.Eventos()[0])
+
+	os = osNoStatus(t, StatusEmExecucao)
+	os.LimparEventos()
+	reparo, err := os.RegistrarReparo("Disco", []PedidoServico{{Servico: servicoCatalogo(100, true), Quantidade: 1}}, nil)
+	require.NoError(t, err)
+	require.NoError(t, os.AutorizarReparo(reparo.UUID, agora))
+	eventos := os.Eventos()
+	require.Equal(t, []string{NomeReparoAdicionalIdentificado, NomeReparoAdicionalAutorizado}, nomesDosEventos(&os))
+	require.Equal(t, "Disco", eventos[0].(ReparoAdicionalIdentificado).Descricao)
+	require.Equal(t, reparo.UUID, eventos[1].(ReparoAdicionalAutorizado).ReparoUUID)
+
+	os = osNoStatus(t, StatusEmExecucao)
+	os.LimparEventos()
+	reparo, err = os.RegistrarReparo("Disco", []PedidoServico{{Servico: servicoCatalogo(100, true), Quantidade: 1}}, nil)
+	require.NoError(t, err)
+	require.NoError(t, os.RecusarReparo(reparo.UUID, agora))
+	require.Equal(t, NomeReparoAdicionalRecusado, os.Eventos()[1].Nome())
+	require.Equal(t, "Disco", os.Eventos()[1].(ReparoAdicionalRecusado).Descricao)
+}

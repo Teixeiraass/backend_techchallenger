@@ -41,13 +41,17 @@ HTTP (Gin)                    internal/routes + internal/handler   rotas, bindin
    ▼
 Aplicação (casos de uso)      internal/service                     um método por comando: abre a unidade de
    │                                                               trabalho, carrega o agregado pelo repositório,
-   │                                                               chama a raiz, salva; portas em service/portas.go
+   │                                                               chama a raiz, salva e publica os eventos da raiz
+   │                                                               depois do commit; políticas (notificar cliente,
+   │                                                               pedir reposição) em service/politicas.go
    ▼
 Domínio (DDD)                 internal/domain/...                  agregados, objetos de valor, regras puras e as
    │                                                               portas de repositório (ordemservico.Repositorio,
    │                                                               estoque.Repositorio); sem banco nem framework
    ▼
-Infraestrutura                internal/repository                  implementa as portas com sqlc (carga, gravação
+Infraestrutura                internal/eventos                     despachante síncrono em processo dos eventos
+                                                                   de domínio (handlers assinados em cmd/server)
+                              internal/repository                  implementa as portas com sqlc (carga, gravação
                                                                    por diferença, histórico, baixa de estoque)
                               internal/readmodel                   projeções de leitura das listagens e respostas
                               db/sqlc (sqlc + Store.ExecTx)        acesso ao PostgreSQL e transações
@@ -66,6 +70,8 @@ Elementos de DDD no código:
 | Identidade e acesso | Usuário | papéis `ADMINISTRADOR`, `ATENDENTE`, `MECANICO` (`middleware.RequireRole`) |
 
 Tipos de subdomínio e padrões de integração entre os contextos: [mapa de contexto](docs/ddd/mapa-de-contexto.md). Fluxos de negócio: [event storming](docs/ddd/event-storming.pdf).
+
+**Eventos de domínio:** os eventos pivotais do event storming (`OS recebida`, `Orçamento enviado ao cliente`, `Orçamento aprovado`, `Execução iniciada`, `Reparo adicional identificado`, `OS finalizada`, `Veículo entregue`, `Estoque baixado`, `Estoque baixo detectado`, `Estoque insuficiente detectado`…) são registrados pelas raízes dos agregados e publicados **depois do commit** por um despachante síncrono em processo. As políticas (notificar o cliente, pedir reposição ao administrador) são handlers assinados em `cmd/server/main.go`; a falha de um handler fica no log e não desfaz a operação. A relação evento → código está na [LU §5.3](docs/ddd/linguagem-ubiqua.md).
 
 **Transações:** todo comando que altera mais de um registro roda dentro de uma unidade de trabalho (`Store.ExecTx` por baixo), como abrir a OS com itens, aprovar e baixar estoque, ou autorizar um reparo. A OS fica travada com `SELECT ... FOR NO KEY UPDATE` durante o comando. A baixa usa `UPDATE ... WHERE quantidade_estoque >= qtd`, e a tabela tem `CHECK (quantidade_estoque >= 0)`. Assim, duas OS concorrentes nunca deixam o saldo negativo; há um teste de integração com 10 baixas simultâneas que prova isso.
 
@@ -244,6 +250,7 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 │   ├── domain/            # DDD: cliente, veiculo, ordemservico (agregado com itens e reparos), estoque
 │   ├── service/           # casos de uso: ordem_servico_comandos.go, ordem_servico_consultas.go,
 │   │                      # portas.go (unidade de trabalho, repositórios, catálogo) e demais *_service.go
+│   ├── eventos/           # despachante de eventos de domínio (síncrono, em processo)
 │   ├── repository/        # implementação sqlc das portas (OS, peça, catálogo, unidade de trabalho) + mocks
 │   ├── readmodel/         # projeções de leitura usadas pelos DTOs (sem dependência do sqlc nos DTOs)
 │   ├── handler/           # handlers HTTP + anotações Swagger

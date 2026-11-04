@@ -11,7 +11,7 @@ import (
 	mockdb "github.com/Teixeiraass/backend_techchallenger/db/mock"
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
-	"github.com/Teixeiraass/backend_techchallenger/notification"
+	"github.com/Teixeiraass/backend_techchallenger/internal/eventos"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
@@ -126,7 +126,7 @@ func TestRenewAccessTokenAPI(t *testing.T) {
 			defer ctrl.Finish()
 			store := mockdb.NewMockStore(ctrl)
 
-			server, err := NewServer(config, store, notification.NewNoopSender())
+			server, err := NewServer(config, store, eventos.NovoDespachante())
 			require.NoError(t, err)
 
 			refreshToken, payload, err := server.tokenMaker.CreateToken("admin@oficina.com", 1, uuid.New(), papelAdmin, time.Hour)
@@ -240,7 +240,7 @@ func TestMeUsuarioNaoEncontradoAPI(t *testing.T) {
 }
 
 func TestNewServerTokenInvalido(t *testing.T) {
-	_, err := NewServer(util.Config{TokenSymmetricKey: "curta"}, nil, notification.NewNoopSender())
+	_, err := NewServer(util.Config{TokenSymmetricKey: "curta"}, nil, eventos.NovoDespachante())
 	require.Error(t, err)
 }
 

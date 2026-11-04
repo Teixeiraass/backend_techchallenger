@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Teixeiraass/backend_techchallenger/internal/domain"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
 	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
@@ -32,6 +33,26 @@ func fxConfig() util.Config {
 	return util.Config{AdminNotificationTo: "admin@oficina.com"}
 }
 
+// fxPublicador grava os eventos publicados pelos serviços, na ordem.
+type fxPublicador struct {
+	eventos []domain.Evento
+	// publicacoes conta as chamadas a Publicar (uma por transação concluída).
+	publicacoes int
+}
+
+func (p *fxPublicador) Publicar(_ context.Context, eventos []domain.Evento) {
+	p.publicacoes++
+	p.eventos = append(p.eventos, eventos...)
+}
+
+func (p *fxPublicador) nomes() []string {
+	nomes := make([]string, 0, len(p.eventos))
+	for _, e := range p.eventos {
+		nomes = append(nomes, e.Nome())
+	}
+	return nomes
+}
+
 // fxApp é o serviço da OS ligado aos mocks das portas: unidade de trabalho,
 // repositório da OS, repositório de peças e catálogo. A unidade de trabalho
 // entrega os mesmos repositórios dentro e fora da transação.
@@ -41,7 +62,7 @@ type fxApp struct {
 	osRepo   *mockrepo.MockOrdemServicoRepositorio
 	pecas    *mockrepo.MockPecaRepositorio
 	catalogo *mockrepo.MockCatalogo
-	sender   *fxSender
+	eventos  *fxPublicador
 	svc      service.OrdemServicoService
 
 	cliente readmodel.Cliente
@@ -58,7 +79,7 @@ func novaApp(t *testing.T) *fxApp {
 		osRepo:   mockrepo.NewMockOrdemServicoRepositorio(ctrl),
 		pecas:    mockrepo.NewMockPecaRepositorio(ctrl),
 		catalogo: mockrepo.NewMockCatalogo(ctrl),
-		sender:   &fxSender{},
+		eventos:  &fxPublicador{},
 	}
 	a.cliente = readmodel.Cliente{ID: util.RandomInt(1, 1000), UUID: uuid.New(), Nome: util.RandomName(), Documento: util.RandomCPF(), TipoDocumento: "CPF", Email: util.RandomEmail()}
 	a.veiculo = readmodel.Veiculo{ID: util.RandomInt(1, 1000), UUID: uuid.New(), ClienteID: a.cliente.ID, ClienteUUID: a.cliente.UUID, Placa: util.RandomPlaca(), Marca: "Fiat", Modelo: "Uno", Ano: 2020}
@@ -74,7 +95,7 @@ func novaApp(t *testing.T) *fxApp {
 		})
 
 	// store (read model) não é usado pelos comandos: nil.
-	a.svc = service.NewOrdemServicoService(a.uow, nil, a.sender, fxConfig())
+	a.svc = service.NewOrdemServicoService(a.uow, nil, a.eventos)
 	return a
 }
 

@@ -32,6 +32,8 @@ var (
 // mudança de estado passa por um método da raiz, que aplica as invariantes
 // e recalcula o orçamento.
 type OrdemServico struct {
+	domain.Registrador
+
 	// ID é a identidade de persistência (0 = ainda não gravada).
 	ID                    int64
 	UUID                  uuid.UUID
@@ -59,13 +61,25 @@ type OrdemServico struct {
 
 // Nova cria a OS no status inicial Recebida para o cliente e o veículo.
 func Nova(clienteID int64, veiculoID int64, descricaoProblema string) OrdemServico {
-	return OrdemServico{
+	os := OrdemServico{
 		ClienteID:         clienteID,
 		VeiculoID:         veiculoID,
 		DescricaoProblema: descricaoProblema,
 		Status:            StatusRecebida,
 		StatusOrcamento:   OrcamentoNaoEnviado,
 	}
+	os.Registrar(OSRecebida{EventoOS: os.eventoOS(time.Now())})
+	return os
+}
+
+// Eventos devolve os eventos registrados, com o UUID da OS preenchido (uma
+// OS nova só ganha UUID ao ser salva, depois de registrar "OS recebida").
+func (os *OrdemServico) Eventos() []domain.Evento {
+	eventos := os.Registrador.Eventos()
+	for i, e := range eventos {
+		eventos[i] = comOS(e, os.UUID, os.ClienteID)
+	}
+	return eventos
 }
 
 // Alteracoes devolve o que mudou desde o carregamento e precisa ser persistido.
@@ -265,6 +279,7 @@ func (os *OrdemServico) IniciarDiagnostico(agora time.Time) error {
 	}
 	os.Status = StatusEmDiagnostico
 	os.DiagnosticoIniciadoEm = &agora
+	os.Registrar(DiagnosticoIniciado{EventoOS: os.eventoOS(agora)})
 	return nil
 }
 
@@ -284,6 +299,7 @@ func (os *OrdemServico) EnviarOrcamento(diagnostico string, agora time.Time) err
 	os.StatusOrcamento = OrcamentoAguardando
 	os.OrcamentoEnviadoEm = &agora
 	os.OrcamentoDecididoEm = nil
+	os.Registrar(OrcamentoEnviadoAoCliente{EventoOS: os.eventoOS(agora), ValorTotalCentavos: os.ValorTotalCentavos})
 	return nil
 }
 
@@ -304,6 +320,7 @@ func (os *OrdemServico) AprovarOrcamento(agora time.Time) error {
 	}
 	os.StatusOrcamento = OrcamentoAprovado
 	os.OrcamentoDecididoEm = &agora
+	os.Registrar(OrcamentoAprovadoPeloCliente{EventoOS: os.eventoOS(agora)})
 	return nil
 }
 
@@ -323,6 +340,7 @@ func (os *OrdemServico) RejeitarOrcamento(agora time.Time) error {
 	}
 	os.StatusOrcamento = OrcamentoRejeitado
 	os.OrcamentoDecididoEm = &agora
+	os.Registrar(OrcamentoRejeitadoPeloCliente{EventoOS: os.eventoOS(agora)})
 	return nil
 }
 
@@ -337,6 +355,7 @@ func (os *OrdemServico) IniciarExecucao(agora time.Time) error {
 		return err
 	}
 	os.ExecucaoIniciadaEm = &agora
+	os.Registrar(ExecucaoIniciada{EventoOS: os.eventoOS(agora)})
 	return nil
 }
 
@@ -350,6 +369,8 @@ func (os *OrdemServico) Finalizar(agora time.Time) error {
 		return err
 	}
 	os.FinalizadaEm = &agora
+	duracao, _ := os.TempoExecucao()
+	os.Registrar(OSFinalizada{EventoOS: os.eventoOS(agora), TempoExecucao: duracao})
 	return nil
 }
 
@@ -364,6 +385,7 @@ func (os *OrdemServico) Entregar(agora time.Time) error {
 	}
 	os.Status = StatusEntregue
 	os.EntregueEm = &agora
+	os.Registrar(VeiculoEntregue{EventoOS: os.eventoOS(agora)})
 	return nil
 }
 
@@ -425,6 +447,7 @@ func (os *OrdemServico) RegistrarReparo(descricao string, servicos []PedidoServi
 	os.Reparos = append(os.Reparos, reparo)
 	os.Itens = append(os.Itens, itens...)
 	os.recalcular()
+	os.Registrar(ReparoAdicionalIdentificado{EventoOS: os.eventoOS(time.Now()), ReparoUUID: reparo.UUID, Descricao: descricao})
 	return &os.Reparos[len(os.Reparos)-1], nil
 }
 
@@ -481,6 +504,11 @@ func (os *OrdemServico) decidirReparo(reparoUUID uuid.UUID, decisao StatusReparo
 	}
 	os.alteracoes.ReparosDecididos = append(os.alteracoes.ReparosDecididos, reparoUUID)
 	os.recalcular()
+	if decisao == ReparoAutorizado {
+		os.Registrar(ReparoAdicionalAutorizado{EventoOS: os.eventoOS(agora), ReparoUUID: reparoUUID, Descricao: reparo.Descricao})
+	} else {
+		os.Registrar(ReparoAdicionalRecusado{EventoOS: os.eventoOS(agora), ReparoUUID: reparoUUID, Descricao: reparo.Descricao})
+	}
 	return nil
 }
 

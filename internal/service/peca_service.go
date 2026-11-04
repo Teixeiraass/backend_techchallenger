@@ -2,14 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"log"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
-	"github.com/Teixeiraass/backend_techchallenger/notification"
-	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/google/uuid"
 )
 
@@ -29,14 +25,13 @@ type PecaService interface {
 }
 
 type pecaService struct {
-	uow    UnidadeDeTrabalho
-	store  db.Store
-	sender notification.Sender
-	config util.Config
+	uow     UnidadeDeTrabalho
+	store   db.Store
+	eventos Publicador
 }
 
-func NewPecaService(uow UnidadeDeTrabalho, store db.Store, sender notification.Sender, config util.Config) PecaService {
-	return &pecaService{uow: uow, store: store, sender: sender, config: config}
+func NewPecaService(uow UnidadeDeTrabalho, store db.Store, eventos Publicador) PecaService {
+	return &pecaService{uow: uow, store: store, eventos: eventos}
 }
 
 func cadastroDe(codigo, nome, descricao, tipo, unidade string, preco int64, minimo int32) estoque.Cadastro {
@@ -156,22 +151,15 @@ func (s *pecaService) AjustarEstoque(ctx context.Context, pecaUUID uuid.UUID, re
 	if err := estoque.ValidarAjuste(*req.Quantidade); err != nil {
 		return nil, err
 	}
-	peca, err := s.movimentar(ctx, pecaUUID, func(peca *estoque.Peca) (estoque.MovimentoEstoque, error) {
+	// "Estoque baixo detectado" (se o ajuste deixar o saldo no mínimo) é
+	// publicado depois do commit e dispara o pedido de reposição.
+	return s.movimentar(ctx, pecaUUID, func(peca *estoque.Peca) (estoque.MovimentoEstoque, error) {
 		return peca.Ajustar(*req.Quantidade, usuarioID, req.Observacao)
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	// Política: saldo no mínimo ou abaixo dispara o pedido de reposição.
-	if peca.EstoqueBaixo() {
-		notificarEstoqueBaixo(ctx, s.sender, s.config.AdminNotificationTo, []estoque.Peca{*peca})
-	}
-	return peca, nil
 }
 
-// movimentar carrega a peça travada, aplica o movimento pelo agregado e
-// grava saldo e movimento pelo repositório.
+// movimentar carrega a peça travada, aplica o movimento pelo agregado, grava
+// saldo e movimento pelo repositório e publica os eventos depois do commit.
 func (s *pecaService) movimentar(ctx context.Context, pecaUUID uuid.UUID, mover func(*estoque.Peca) (estoque.MovimentoEstoque, error)) (*estoque.Peca, error) {
 	var peca *estoque.Peca
 	err := s.uow.Executar(ctx, func(r Repositorios) error {
@@ -189,6 +177,8 @@ func (s *pecaService) movimentar(ctx context.Context, pecaUUID uuid.UUID, mover 
 	if err != nil {
 		return nil, err
 	}
+	s.eventos.Publicar(ctx, peca.Eventos())
+	peca.LimparEventos()
 	return peca, nil
 }
 
@@ -203,20 +193,4 @@ func (s *pecaService) ListarMovimentos(ctx context.Context, pecaUUID uuid.UUID, 
 		Limit:  paginacao.Limite(),
 		Offset: paginacao.Deslocamento(),
 	})
-}
-
-// notificarEstoqueBaixo envia o pedido de reposição ao administrador. Falha de
-// envio só é registrada no log: a operação de estoque já foi concluída.
-func notificarEstoqueBaixo(ctx context.Context, sender notification.Sender, to string, pecas []estoque.Peca) {
-	for _, peca := range pecas {
-		err := sender.Send(ctx, notification.Message{
-			To:      to,
-			Subject: "Pedido de reposição de estoque",
-			Body: fmt.Sprintf("%s (%s) está com saldo %d %s, abaixo ou igual ao mínimo de %d.",
-				peca.Nome, peca.Codigo, peca.Saldo, peca.Unidade, peca.EstoqueMinimo),
-		})
-		if err != nil {
-			log.Printf("cannot send low stock notification: %v", err)
-		}
-	}
 }

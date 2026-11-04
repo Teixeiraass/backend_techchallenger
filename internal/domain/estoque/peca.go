@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Teixeiraass/backend_techchallenger/internal/domain"
 	"github.com/google/uuid"
 )
 
@@ -12,6 +13,8 @@ import (
 // saldo e o estoque mínimo. Toda mudança de saldo passa por um método da
 // raiz, que valida e devolve o MovimentoEstoque a registrar.
 type Peca struct {
+	domain.Registrador
+
 	// ID é a identidade de persistência (0 = ainda não gravada).
 	ID            int64
 	UUID          uuid.UUID
@@ -114,10 +117,13 @@ func (p *Peca) Baixar(quantidade int32, ordemServicoID int64, usuarioID int64) (
 		return MovimentoEstoque{}, ErrQuantidadeInvalida
 	}
 	if p.Saldo < quantidade {
+		p.Registrar(EstoqueInsuficienteDetectado{EventoPeca: p.eventoPeca(), OrdemServicoID: ordemServicoID, Necessario: quantidade, Saldo: p.Saldo})
 		return MovimentoEstoque{}, ErrEstoqueInsuficientePara(p.Nome, p.Codigo)
 	}
 	anterior := p.Saldo
 	p.Saldo -= quantidade
+	p.Registrar(EstoqueBaixado{EventoPeca: p.eventoPeca(), OrdemServicoID: ordemServicoID, Quantidade: quantidade, Saldo: p.Saldo})
+	p.conferirEstoqueMinimo()
 	return MovimentoEstoque{
 		PecaID:         p.ID,
 		Tipo:           MovimentoSaida,
@@ -155,6 +161,7 @@ func (p *Peca) Ajustar(novoSaldo int32, usuarioID int64, observacao string) (Mov
 	}
 	anterior := p.Saldo
 	p.Saldo = novoSaldo
+	p.conferirEstoqueMinimo()
 	return MovimentoEstoque{
 		PecaID:         p.ID,
 		Tipo:           MovimentoAjuste,
@@ -169,6 +176,14 @@ func (p *Peca) Ajustar(novoSaldo int32, usuarioID int64, observacao string) (Mov
 // EstoqueBaixo indica se o saldo chegou ao estoque mínimo (dispara pedido de reposição).
 func (p *Peca) EstoqueBaixo() bool {
 	return EstoqueBaixo(p.Saldo, p.EstoqueMinimo)
+}
+
+// conferirEstoqueMinimo registra "Estoque baixo detectado" quando o saldo
+// chega ao mínimo: a política de pedir reposição reage a esse evento.
+func (p *Peca) conferirEstoqueMinimo() {
+	if p.EstoqueBaixo() {
+		p.Registrar(EstoqueBaixoDetectado{EventoPeca: p.eventoPeca(), Saldo: p.Saldo, EstoqueMinimo: p.EstoqueMinimo})
+	}
 }
 
 // Repositorio é a porta do agregado Peça para a persistência.

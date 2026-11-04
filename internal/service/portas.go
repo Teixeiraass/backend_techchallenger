@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/Teixeiraass/backend_techchallenger/internal/domain"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
 	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
@@ -26,6 +27,14 @@ type Repositorios interface {
 	OrdemServico() ordemservico.Repositorio
 	Pecas() estoque.Repositorio
 	Catalogo() Catalogo
+}
+
+// Publicador entrega os eventos de domínio às políticas assinadas. Os
+// serviços publicam depois do commit da transação: uma política nunca reage
+// a um estado que acabou desfeito, e a falha de um handler não desfaz a
+// operação (internal/eventos).
+type Publicador interface {
+	Publicar(ctx context.Context, eventos []domain.Evento)
 }
 
 // Catalogo é a leitura dos outros contextos que a OS precisa: cadastro

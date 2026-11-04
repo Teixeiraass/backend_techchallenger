@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -43,4 +44,20 @@ func TestErrorIs(t *testing.T) {
 	require.False(t, base.Is(errors.New("plain")))
 	require.Equal(t, KindConflict, KindOf(wrapped))
 	require.Equal(t, Kind(0), KindOf(errors.New("plain")))
+}
+
+type eventoDeTeste struct{ em time.Time }
+
+func (e eventoDeTeste) Nome() string          { return "teste" }
+func (e eventoDeTeste) OcorridoEm() time.Time { return e.em }
+
+func TestRegistrador(t *testing.T) {
+	var r Registrador
+	require.Empty(t, r.Eventos())
+	r.Registrar(eventoDeTeste{em: time.Now()})
+	r.Registrar(eventoDeTeste{})
+	require.Len(t, r.Eventos(), 2)
+	require.Equal(t, "teste", r.Eventos()[0].Nome())
+	r.LimparEventos()
+	require.Empty(t, r.Eventos())
 }

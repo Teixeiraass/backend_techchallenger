@@ -217,7 +217,8 @@ Diferença usada aqui: **entidade** tem identidade e histórico (muda ao longo d
 | Consultas da OS | Casos de uso (leitura) | `internal/service/ordem_servico_consultas.go` (detalhe, andamento público, listagem, tempo médio) |
 | Carga e persistência do agregado | Infraestrutura (implementa a porta do domínio) | `internal/repository/ordemservico_sqlc.go` (`Carregar`, `CarregarParaAtualizar`, `Salvar` grava pela diferença e registra o histórico anotado na raiz) |
 | Read models (listagens, tempo médio, respostas de cadastro) | Projeções de leitura | `internal/readmodel/` (os DTOs em `internal/dto` dependem só do domínio e do read model, nunca do sqlc) |
-| Políticas automáticas | Casos de uso | `internal/service/ordem_servico_comandos.go` (início da execução após aprovação, baixa de estoque, pedido de reposição, notificações); orçamento recalculado pela própria raiz |
+| Eventos de domínio | Fatos registrados pelas raízes e publicados após o commit | `internal/domain/evento.go` (`Evento`, `Registrador`), `internal/domain/ordemservico/eventos.go`, `internal/domain/estoque/eventos.go`; despachante em `internal/eventos/despachante.go` |
+| Políticas automáticas | Handlers de eventos (assinados em `cmd/server/main.go`) | `internal/service/politicas.go` (notificar o cliente: orçamento enviado, reparo identificado, OS finalizada; pedir reposição ao administrador: estoque insuficiente, estoque baixo). "Ao aprovar, iniciar execução" continua síncrona em `ordem_servico_comandos.go` |
 | Notificação | Porta e adaptador | `notification/sender.go`, `notification/log_sender.go` |
 | Autenticação (JWT, padrão, ou PASETO) e papéis | Infraestrutura | `token/`, `internal/middleware/auth.go` |
 | Transações | Infraestrutura | `db/sqlc/store.go` (`ExecTx`), encapsulado pela unidade de trabalho (`internal/repository/unidade_de_trabalho.go`) |
@@ -255,23 +256,28 @@ Em vez de um `PATCH /status` genérico, cada transição tem sua rota de comando
 
 ### 5.3 Eventos → onde acontecem no código
 
-Os eventos ficam registrados na tabela `historico_status_os` (status anterior, novo, observação, usuário e data) e aparecem no campo `historico` da OS.
+Os eventos pivotais do Event Storming existem no código como tipos de `internal/domain` (`domain.Evento`: `Nome()` com o nome desta seção e `OcorridoEm()`). As raízes dos agregados registram os eventos enquanto executam os comandos (`domain.Registrador`, embutido em `OrdemServico` e em `Peca`); o serviço os publica **depois do commit** da transação pelo despachante síncrono em processo (`internal/eventos`). As políticas ("sempre que X, então Y") são handlers assinados em `cmd/server/main.go` (`service.AssinarPoliticas`): a falha de um handler fica no log e não desfaz a operação.
 
-| Evento | Quem o produz | Quem reage |
-|---|---|---|
-| OS recebida | `OrdemServicoService.AbrirOrdemServico` | Orçamento calculado na mesma transação |
-| Serviço / peça adicionados à OS | `AdicionarServico` / `AdicionarPeca` | Orçamento recalculado (`recalcularOrcamento`) |
-| Diagnóstico iniciado | `OrdemServico.IniciarDiagnostico()` | - |
-| Orçamento enviado ao cliente | `OrdemServico.EnviarOrcamento()` | Status muda para Aguardando aprovação; `notification.Sender` avisa o cliente |
-| Orçamento aprovado | `OrdemServico.AprovarOrcamento()` (idempotente) | Sistema chama `IniciarExecucao` em seguida; aprovação repetida devolve o estado atual |
-| Orçamento rejeitado | `OrdemServico.RejeitarOrcamento()` | OS volta para Em diagnóstico |
-| Execução iniciada | `OrdemServico.IniciarExecucao()` | Baixa de estoque na mesma transação (`baixarEstoque`) |
-| Estoque baixado / Estoque baixo detectado | query `BaixarEstoquePeca` + `estoque.EstoqueBaixo()` | Pedido de reposição ao administrador (`notificarEstoqueBaixo`) |
-| Estoque insuficiente detectado | `BaixarEstoquePeca` sem linha retornada | Transação desfeita; a aprovação fica registrada e a resposta traz `aviso` |
-| Reparo adicional identificado | `RegistrarReparoAdicional` | Cliente notificado |
-| Reparo adicional autorizado | `AutorizarReparoAdicional` | Baixa das peças do reparo + orçamento recalculado |
-| OS finalizada, Tempo de execução registrado | `OrdemServico.Finalizar()` | Cliente notificado; entra no cálculo do tempo médio |
-| Veículo entregue | `OrdemServico.Entregar()` | - |
+Todo evento da OS deixa uma linha em `historico_status_os` (status anterior, novo, observação, usuário e data), que aparece no campo `historico` da OS: quando é mudança de status, a linha traz o status anterior e o novo; quando não é (decisão do cliente sobre orçamento ou reparo, reparo identificado), a linha tem `status_anterior = status_novo` e a observação com o nome do evento. Os eventos de estoque não entram no histórico da OS: a evidência deles é a tabela `movimentos_estoque`.
+
+| Evento | Tipo no código | Registrado por | Quem reage (política) |
+|---|---|---|---|
+| OS recebida | `ordemservico.OSRecebida` | `ordemservico.Nova()` | - (histórico "OS aberta") |
+| Diagnóstico iniciado | `ordemservico.DiagnosticoIniciado` | `OrdemServico.IniciarDiagnostico()` | - |
+| Orçamento enviado ao cliente | `ordemservico.OrcamentoEnviadoAoCliente` | `OrdemServico.EnviarOrcamento()` | `Politicas.NotificarOrcamentoEnviado`: e-mail ao cliente com o valor e o link de acompanhamento |
+| Orçamento aprovado | `ordemservico.OrcamentoAprovadoPeloCliente` | `OrdemServico.AprovarOrcamento()` (idempotente: aprovação repetida não registra de novo) | "Ao aprovar, iniciar execução": política síncrona dentro de `OrdemServicoService.AprovarOrcamento` (mesma requisição do cliente) |
+| Orçamento rejeitado | `ordemservico.OrcamentoRejeitadoPeloCliente` | `OrdemServico.RejeitarOrcamento()` | - (OS volta para Em diagnóstico) |
+| Execução iniciada | `ordemservico.ExecucaoIniciada` | `OrdemServico.IniciarExecucao()` | Baixa das peças na mesma transação (`baixarEstoque`, pelo agregado `Peca`) |
+| Estoque baixado | `estoque.EstoqueBaixado` | `Peca.Baixar()` | - (movimento gravado) |
+| Estoque baixo detectado | `estoque.EstoqueBaixoDetectado` | `Peca.Baixar()` / `Peca.Ajustar()` quando o saldo fica no mínimo | `Politicas.PedirReposicaoEstoqueBaixo`: e-mail ao administrador |
+| Estoque insuficiente detectado | `estoque.EstoqueInsuficienteDetectado` | `Peca.Baixar()` sem saldo (ou o `UPDATE` condicional sem linha) | Transação desfeita; o evento é publicado mesmo assim e `Politicas.PedirReposicaoFaltante` avisa o administrador; a aprovação fica registrada e a resposta traz `aviso` |
+| Reparo adicional identificado | `ordemservico.ReparoAdicionalIdentificado` | `OrdemServico.RegistrarReparo()` | `Politicas.NotificarReparoIdentificado`: e-mail ao cliente |
+| Reparo adicional autorizado | `ordemservico.ReparoAdicionalAutorizado` | `OrdemServico.AutorizarReparo()` | Baixa das peças do reparo + orçamento recalculado pela raiz |
+| Reparo adicional recusado | `ordemservico.ReparoAdicionalRecusado` | `OrdemServico.RecusarReparo()` | - |
+| OS finalizada, Tempo de execução registrado | `ordemservico.OSFinalizada` (leva `TempoExecucao`) | `OrdemServico.Finalizar()` | `Politicas.NotificarOSFinalizada`: e-mail ao cliente; entra no cálculo do tempo médio |
+| Veículo entregue | `ordemservico.VeiculoEntregue` | `OrdemServico.Entregar()` | - |
+
+Eventos de item ("Serviço adicionado à OS", "Peça adicionada à OS", "Orçamento recalculado") e de cadastro não são publicados: são consequências internas do comando (o orçamento é recalculado pela própria raiz) e ficam evidentes nos dados.
 
 ---
 
