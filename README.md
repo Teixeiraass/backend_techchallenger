@@ -39,13 +39,18 @@ Status: `RECEBIDA → EM_DIAGNOSTICO → AGUARDANDO_APROVACAO → EM_EXECUCAO �
 HTTP (Gin)                    internal/routes + internal/handler   rotas, binding, mapeamento erro → status
    │                          internal/middleware                  autenticação (JWT/PASETO) e papéis
    ▼
-Aplicação (casos de uso)      internal/service                     um método por comando; abre a transação,
-   │                                                               carrega dados, aplica o domínio, persiste
+Aplicação (casos de uso)      internal/service                     um método por comando: abre a unidade de
+   │                                                               trabalho, carrega o agregado pelo repositório,
+   │                                                               chama a raiz, salva; portas em service/portas.go
    ▼
-Domínio (DDD)                 internal/domain/...                  agregados, objetos de valor e regras puras
-   │                                                               (sem dependência de banco ou framework)
+Domínio (DDD)                 internal/domain/...                  agregados, objetos de valor, regras puras e as
+   │                                                               portas de repositório (ordemservico.Repositorio,
+   │                                                               estoque.Repositorio); sem banco nem framework
    ▼
-Infraestrutura                db/sqlc (sqlc + Store.ExecTx)        acesso ao PostgreSQL e transações
+Infraestrutura                internal/repository                  implementa as portas com sqlc (carga, gravação
+                                                                   por diferença, histórico, baixa de estoque)
+                              internal/readmodel                   projeções de leitura das listagens e respostas
+                              db/sqlc (sqlc + Store.ExecTx)        acesso ao PostgreSQL e transações
                               db/migration (golang-migrate)        schema versionado + dados de demonstração
                               notification/                        porta de notificação (adaptador de log)
                               token/                               JWT HS256 (padrão) e PASETO v2
@@ -57,12 +62,12 @@ Elementos de DDD no código:
 |---|---|---|
 | Cadastro | Cliente, Veículo | `cliente.Documento` (CPF/CNPJ), `veiculo.Placa` |
 | Ordem de Serviço | `ordemservico.OrdemServico` (raiz com `Item` e `ReparoAdicional` como entidades internas; todo comando é um método da raiz) | `ordemservico.Status` (máquina de estados), `Orcamento`, `StatusOrcamento`, `CatalogoServico`/`CatalogoPeca` |
-| Catálogo e estoque | Peça (peça ou insumo), Serviço | `estoque` (saldo nunca negativo, reposição > 0, estoque mínimo) |
+| Catálogo e estoque | `estoque.Peca` (peça ou insumo; `Baixar`, `Repor`, `Ajustar` devolvem o `MovimentoEstoque`), Serviço | `estoque` (saldo nunca negativo, reposição > 0, estoque mínimo) |
 | Identidade e acesso | Usuário | papéis `ADMINISTRADOR`, `ATENDENTE`, `MECANICO` (`middleware.RequireRole`) |
 
 Tipos de subdomínio e padrões de integração entre os contextos: [mapa de contexto](docs/ddd/mapa-de-contexto.md). Fluxos de negócio: [event storming](docs/ddd/event-storming.pdf).
 
-**Transações:** todo comando que altera mais de um registro roda dentro de `Store.ExecTx`, como abrir a OS com itens, aprovar e baixar estoque, ou autorizar um reparo. A OS fica travada com `SELECT ... FOR NO KEY UPDATE` durante o comando. A baixa usa `UPDATE ... WHERE quantidade_estoque >= qtd`, e a tabela tem `CHECK (quantidade_estoque >= 0)`. Assim, duas OS concorrentes nunca deixam o saldo negativo; há um teste de integração com 10 baixas simultâneas que prova isso.
+**Transações:** todo comando que altera mais de um registro roda dentro de uma unidade de trabalho (`Store.ExecTx` por baixo), como abrir a OS com itens, aprovar e baixar estoque, ou autorizar um reparo. A OS fica travada com `SELECT ... FOR NO KEY UPDATE` durante o comando. A baixa usa `UPDATE ... WHERE quantidade_estoque >= qtd`, e a tabela tem `CHECK (quantidade_estoque >= 0)`. Assim, duas OS concorrentes nunca deixam o saldo negativo; há um teste de integração com 10 baixas simultâneas que prova isso.
 
 ## Tecnologias
 
@@ -238,7 +243,9 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 ├── internal/
 │   ├── domain/            # DDD: cliente, veiculo, ordemservico (agregado com itens e reparos), estoque
 │   ├── service/           # casos de uso: ordem_servico_comandos.go, ordem_servico_consultas.go,
-│   │                      # ordem_servico_repositorio.go (carga/persistência do agregado) e demais *_service.go
+│   │                      # portas.go (unidade de trabalho, repositórios, catálogo) e demais *_service.go
+│   ├── repository/        # implementação sqlc das portas (OS, peça, catálogo, unidade de trabalho) + mocks
+│   ├── readmodel/         # projeções de leitura usadas pelos DTOs (sem dependência do sqlc nos DTOs)
 │   ├── handler/           # handlers HTTP + anotações Swagger
 │   ├── routes/            # registro de rotas e papéis por rota
 │   ├── middleware/        # autenticação e autorização por papel
@@ -261,7 +268,7 @@ Resultado atual: govulncheck com 0 vulnerabilidades alcançáveis, gosec com 0 p
 | `make up` / `make down` | sobe ou derruba o ambiente completo |
 | `make migrateup` / `make migratedown` | aplica ou desfaz as migrations no banco local |
 | `make new_migration name=xxx` | cria uma nova migration |
-| `make sqlc` / `make mock` / `make swag` | gera de novo o código do sqlc, o mock e o Swagger |
+| `make sqlc` / `make mock` / `make mockrepo` / `make swag` | gera de novo o código do sqlc, o mock do Store, os mocks dos repositórios e o Swagger |
 | `make server` | roda a API localmente |
 | `make test` / `make coverage` | testes completos / cobertura dos domínios críticos |
 | `make vulncheck` / `make gosec` / `make trivy` | análise de segurança |

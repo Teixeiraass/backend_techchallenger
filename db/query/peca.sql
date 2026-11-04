@@ -79,3 +79,7 @@ SET quantidade_estoque = @quantidade::integer,
     updated_at = now()
 WHERE id = @id
 RETURNING *;
+
+-- name: GetPecaByID :one
+SELECT * FROM pecas
+WHERE id = $1 LIMIT 1;

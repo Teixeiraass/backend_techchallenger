@@ -6,17 +6,20 @@ import (
 	"time"
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
+	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/google/uuid"
 )
 
-// Consultas da OS: leitura do detalhe, acompanhamento público, listagem e
-// tempo médio. Não alteram estado e não abrem transação.
+// Consultas da OS: detalhe e acompanhamento público pelo repositório;
+// listagem e tempo médio pelo read model (SQL direto). Não alteram estado e
+// não abrem transação.
 
 func (s *ordemServicoService) BuscarOrdemServico(ctx context.Context, osUUID uuid.UUID) (*dto.OrdemServicoResponse, error) {
-	os, err := s.store.GetOrdemServico(ctx, osUUID)
+	os, err := s.uow.Leitura().OrdemServico().Carregar(ctx, osUUID)
 	if err != nil {
-		return nil, notFound(err, ErrOSNaoEncontrada)
+		return nil, err
 	}
 	return s.montarResposta(ctx, os)
 }
@@ -25,11 +28,12 @@ func (s *ordemServicoService) BuscarOrdemServico(ctx context.Context, osUUID uui
 // como segundo fator junto com o UUID da OS; se não conferir, a resposta é a
 // mesma de OS inexistente para não revelar quais OS existem.
 func (s *ordemServicoService) ConsultarAndamento(ctx context.Context, osUUID uuid.UUID, documento string) (*dto.OrdemServicoResponse, error) {
-	os, err := s.store.GetOrdemServico(ctx, osUUID)
+	leitura := s.uow.Leitura()
+	os, err := leitura.OrdemServico().Carregar(ctx, osUUID)
 	if err != nil {
-		return nil, notFound(err, ErrOSNaoEncontrada)
+		return nil, err
 	}
-	if err := validarTitular(ctx, s.store, os.ClienteID, documento); err != nil {
+	if err := validarTitular(ctx, leitura.Catalogo(), os.ClienteID, documento); err != nil {
 		return nil, err
 	}
 	return s.montarResposta(ctx, os)
@@ -61,7 +65,7 @@ func (s *ordemServicoService) ListarOrdensServico(ctx context.Context, query dto
 
 	response := make([]dto.OrdemServicoResumoResponse, 0, len(rows))
 	for _, row := range rows {
-		response = append(response, dto.NewOrdemServicoResumoResponse(row))
+		response = append(response, dto.NewOrdemServicoResumoResponse(readmodel.DeOrdemServicoResumo(row)))
 	}
 	return response, nil
 }
@@ -119,41 +123,24 @@ func (s *ordemServicoService) TempoMedioExecucao(ctx context.Context, query dto.
 	}, nil
 }
 
-func (s *ordemServicoService) montarResposta(ctx context.Context, os db.OrdemServico) (*dto.OrdemServicoResponse, error) {
-	dono, err := s.store.GetClienteByID(ctx, os.ClienteID)
+// montarResposta junta o agregado com as leituras de cliente, veículo e
+// histórico.
+func (s *ordemServicoService) montarResposta(ctx context.Context, os *ordemservico.OrdemServico) (*dto.OrdemServicoResponse, error) {
+	catalogo := s.uow.Leitura().Catalogo()
+	dono, err := catalogo.ClientePorID(ctx, os.ClienteID)
 	if err != nil {
 		return nil, err
 	}
-	v, err := s.store.GetVeiculoByID(ctx, os.VeiculoID)
+	v, err := catalogo.VeiculoPorID(ctx, os.VeiculoID)
 	if err != nil {
 		return nil, err
 	}
-	servicos, err := s.store.ListItensServicoByOrdemServico(ctx, os.ID)
-	if err != nil {
-		return nil, err
-	}
-	pecas, err := s.store.ListItensPecaByOrdemServico(ctx, os.ID)
-	if err != nil {
-		return nil, err
-	}
-	reparos, err := s.store.ListReparosAdicionaisByOrdemServico(ctx, os.ID)
-	if err != nil {
-		return nil, err
-	}
-	historico, err := s.store.ListHistoricoStatusOSByOrdemServico(ctx, os.ID)
+	historico, err := catalogo.HistoricoDaOS(ctx, os.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	response := dto.NewOrdemServicoResponse(dto.OrdemServicoDetalhe{
-		OrdemServico: os,
-		Cliente:      dono,
-		Veiculo:      v,
-		Servicos:     servicos,
-		Pecas:        pecas,
-		Reparos:      reparos,
-		Historico:    historico,
-	})
+	response := dto.NewOrdemServicoResponse(os, dono, v, historico)
 	return &response, nil
 }
 

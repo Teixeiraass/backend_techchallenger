@@ -3,9 +3,8 @@ package dto
 import (
 	"time"
 
-	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/ordemservico"
-	"github.com/Teixeiraass/backend_techchallenger/util"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/google/uuid"
 )
 
@@ -145,137 +144,104 @@ type OrdemServicoResponse struct {
 	Aviso string `json:"aviso,omitempty"`
 }
 
-// OrdemServicoDetalhe groups everything loaded from the database to render an OS.
-type OrdemServicoDetalhe struct {
-	OrdemServico db.OrdemServico
-	Cliente      db.Cliente
-	Veiculo      db.Veiculo
-	Servicos     []db.ListItensServicoByOrdemServicoRow
-	Pecas        []db.ListItensPecaByOrdemServicoRow
-	Reparos      []db.ReparoAdicional
-	Historico    []db.HistoricoStatusOS
-}
-
-func NewOrdemServicoResponse(d OrdemServicoDetalhe) OrdemServicoResponse {
-	os := d.OrdemServico
-	status := ordemservico.Status(os.Status)
-
-	servicos := make([]ItemServicoResponse, 0, len(d.Servicos))
-	itensServico := make([]ordemservico.Item, 0, len(d.Servicos))
-	for _, item := range d.Servicos {
-		servicos = append(servicos, ItemServicoResponse{
-			Uuid:                  item.Uuid,
-			ServicoUuid:           item.ServicoUuid,
-			ServicoNome:           item.ServicoNome,
-			Quantidade:            item.Quantidade,
-			ValorUnitarioCentavos: item.ValorUnitarioCentavos,
-			SubtotalCentavos:      int64(item.Quantidade) * item.ValorUnitarioCentavos,
-			ReparoAdicionalUuid:   nullUUIDPtr(item.ReparoAdicionalUuid),
-		})
-		itensServico = append(itensServico, ItemServicoParaDominio(item))
+// NewOrdemServicoResponse monta a resposta a partir do agregado (itens e
+// reparos vêm da raiz), do cliente e veículo (leitura) e do histórico.
+func NewOrdemServicoResponse(os *ordemservico.OrdemServico, dono readmodel.Cliente, v readmodel.Veiculo, historico []readmodel.HistoricoStatus) OrdemServicoResponse {
+	servicos := make([]ItemServicoResponse, 0)
+	pecas := make([]ItemPecaResponse, 0)
+	for _, item := range os.Itens {
+		switch item.Tipo {
+		case ordemservico.ItemServico:
+			servicos = append(servicos, ItemServicoResponse{
+				Uuid:                  item.UUID,
+				ServicoUuid:           item.CatalogoUUID,
+				ServicoNome:           item.Nome,
+				Quantidade:            item.Quantidade,
+				ValorUnitarioCentavos: item.ValorUnitarioCentavos,
+				SubtotalCentavos:      item.Subtotal(),
+				ReparoAdicionalUuid:   nullUUIDPtr(item.ReparoUUID),
+			})
+		case ordemservico.ItemPeca:
+			pecas = append(pecas, ItemPecaResponse{
+				Uuid:                  item.UUID,
+				PecaUuid:              item.CatalogoUUID,
+				PecaCodigo:            item.Codigo,
+				PecaNome:              item.Nome,
+				PecaTipo:              item.TipoPeca,
+				Quantidade:            item.Quantidade,
+				ValorUnitarioCentavos: item.ValorUnitarioCentavos,
+				SubtotalCentavos:      item.Subtotal(),
+				ReparoAdicionalUuid:   nullUUIDPtr(item.ReparoUUID),
+			})
+		}
 	}
 
-	pecas := make([]ItemPecaResponse, 0, len(d.Pecas))
-	itensPeca := make([]ordemservico.Item, 0, len(d.Pecas))
-	for _, item := range d.Pecas {
-		pecas = append(pecas, ItemPecaResponse{
-			Uuid:                  item.Uuid,
-			PecaUuid:              item.PecaUuid,
-			PecaCodigo:            item.PecaCodigo,
-			PecaNome:              item.PecaNome,
-			PecaTipo:              item.PecaTipo,
-			Quantidade:            item.Quantidade,
-			ValorUnitarioCentavos: item.ValorUnitarioCentavos,
-			SubtotalCentavos:      int64(item.Quantidade) * item.ValorUnitarioCentavos,
-			ReparoAdicionalUuid:   nullUUIDPtr(item.ReparoAdicionalUuid),
-		})
-		itensPeca = append(itensPeca, ItemPecaParaDominio(item))
-	}
-
-	reparos := make([]ReparoAdicionalResponse, 0, len(d.Reparos))
-	for _, r := range d.Reparos {
+	reparos := make([]ReparoAdicionalResponse, 0, len(os.Reparos))
+	for _, r := range os.Reparos {
 		reparos = append(reparos, ReparoAdicionalResponse{
-			Uuid:       r.Uuid,
+			Uuid:       r.UUID,
 			Descricao:  r.Descricao,
-			Status:     r.Status,
-			DecididoEm: util.FromNullTime(r.DecididoEm),
-			CreatedAt:  r.CreatedAt,
+			Status:     string(r.Status),
+			DecididoEm: r.DecididoEm,
+			CreatedAt:  r.CriadoEm,
 		})
 	}
 
-	historico := make([]HistoricoStatusResponse, 0, len(d.Historico))
-	for _, h := range d.Historico {
-		historico = append(historico, HistoricoStatusResponse{
+	linhas := make([]HistoricoStatusResponse, 0, len(historico))
+	for _, h := range historico {
+		linhas = append(linhas, HistoricoStatusResponse{
 			StatusAnterior: h.StatusAnterior,
 			StatusNovo:     h.StatusNovo,
 			Observacao:     h.Observacao,
-			CreatedAt:      h.CreatedAt,
+			CreatedAt:      h.CriadoEm,
 		})
 	}
 
-	orcamento := ordemservico.CalcularOrcamento(itensServico, itensPeca)
+	orcamento := os.Orcamento()
 
 	var tempoExecucao *int64
-	if os.ExecucaoIniciadaEm.Valid && os.FinalizadaEm.Valid {
-		segundos := int64(os.FinalizadaEm.Time.Sub(os.ExecucaoIniciadaEm.Time).Seconds())
+	if duracao, ok := os.TempoExecucao(); ok {
+		segundos := int64(duracao.Seconds())
 		tempoExecucao = &segundos
 	}
 
 	return OrdemServicoResponse{
-		Uuid:              os.Uuid,
-		Status:            os.Status,
-		StatusDescricao:   status.Descricao(),
+		Uuid:              os.UUID,
+		Status:            string(os.Status),
+		StatusDescricao:   os.Status.Descricao(),
 		DescricaoProblema: os.DescricaoProblema,
 		Diagnostico:       os.Diagnostico,
 		Cliente: ClienteResumo{
-			Uuid:      d.Cliente.Uuid,
-			Nome:      d.Cliente.Nome,
-			Documento: d.Cliente.Documento,
+			Uuid:      dono.UUID,
+			Nome:      dono.Nome,
+			Documento: dono.Documento,
 		},
 		Veiculo: VeiculoResumo{
-			Uuid:   d.Veiculo.Uuid,
-			Placa:  d.Veiculo.Placa,
-			Marca:  d.Veiculo.Marca,
-			Modelo: d.Veiculo.Modelo,
-			Ano:    d.Veiculo.Ano,
+			Uuid:   v.UUID,
+			Placa:  v.Placa,
+			Marca:  v.Marca,
+			Modelo: v.Modelo,
+			Ano:    v.Ano,
 		},
 		Orcamento: OrcamentoResponse{
-			Status:                os.OrcamentoStatus,
+			Status:                string(os.StatusOrcamento),
 			TotalServicosCentavos: orcamento.TotalServicosCentavos,
 			TotalPecasCentavos:    orcamento.TotalPecasCentavos,
 			TotalCentavos:         os.ValorTotalCentavos,
-			EnviadoEm:             util.FromNullTime(os.OrcamentoEnviadoEm),
-			DecididoEm:            util.FromNullTime(os.OrcamentoDecididoEm),
+			EnviadoEm:             os.OrcamentoEnviadoEm,
+			DecididoEm:            os.OrcamentoDecididoEm,
 		},
 		Servicos:              servicos,
 		Pecas:                 pecas,
 		ReparosAdicionais:     reparos,
-		Historico:             historico,
-		DiagnosticoIniciadoEm: util.FromNullTime(os.DiagnosticoIniciadoEm),
-		ExecucaoIniciadaEm:    util.FromNullTime(os.ExecucaoIniciadaEm),
-		FinalizadaEm:          util.FromNullTime(os.FinalizadaEm),
-		EntregueEm:            util.FromNullTime(os.EntregueEm),
+		Historico:             linhas,
+		DiagnosticoIniciadoEm: os.DiagnosticoIniciadoEm,
+		ExecucaoIniciadaEm:    os.ExecucaoIniciadaEm,
+		FinalizadaEm:          os.FinalizadaEm,
+		EntregueEm:            os.EntregueEm,
 		TempoExecucaoSegundos: tempoExecucao,
-		CreatedAt:             os.CreatedAt,
-		UpdatedAt:             os.UpdatedAt,
-	}
-}
-
-// ItemServicoParaDominio converts a service line into the item used by the budget.
-func ItemServicoParaDominio(item db.ListItensServicoByOrdemServicoRow) ordemservico.Item {
-	return ordemservico.Item{
-		Quantidade:            item.Quantidade,
-		ValorUnitarioCentavos: item.ValorUnitarioCentavos,
-		StatusReparo:          ordemservico.StatusReparo(item.ReparoAdicionalStatus.String),
-	}
-}
-
-// ItemPecaParaDominio converts a part line into the item used by the budget.
-func ItemPecaParaDominio(item db.ListItensPecaByOrdemServicoRow) ordemservico.Item {
-	return ordemservico.Item{
-		Quantidade:            item.Quantidade,
-		ValorUnitarioCentavos: item.ValorUnitarioCentavos,
-		StatusReparo:          ordemservico.StatusReparo(item.ReparoAdicionalStatus.String),
+		CreatedAt:             os.CriadaEm,
+		UpdatedAt:             os.AtualizadaEm,
 	}
 }
 
@@ -294,20 +260,20 @@ type OrdemServicoResumoResponse struct {
 	UpdatedAt          time.Time `json:"updated_at"`
 }
 
-func NewOrdemServicoResumoResponse(row db.ListOrdensServicoRow) OrdemServicoResumoResponse {
+func NewOrdemServicoResumoResponse(row readmodel.OrdemServicoResumo) OrdemServicoResumoResponse {
 	return OrdemServicoResumoResponse{
-		Uuid:               row.OrdemServico.Uuid,
-		Status:             row.OrdemServico.Status,
-		StatusDescricao:    ordemservico.Status(row.OrdemServico.Status).Descricao(),
-		OrcamentoStatus:    row.OrdemServico.OrcamentoStatus,
-		ValorTotalCentavos: row.OrdemServico.ValorTotalCentavos,
-		ClienteUuid:        row.ClienteUuid,
+		Uuid:               row.UUID,
+		Status:             row.Status,
+		StatusDescricao:    ordemservico.Status(row.Status).Descricao(),
+		OrcamentoStatus:    row.OrcamentoStatus,
+		ValorTotalCentavos: row.ValorTotalCentavos,
+		ClienteUuid:        row.ClienteUUID,
 		ClienteNome:        row.ClienteNome,
 		ClienteDocumento:   row.ClienteDocumento,
-		VeiculoUuid:        row.VeiculoUuid,
+		VeiculoUuid:        row.VeiculoUUID,
 		VeiculoPlaca:       row.VeiculoPlaca,
-		CreatedAt:          row.OrdemServico.CreatedAt,
-		UpdatedAt:          row.OrdemServico.UpdatedAt,
+		CreatedAt:          row.CriadaEm,
+		UpdatedAt:          row.AtualizadaEm,
 	}
 }
 

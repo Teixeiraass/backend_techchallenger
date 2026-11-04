@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/gin-gonic/gin"
 )
 
@@ -100,7 +101,7 @@ func (server *Server) GetUsuarioAtual(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewUsuarioResponse(*usuario))
+	ctx.JSON(http.StatusOK, dto.NewUsuarioResponse(readmodel.DeUsuario(*usuario)))
 }
 
 // CriarUsuario godoc
@@ -128,7 +129,7 @@ func (server *Server) CriarUsuario(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusCreated, dto.NewUsuarioResponse(*usuario))
+	ctx.JSON(http.StatusCreated, dto.NewUsuarioResponse(readmodel.DeUsuario(*usuario)))
 }
 
 // ListarUsuarios godoc
@@ -157,7 +158,7 @@ func (server *Server) ListarUsuarios(ctx *gin.Context) {
 
 	response := make([]dto.UsuarioResponse, 0, len(usuarios))
 	for _, u := range usuarios {
-		response = append(response, dto.NewUsuarioResponse(u))
+		response = append(response, dto.NewUsuarioResponse(readmodel.DeUsuario(u)))
 	}
 	ctx.JSON(http.StatusOK, response)
 }
@@ -192,5 +193,5 @@ func (server *Server) AtualizarUsuarioAtivo(ctx *gin.Context) {
 		handleError(ctx, err)
 		return
 	}
-	ctx.JSON(http.StatusOK, dto.NewUsuarioResponse(*usuario))
+	ctx.JSON(http.StatusOK, dto.NewUsuarioResponse(readmodel.DeUsuario(*usuario)))
 }

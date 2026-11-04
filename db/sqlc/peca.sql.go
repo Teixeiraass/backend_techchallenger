@@ -163,6 +163,32 @@ func (q *Queries) GetPeca(ctx context.Context, argUuid uuid.UUID) (Peca, error) 
 	return i, err
 }
 
+const getPecaByID = `-- name: GetPecaByID :one
+SELECT id, uuid, codigo, nome, descricao, tipo, unidade, preco_centavos, quantidade_estoque, estoque_minimo, ativo, created_at, updated_at FROM pecas
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetPecaByID(ctx context.Context, id int64) (Peca, error) {
+	row := q.db.QueryRowContext(ctx, getPecaByID, id)
+	var i Peca
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Codigo,
+		&i.Nome,
+		&i.Descricao,
+		&i.Tipo,
+		&i.Unidade,
+		&i.PrecoCentavos,
+		&i.QuantidadeEstoque,
+		&i.EstoqueMinimo,
+		&i.Ativo,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getPecaForUpdate = `-- name: GetPecaForUpdate :one
 SELECT id, uuid, codigo, nome, descricao, tipo, unidade, preco_centavos, quantidade_estoque, estoque_minimo, ativo, created_at, updated_at FROM pecas
 WHERE uuid = $1 LIMIT 1

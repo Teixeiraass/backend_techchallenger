@@ -539,3 +539,28 @@ func TestErrosDoAgregadoSaoDeDominio(t *testing.T) {
 	require.True(t, errors.Is(err, ErrTransicaoInvalida))
 	require.False(t, errors.Is(err, ErrReparoPendente))
 }
+
+func TestReconstituirEHistorico(t *testing.T) {
+	carregada := Reconstituir(osNoStatus(t, StatusEmDiagnostico))
+	require.NoError(t, carregada.EnviarOrcamento("", agora))
+	carregada.AnotarHistorico(7, "Orçamento enviado ao cliente")
+	carregada.AnotarHistorico(0, "sem mudança")
+
+	historico := carregada.Alteracoes().Historico
+	require.Len(t, historico, 2)
+	require.Equal(t, StatusEmDiagnostico, historico[0].StatusAnterior)
+	require.Equal(t, StatusAguardandoAprovacao, historico[0].StatusNovo)
+	require.Equal(t, int64(7), historico[0].UsuarioID)
+	require.Equal(t, "Orçamento enviado ao cliente", historico[0].Observacao)
+
+	carregada.LimparAlteracoes()
+	require.Empty(t, carregada.Alteracoes().Historico)
+	carregada.AnotarHistorico(0, "depois de salvar")
+	require.Equal(t, StatusAguardandoAprovacao, carregada.Alteracoes().Historico[0].StatusAnterior, "o status de referência avança ao salvar")
+
+	// OS nova: o status anterior da primeira entrada é vazio.
+	nova := Nova(1, 2, "")
+	nova.AnotarHistorico(1, "OS aberta")
+	require.Equal(t, Status(""), nova.Alteracoes().Historico[0].StatusAnterior)
+	require.Equal(t, StatusRecebida, nova.Alteracoes().Historico[0].StatusNovo)
+}

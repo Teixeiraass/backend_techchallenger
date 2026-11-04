@@ -96,3 +96,112 @@ func TestErrEstoqueInsuficientePara(t *testing.T) {
 	require.True(t, errors.Is(err, ErrEstoqueInsuficiente))
 	require.Equal(t, "estoque insuficiente para a peça: Filtro (FLT-01)", err.Error())
 }
+
+func cadastroPeca() Cadastro {
+	return Cadastro{Codigo: " flt-01 ", Nome: " Filtro ", Descricao: "d", Tipo: "PECA", Unidade: "", PrecoCentavos: 3500, EstoqueMinimo: 2}
+}
+
+func TestNovaPeca(t *testing.T) {
+	p, mov, err := NovaPeca(cadastroPeca(), 10)
+	require.NoError(t, err)
+	require.Equal(t, "FLT-01", p.Codigo)
+	require.Equal(t, "Filtro", p.Nome)
+	require.Equal(t, "UN", p.Unidade, "unidade vazia vira UN")
+	require.Equal(t, TipoPeca, p.Tipo)
+	require.True(t, p.Ativa)
+	require.Equal(t, int32(10), p.Saldo)
+	require.NotNil(t, mov)
+	require.Equal(t, MovimentoEntrada, mov.Tipo)
+	require.Equal(t, int32(10), mov.Quantidade)
+	require.Equal(t, int32(0), mov.SaldoAnterior)
+	require.Equal(t, int32(10), mov.SaldoPosterior)
+	require.Equal(t, "Saldo inicial", mov.Observacao)
+
+	semSaldo, mov, err := NovaPeca(cadastroPeca(), 0)
+	require.NoError(t, err)
+	require.Nil(t, mov, "sem saldo inicial não há movimento")
+	require.Equal(t, int32(0), semSaldo.Saldo)
+
+	_, _, err = NovaPeca(Cadastro{Tipo: "X"}, 0)
+	require.ErrorIs(t, err, ErrTipoInvalido)
+	_, _, err = NovaPeca(cadastroPeca(), -1)
+	require.ErrorIs(t, err, ErrSaldoNegativo)
+}
+
+func TestPecaAtualizarEInativar(t *testing.T) {
+	p, _, err := NovaPeca(cadastroPeca(), 5)
+	require.NoError(t, err)
+
+	novo := cadastroPeca()
+	novo.Nome = "Filtro premium"
+	novo.Unidade = "cx"
+	novo.EstoqueMinimo = 4
+	require.NoError(t, p.Atualizar(novo, false))
+	require.Equal(t, "Filtro premium", p.Nome)
+	require.Equal(t, "CX", p.Unidade)
+	require.Equal(t, int32(4), p.EstoqueMinimo)
+	require.False(t, p.Ativa)
+	require.Equal(t, int32(5), p.Saldo, "o saldo não muda pelo cadastro")
+
+	novo.PrecoCentavos = -1
+	require.ErrorIs(t, p.Atualizar(novo, true), ErrPrecoInvalido)
+
+	p.Ativa = true
+	p.Inativar()
+	require.False(t, p.Ativa)
+}
+
+func TestPecaBaixar(t *testing.T) {
+	p, _, err := NovaPeca(cadastroPeca(), 5)
+	require.NoError(t, err)
+	p.ID = 9
+
+	mov, err := p.Baixar(2, 77, 3)
+	require.NoError(t, err)
+	require.Equal(t, int32(3), p.Saldo)
+	require.Equal(t, MovimentoSaida, mov.Tipo)
+	require.Equal(t, int32(-2), mov.Quantidade)
+	require.Equal(t, int32(5), mov.SaldoAnterior)
+	require.Equal(t, int32(3), mov.SaldoPosterior)
+	require.Equal(t, int64(77), mov.OrdemServicoID)
+	require.Equal(t, int64(3), mov.UsuarioID)
+	require.Equal(t, int64(9), mov.PecaID)
+	require.False(t, p.EstoqueBaixo())
+
+	_, err = p.Baixar(4, 77, 3)
+	require.ErrorIs(t, err, ErrEstoqueInsuficiente)
+	require.Contains(t, err.Error(), "FLT-01")
+	require.Equal(t, int32(3), p.Saldo, "sem saldo nada muda")
+
+	_, err = p.Baixar(0, 77, 3)
+	require.ErrorIs(t, err, ErrQuantidadeInvalida)
+
+	_, err = p.Baixar(1, 77, 3)
+	require.NoError(t, err)
+	require.True(t, p.EstoqueBaixo(), "saldo 2 <= mínimo 2")
+}
+
+func TestPecaReporEAjustar(t *testing.T) {
+	p, _, err := NovaPeca(cadastroPeca(), 1)
+	require.NoError(t, err)
+
+	mov, err := p.Repor(4, 2, "compra")
+	require.NoError(t, err)
+	require.Equal(t, int32(5), p.Saldo)
+	require.Equal(t, MovimentoEntrada, mov.Tipo)
+	require.Equal(t, int32(4), mov.Quantidade)
+	require.Equal(t, int32(1), mov.SaldoAnterior)
+	require.Equal(t, "compra", mov.Observacao)
+	_, err = p.Repor(0, 2, "")
+	require.ErrorIs(t, err, ErrQuantidadeInvalida)
+
+	mov, err = p.Ajustar(2, 2, "inventário")
+	require.NoError(t, err)
+	require.Equal(t, int32(2), p.Saldo)
+	require.Equal(t, MovimentoAjuste, mov.Tipo)
+	require.Equal(t, int32(-3), mov.Quantidade)
+	require.Equal(t, int32(5), mov.SaldoAnterior)
+	require.Equal(t, int32(2), mov.SaldoPosterior)
+	_, err = p.Ajustar(-1, 2, "")
+	require.ErrorIs(t, err, ErrSaldoNegativo)
+}

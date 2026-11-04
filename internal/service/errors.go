@@ -30,12 +30,14 @@ var (
 	ErrIntervaloDatasInvalido = domain.NewValidationError("INTERVALO_INVALIDO", "data_inicio deve ser anterior a data_fim")
 )
 
-func isUniqueViolation(err error) bool {
+// IsUniqueViolation informa se o erro do banco é violação de unicidade.
+func IsUniqueViolation(err error) bool {
 	var pqErr *pq.Error
 	return errors.As(err, &pqErr) && pqErr.Code.Name() == "unique_violation"
 }
 
-func isForeignKeyViolation(err error) bool {
+// IsForeignKeyViolation informa se o erro do banco é violação de chave estrangeira.
+func IsForeignKeyViolation(err error) bool {
 	var pqErr *pq.Error
 	return errors.As(err, &pqErr) && pqErr.Code.Name() == "foreign_key_violation"
 }

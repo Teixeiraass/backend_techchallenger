@@ -112,4 +112,5 @@ type PedidoPeca struct {
 type Alteracoes struct {
 	ItensRemovidos   []Item
 	ReparosDecididos []uuid.UUID
+	Historico        []EntradaHistorico
 }

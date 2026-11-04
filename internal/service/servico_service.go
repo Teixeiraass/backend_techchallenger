@@ -34,7 +34,7 @@ func (s *servicoService) CriarServico(ctx context.Context, req dto.CriarServicoR
 		TempoEstimadoMinutos: req.TempoEstimadoMinutos,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
+		if IsUniqueViolation(err) {
 			return nil, ErrServicoDuplicado
 		}
 		return nil, err
@@ -69,7 +69,7 @@ func (s *servicoService) AtualizarServico(ctx context.Context, servicoUUID uuid.
 		Ativo:                *req.Ativo,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
+		if IsUniqueViolation(err) {
 			return nil, ErrServicoDuplicado
 		}
 		return nil, notFound(err, ErrServicoNaoEncontrado)

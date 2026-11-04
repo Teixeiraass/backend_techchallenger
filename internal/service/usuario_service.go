@@ -8,6 +8,7 @@ import (
 
 	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/dto"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/Teixeiraass/backend_techchallenger/token"
 	"github.com/Teixeiraass/backend_techchallenger/util"
 	"github.com/google/uuid"
@@ -50,7 +51,7 @@ func (s *usuarioService) CriarUsuario(ctx context.Context, req dto.CriarUsuarioR
 		Papel:          req.Papel,
 	})
 	if err != nil {
-		if isUniqueViolation(err) {
+		if IsUniqueViolation(err) {
 			return nil, ErrEmailDuplicado
 		}
 		return nil, err
@@ -137,7 +138,7 @@ func (s *usuarioService) Login(ctx context.Context, req dto.LoginRequest, userAg
 		AccessTokenExpiresAt:  accessPayload.ExpiredAt,
 		RefreshToken:          refreshToken,
 		RefreshTokenExpiresAt: refreshPayload.ExpiredAt,
-		Usuario:               dto.NewUsuarioResponse(usuario),
+		Usuario:               dto.NewUsuarioResponse(readmodel.DeUsuario(usuario)),
 	}, nil
 }
 

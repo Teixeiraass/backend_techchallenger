@@ -3,8 +3,8 @@ package dto
 import (
 	"time"
 
-	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/estoque"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/google/uuid"
 )
 
@@ -64,21 +64,22 @@ type PecaResponse struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-func NewPecaResponse(p db.Peca) PecaResponse {
+// NewPecaResponse monta a resposta a partir do agregado Peça.
+func NewPecaResponse(p estoque.Peca) PecaResponse {
 	return PecaResponse{
-		Uuid:              p.Uuid,
+		Uuid:              p.UUID,
 		Codigo:            p.Codigo,
 		Nome:              p.Nome,
 		Descricao:         p.Descricao,
-		Tipo:              p.Tipo,
+		Tipo:              string(p.Tipo),
 		Unidade:           p.Unidade,
 		PrecoCentavos:     p.PrecoCentavos,
-		QuantidadeEstoque: p.QuantidadeEstoque,
+		QuantidadeEstoque: p.Saldo,
 		EstoqueMinimo:     p.EstoqueMinimo,
-		EstoqueBaixo:      estoque.EstoqueBaixo(p.QuantidadeEstoque, p.EstoqueMinimo),
-		Ativo:             p.Ativo,
-		CreatedAt:         p.CreatedAt,
-		UpdatedAt:         p.UpdatedAt,
+		EstoqueBaixo:      p.EstoqueBaixo(),
+		Ativo:             p.Ativa,
+		CreatedAt:         p.CriadaEm,
+		UpdatedAt:         p.AtualizadaEm,
 	}
 }
 
@@ -92,14 +93,14 @@ type MovimentoEstoqueResponse struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
-func NewMovimentoEstoqueResponse(m db.MovimentoEstoque) MovimentoEstoqueResponse {
+func NewMovimentoEstoqueResponse(m readmodel.MovimentoEstoque) MovimentoEstoqueResponse {
 	return MovimentoEstoqueResponse{
-		Uuid:           m.Uuid,
+		Uuid:           m.UUID,
 		Tipo:           m.Tipo,
 		Quantidade:     m.Quantidade,
 		SaldoAnterior:  m.SaldoAnterior,
 		SaldoPosterior: m.SaldoPosterior,
 		Observacao:     m.Observacao,
-		CreatedAt:      m.CreatedAt,
+		CreatedAt:      m.CriadoEm,
 	}
 }

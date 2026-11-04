@@ -69,7 +69,9 @@ func TestAcompanhamentoAPI(t *testing.T) {
 			name: "AprovarSemEstoqueRegistraAviso", method: http.MethodPost, path: osPath(aguardando, "/orcamento/aprovar"), body: titular,
 			stubs: func(store *mockdb.MockStore) {
 				expectAprovacao(store)
-				store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Return(db.Peca{}, sql.ErrNoRows)
+				store.EXPECT().GetPecaByID(gomock.Any(), peca.ID).Return(peca, nil)
+				// O agregado recusa antes do UPDATE (saldo 10 < 50): nada chega ao banco.
+				store.EXPECT().BaixarEstoquePeca(gomock.Any(), gomock.Any()).Times(0)
 				stubOS(store, aguardando, []db.ListItensPecaByOrdemServicoRow{itemPeca(peca, 50, nil)}, nil)
 			},
 			status: http.StatusOK,
@@ -120,6 +122,7 @@ func TestDecisaoReparoAdicionalAPI(t *testing.T) {
 			name: "AutorizarOK", method: http.MethodPost, path: path("autorizar"), body: titular,
 			stubs: func(store *mockdb.MockStore) {
 				store.EXPECT().UpdateReparoAdicionalStatus(gomock.Any(), db.UpdateReparoAdicionalStatusParams{ID: reparo.ID, Status: "AUTORIZADO"}).Return(autorizado, nil)
+				store.EXPECT().GetPecaByID(gomock.Any(), peca.ID).Return(peca, nil)
 				store.EXPECT().BaixarEstoquePeca(gomock.Any(), db.BaixarEstoquePecaParams{ID: peca.ID, Quantidade: 1}).Return(peca, nil)
 				store.EXPECT().CreateMovimentoEstoque(gomock.Any(), gomock.Any()).Return(db.MovimentoEstoque{}, nil)
 				stubOS(store, emExecucao, []db.ListItensPecaByOrdemServicoRow{itemPeca(peca, 1, &reparo)}, []db.ReparoAdicional{reparo})

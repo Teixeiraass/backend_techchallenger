@@ -3,8 +3,8 @@ package dto
 import (
 	"time"
 
-	db "github.com/Teixeiraass/backend_techchallenger/db/sqlc"
 	"github.com/Teixeiraass/backend_techchallenger/internal/domain/cliente"
+	"github.com/Teixeiraass/backend_techchallenger/internal/readmodel"
 	"github.com/google/uuid"
 )
 
@@ -38,21 +38,21 @@ type ClienteResponse struct {
 	UpdatedAt          time.Time `json:"updated_at"`
 }
 
-func NewClienteResponse(c db.Cliente) ClienteResponse {
+func NewClienteResponse(c readmodel.Cliente) ClienteResponse {
 	formatado := c.Documento
 	if documento, err := cliente.NovoDocumento(c.Documento); err == nil {
 		formatado = documento.Formatado()
 	}
 
 	return ClienteResponse{
-		Uuid:               c.Uuid,
+		Uuid:               c.UUID,
 		Nome:               c.Nome,
 		Documento:          c.Documento,
 		DocumentoFormatado: formatado,
 		TipoDocumento:      c.TipoDocumento,
 		Email:              c.Email,
 		Telefone:           c.Telefone,
-		CreatedAt:          c.CreatedAt,
-		UpdatedAt:          c.UpdatedAt,
+		CreatedAt:          c.CriadoEm,
+		UpdatedAt:          c.AtualizadoEm,
 	}
 }
