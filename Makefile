@@ -68,7 +68,19 @@ trivy:
 up:
 	docker compose up --build -d
 
+# E2E: sobe o ambiente real (compose), espera a API responder e roda a coleção
+# Postman com o newman em Docker. Relatório JUnit em e2e-report/.
+e2e:
+	docker compose up --build -d
+	@for i in $$(seq 1 60); do curl -sf http://localhost:8080/api/v1/helper >/dev/null && break; sleep 2; done
+	mkdir -p e2e-report
+	docker run --rm --add-host=host.docker.internal:host-gateway \
+		-v "$(PWD)/docs/api:/etc/newman:ro" -v "$(PWD)/e2e-report:/out" postman/newman:alpine \
+		run oficina.postman_collection.json -e local.postman_environment.json \
+		--env-var base_url=http://host.docker.internal:8080/api/v1 \
+		-r cli,junit --reporter-junit-export /out/newman-report.xml
+
 down:
 	docker compose down
 
-.PHONY: postgres createdb dropdb migrateup migrateup1 migratedown migratedown1 new_migration sqlc test test-unit coverage coverage-all server mock swag vulncheck gosec trivy up down
+.PHONY: e2e postgres createdb dropdb migrateup migrateup1 migratedown migratedown1 new_migration sqlc test test-unit coverage coverage-all server mock swag vulncheck gosec trivy up down
