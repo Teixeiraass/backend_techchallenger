@@ -3,8 +3,8 @@ name: ci
 on:
   push:
     branches: [ "main", "develop" ]
+  # Todo PR roda o CI, inclusive os empilhados (base em outra branch de trabalho).
   pull_request:
-    branches: [ "main", "develop" ]
 
 jobs:
 
