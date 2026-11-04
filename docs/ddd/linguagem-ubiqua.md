@@ -207,17 +207,20 @@ Diferença usada aqui: **entidade** tem identidade e histórico (muda ao longo d
 | Item de serviço, item de peça, reparo adicional | Entidades internas do agregado | `internal/domain/ordemservico/item.go` (`Item`, `ReparoAdicional`); tabelas em `db/migration/000004_create_ordens_servico.up.sql` |
 | Serviço e peça vistos pela OS | Objetos de valor (cópia do catálogo no momento da inclusão) | `internal/domain/ordemservico/item.go` (`CatalogoServico`, `CatalogoPeca`, `PedidoServico`, `PedidoPeca`) |
 | Histórico de status | Entidade (registro imutável) | tabela `historico_status_os`, gravada por `internal/service/ordem_servico_repositorio.go` |
-| Peça e insumo | Agregado | `db/migration/000003_*`, `internal/domain/estoque/estoque.go`, `internal/service/peca_service.go` |
-| Movimento de estoque | Entidade | tabela `movimentos_estoque` |
+| Peça e insumo | Agregado (raiz) | `internal/domain/estoque/peca.go` (`Peca`: `Baixar`, `Repor`, `Ajustar`, `Atualizar`, `Inativar`, `EstoqueBaixo`); `internal/service/peca_service.go` |
+| Movimento de estoque | Entidade interna do agregado Peça | `internal/domain/estoque/peca.go` (`MovimentoEstoque`, devolvido por cada mudança de saldo); tabela `movimentos_estoque` |
+| Repositórios (portas do domínio) | Interfaces no domínio, implementação na infraestrutura | `ordemservico.Repositorio` (`internal/domain/ordemservico/repositorio.go`), `estoque.Repositorio` (`internal/domain/estoque/peca.go`); implementação sqlc em `internal/repository/` |
+| Unidade de trabalho e catálogo | Portas da aplicação | `internal/service/portas.go` (`UnidadeDeTrabalho`, `Repositorios`, `Catalogo`); implementação em `internal/repository/unidade_de_trabalho.go` e `catalogo_sqlc.go` |
 | Tipo da peça e tipo de movimento | Objetos de valor | `internal/domain/estoque/estoque.go` (`Tipo`, `TipoMovimento`) |
 | Serviço (catálogo) | Agregado | `internal/service/servico_service.go` |
 | Comandos | Casos de uso | um método por comando: OS em `internal/service/ordem_servico_comandos.go` (carrega o agregado, chama a raiz, persiste); demais em `internal/service/*_service.go` |
 | Consultas da OS | Casos de uso (leitura) | `internal/service/ordem_servico_consultas.go` (detalhe, andamento público, listagem, tempo médio) |
-| Carga e persistência do agregado | Infraestrutura (ponte agregado ↔ tabelas) | `internal/service/ordem_servico_repositorio.go` (`carregarOS`, `salvarOS`, `baixarEstoque`) |
+| Carga e persistência do agregado | Infraestrutura (implementa a porta do domínio) | `internal/repository/ordemservico_sqlc.go` (`Carregar`, `CarregarParaAtualizar`, `Salvar` grava pela diferença e registra o histórico anotado na raiz) |
+| Read models (listagens, tempo médio, respostas de cadastro) | Projeções de leitura | `internal/readmodel/` (os DTOs em `internal/dto` dependem só do domínio e do read model, nunca do sqlc) |
 | Políticas automáticas | Casos de uso | `internal/service/ordem_servico_comandos.go` (início da execução após aprovação, baixa de estoque, pedido de reposição, notificações); orçamento recalculado pela própria raiz |
 | Notificação | Porta e adaptador | `notification/sender.go`, `notification/log_sender.go` |
 | Autenticação (JWT, padrão, ou PASETO) e papéis | Infraestrutura | `token/`, `internal/middleware/auth.go` |
-| Transações | Infraestrutura | `db/sqlc/store.go` (`ExecTx`) |
+| Transações | Infraestrutura | `db/sqlc/store.go` (`ExecTx`), encapsulado pela unidade de trabalho (`internal/repository/unidade_de_trabalho.go`) |
 
 ### 5.2 Comandos e consultas → rotas da API
 

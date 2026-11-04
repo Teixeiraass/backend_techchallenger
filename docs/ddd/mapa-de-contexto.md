@@ -59,14 +59,14 @@ U = upstream (fornece). D = downstream (consome).
 
 | Relação | Padrão | Como funciona | Onde está no código |
 |---|---|---|---|
-| Cadastro → Ordem de Serviço | Cliente-Fornecedor | A OS busca o cliente pelo documento e o veículo pela placa. Guarda só os ids. | `AbrirOrdemServico` em `internal/service/ordem_servico_comandos.go` |
-| Catálogo e estoque → Ordem de Serviço | Cliente-Fornecedor | Ao incluir um item, a OS copia o preço do serviço ou da peça para o item (`ValorUnitarioCentavos`). Se o preço mudar depois, o orçamento não muda. Ao iniciar a execução, a OS pede a baixa das peças na mesma transação. | `servicoDoCatalogo`, `pecaDoCatalogo` e `baixarEstoque` em `internal/service/ordem_servico_repositorio.go`; `OrdemServico.AdicionarServico/AdicionarPeca` em `internal/domain/ordemservico`; regras de saldo em `internal/domain/estoque` |
+| Cadastro → Ordem de Serviço | Cliente-Fornecedor | A OS busca o cliente pelo documento e o veículo pela placa pela porta `service.Catalogo`. Guarda só os ids. | `AbrirOrdemServico` em `internal/service/ordem_servico_comandos.go`; `internal/repository/catalogo_sqlc.go` |
+| Catálogo e estoque → Ordem de Serviço | Cliente-Fornecedor | Ao incluir um item, a OS copia o preço do serviço ou da peça para o item (`ValorUnitarioCentavos`). Se o preço mudar depois, o orçamento não muda. Ao iniciar a execução, a OS pede a baixa das peças na mesma transação, pelo agregado `Peca` (`Baixar`) e pelo repositório de estoque (UPDATE condicional). | Portas `service.Catalogo` (serviço) e `estoque.Repositorio` (peça), implementadas em `internal/repository`; `OrdemServico.AdicionarServico/AdicionarPeca` em `internal/domain/ordemservico`; `baixarEstoque` em `internal/service/ordem_servico_service.go` |
 | Identidade e acesso → todos | Conformista | Os contextos usam o papel do usuário como o middleware entrega, sem tradução. | `internal/middleware/auth.go` (`RequireRole`), `token/` |
 | E-mail → Ordem de Serviço | Camada anticorrupção | A OS só conhece a porta `notification.Sender`. O provedor fica atrás dela. No MVP, o envio é só registrado em log (`LogSender`). | `notification/sender.go`, `cmd/server/main.go` |
 | Todos os contextos | Kernel compartilhado | Os contextos usam os mesmos erros de domínio e a mesma transação de banco. | `internal/domain/errors.go`, `db/sqlc/store.go` |
 
 ## Limites conhecidos
 
-- **Não há camada anticorrupção entre os contextos internos.** O serviço da OS consulta as tabelas de Cadastro e de Catálogo e estoque direto pelo `db.Querier`. Para separar os contextos em serviços, a OS precisaria de portas próprias (ex.: consulta de cliente, gestão de estoque).
+- **As portas entre os contextos existem, mas o modelo é o mesmo.** A OS não toca mais as tabelas de Cadastro e de Estoque: lê cliente, veículo e serviço pela porta `service.Catalogo` e muda saldo pelo agregado `estoque.Peca` e pela porta `estoque.Repositorio`. Ainda não há camada anticorrupção de verdade: as portas devolvem o modelo do outro contexto como ele é (sem tradução), porque os dois moram no mesmo monólito e no mesmo banco. Para separar os contextos em serviços, cada porta ganha um adaptador (HTTP, fila) e um tradutor.
 - **A baixa de estoque é síncrona e na mesma transação.** O Event Storming mostra o evento *Execução iniciada* disparando a baixa. No código, isso é uma chamada direta, sem evento publicado.
 - **A notificação do estoque baixo sai da OS.** Quem confere o estoque mínimo depois da baixa é o serviço da OS (`notificarEstoqueBaixo`), não o contexto de estoque.
